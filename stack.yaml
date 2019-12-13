@@ -17,7 +17,7 @@
 #
 # resolver: ./custom-snapshot.yaml
 # resolver: https://example.com/snapshots/2018-01-01.yaml
-resolver: lts-14.11
+resolver: lts-14.14
 
 # User packages to be built.
 # Various formats can be used as shown in the example below.
@@ -38,7 +38,12 @@ extra-deps:
 - git: https://github.com/tosku/tesths
   commit: 0fb1ba49641e87b843556cd1441240ef602fcf2b
 - ../meta-analysis
-#- git: https://github.com/tpapak/meta-analysis
+- git: https://github.com/tosku/graph
+  commit: 81211624daf3a16fd827c25bcfcbe9fb939eb608
+- Unique-0.4.7.5
+- natural-numbers-0.1.2.0
+- either-unwrap-1.1
+#- git: h ttps://github.com/tpapak/meta-analysis
 #commit: 037137b131547a686b17939e405d3a682ccaf034
 # - acme-missiles-0.3
 # - git: https://github.com/commercialhaskell/stack.git
