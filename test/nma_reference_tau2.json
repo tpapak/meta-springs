@@ -1,0 +1,170 @@
+[
+  {
+    "name": "senn2013",
+    "tau2": 0.0999,
+    "k": 26,
+    "treats": 10,
+    "multiarm": 1,
+    "sm": "MD"
+  },
+  {
+    "name": "synth_c1",
+    "tau2": 1.3515,
+    "k": 15,
+    "treats": 4,
+    "multiarm": 7,
+    "sm": "MD"
+  },
+  {
+    "name": "synth_c2",
+    "tau2": 0.5231,
+    "k": 20,
+    "treats": 5,
+    "multiarm": 8,
+    "sm": "MD"
+  },
+  {
+    "name": "synth_c3",
+    "tau2": 2.0222,
+    "k": 30,
+    "treats": 6,
+    "multiarm": 12,
+    "sm": "MD"
+  },
+  {
+    "name": "synth_c4",
+    "tau2": 0.4249,
+    "k": 10,
+    "treats": 3,
+    "multiarm": 6,
+    "sm": "MD"
+  },
+  {
+    "name": "synth_c5",
+    "tau2": 0.0282,
+    "k": 25,
+    "treats": 4,
+    "multiarm": 14,
+    "sm": "MD"
+  },
+  {
+    "name": "synth_c6",
+    "tau2": 0.8585,
+    "k": 40,
+    "treats": 8,
+    "multiarm": 21,
+    "sm": "MD"
+  },
+  {
+    "name": "synth_c7",
+    "tau2": 1.8589,
+    "k": 12,
+    "treats": 3,
+    "multiarm": 5,
+    "sm": "MD"
+  },
+  {
+    "name": "synth_c8",
+    "tau2": 0.0101,
+    "k": 50,
+    "treats": 5,
+    "multiarm": 24,
+    "sm": "MD"
+  },
+  {
+    "name": "synth_c9",
+    "tau2": 0.4085,
+    "k": 8,
+    "treats": 4,
+    "multiarm": 4,
+    "sm": "MD"
+  },
+  {
+    "name": "synth_c10",
+    "tau2": 0.2986,
+    "k": 35,
+    "treats": 6,
+    "multiarm": 19,
+    "sm": "MD"
+  },
+  {
+    "name": "synth_b1",
+    "tau2": 1.5682,
+    "k": 20,
+    "treats": 4,
+    "multiarm": 15,
+    "sm": "OR"
+  },
+  {
+    "name": "synth_b2",
+    "tau2": 0.7149,
+    "k": 15,
+    "treats": 3,
+    "multiarm": 6,
+    "sm": "OR"
+  },
+  {
+    "name": "synth_b3",
+    "tau2": 0.4071,
+    "k": 30,
+    "treats": 5,
+    "multiarm": 16,
+    "sm": "OR"
+  },
+  {
+    "name": "synth_b4",
+    "tau2": 0.5408,
+    "k": 25,
+    "treats": 6,
+    "multiarm": 19,
+    "sm": "OR"
+  },
+  {
+    "name": "synth_b5",
+    "tau2": 0.8122,
+    "k": 10,
+    "treats": 3,
+    "multiarm": 5,
+    "sm": "OR"
+  },
+  {
+    "name": "synth_b6",
+    "tau2": 0.2016,
+    "k": 40,
+    "treats": 4,
+    "multiarm": 19,
+    "sm": "OR"
+  },
+  {
+    "name": "synth_b7",
+    "tau2": 0.5492,
+    "k": 18,
+    "treats": 5,
+    "multiarm": 7,
+    "sm": "OR"
+  },
+  {
+    "name": "synth_b8",
+    "tau2": 0.3307,
+    "k": 22,
+    "treats": 4,
+    "multiarm": 11,
+    "sm": "OR"
+  },
+  {
+    "name": "synth_b9",
+    "tau2": 1.5337,
+    "k": 12,
+    "treats": 3,
+    "multiarm": 7,
+    "sm": "OR"
+  },
+  {
+    "name": "synth_b10",
+    "tau2": 0.2463,
+    "k": 35,
+    "treats": 6,
+    "multiarm": 17,
+    "sm": "OR"
+  }
+]

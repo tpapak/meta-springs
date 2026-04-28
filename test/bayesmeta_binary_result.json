@@ -1,0 +1,15 @@
+{
+  "dataset": "test/binary.json",
+  "prior": "flat-in-tau2 (density 2*tau in tau-space)",
+  "model": "bayesmeta normal-normal on logOR (0.5 cc for zeros)",
+  "tau2": {
+    "mode": 0.2529,
+    "median": 0.4454,
+    "mean": 0.6904,
+    "ci95": [0.0089, 3.7168]
+  },
+  "mu": {
+    "mean": 0.5375,
+    "ci95": [-0.3652, 1.3914]
+  }
+}

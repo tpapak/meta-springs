@@ -1,0 +1,128 @@
+[
+  {
+    "study": "2 DART",
+    "treatment": 1,
+    "events": 113,
+    "n": 1917
+  },
+  {
+    "study": "2 DART",
+    "treatment": 2,
+    "events": 111,
+    "n": 1925
+  },
+  {
+    "study": "10 London Corn /Olive",
+    "treatment": 1,
+    "events": 1,
+    "n": 43
+  },
+  {
+    "study": "10 London Corn /Olive",
+    "treatment": 2,
+    "events": 5,
+    "n": 41
+  },
+  {
+    "study": "10 London Corn /Olive",
+    "treatment": 3,
+    "events": 3,
+    "n": 38
+  },
+  {
+    "study": "11 London Low Fat",
+    "treatment": 1,
+    "events": 24,
+    "n": 393
+  },
+  {
+    "study": "11 London Low Fat",
+    "treatment": 2,
+    "events": 20,
+    "n": 373
+  },
+  {
+    "study": "14 Minnesota Coronary",
+    "treatment": 1,
+    "events": 248,
+    "n": 4715
+  },
+  {
+    "study": "14 Minnesota Coronary",
+    "treatment": 2,
+    "events": 269,
+    "n": 4823
+  },
+  {
+    "study": "15 MRC Soya",
+    "treatment": 1,
+    "events": 31,
+    "n": 715
+  },
+  {
+    "study": "15 MRC Soya",
+    "treatment": 2,
+    "events": 28,
+    "n": 751
+  },
+  {
+    "study": "18 Oslo Diet-Heart",
+    "treatment": 1,
+    "events": 65,
+    "n": 885
+  },
+  {
+    "study": "18 Oslo Diet-Heart",
+    "treatment": 2,
+    "events": 48,
+    "n": 895
+  },
+  {
+    "study": "22 STARS",
+    "treatment": 1,
+    "events": 3,
+    "n": 87
+  },
+  {
+    "study": "22 STARS",
+    "treatment": 2,
+    "events": 1,
+    "n": 91
+  },
+  {
+    "study": "23 Sydney Diet-Heart",
+    "treatment": 1,
+    "events": 28,
+    "n": 1011
+  },
+  {
+    "study": "23 Sydney Diet-Heart",
+    "treatment": 2,
+    "events": 39,
+    "n": 939
+  },
+  {
+    "study": "26 Veterans Administration",
+    "treatment": 1,
+    "events": 177,
+    "n": 1544
+  },
+  {
+    "study": "26 Veterans Administration",
+    "treatment": 2,
+    "events": 174,
+    "n": 1588
+  },
+  {
+    "study": "27 Veterans Diet & Skin CA",
+    "treatment": 1,
+    "events": 2,
+    "n": 125
+  },
+  {
+    "study": "27 Veterans Diet & Skin CA",
+    "treatment": 2,
+    "events": 1,
+    "n": 123
+  }
+]

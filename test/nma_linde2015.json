@@ -1,0 +1,752 @@
+[
+  {
+    "study": 1,
+    "treatment": "TCA",
+    "events": 49,
+    "n": 75
+  },
+  {
+    "study": 1,
+    "treatment": "SNRI",
+    "events": 60,
+    "n": 78
+  },
+  {
+    "study": 1,
+    "treatment": "Placebo",
+    "events": 48,
+    "n": 76
+  },
+  {
+    "study": 4,
+    "treatment": "TCA",
+    "events": 20,
+    "n": 35
+  },
+  {
+    "study": 4,
+    "treatment": "Placebo",
+    "events": 8,
+    "n": 23
+  },
+  {
+    "study": 7,
+    "treatment": "TCA",
+    "events": 16,
+    "n": 32
+  },
+  {
+    "study": 7,
+    "treatment": "Placebo",
+    "events": 12,
+    "n": 31
+  },
+  {
+    "study": 9,
+    "treatment": "TCA",
+    "events": 59,
+    "n": 363
+  },
+  {
+    "study": 9,
+    "treatment": "SSRI",
+    "events": 37,
+    "n": 173
+  },
+  {
+    "study": 11,
+    "treatment": "TCA",
+    "events": 48,
+    "n": 108
+  },
+  {
+    "study": 11,
+    "treatment": "SSRI",
+    "events": 50,
+    "n": 99
+  },
+  {
+    "study": 11,
+    "treatment": "Placebo",
+    "events": 40,
+    "n": 101
+  },
+  {
+    "study": 17,
+    "treatment": "TCA",
+    "events": 55,
+    "n": 111
+  },
+  {
+    "study": 17,
+    "treatment": "Placebo",
+    "events": 27,
+    "n": 108
+  },
+  {
+    "study": 20,
+    "treatment": "TCA",
+    "events": 29,
+    "n": 55
+  },
+  {
+    "study": 20,
+    "treatment": "SSRI",
+    "events": 27,
+    "n": 51
+  },
+  {
+    "study": 22,
+    "treatment": "TCA",
+    "events": 48,
+    "n": 73
+  },
+  {
+    "study": 22,
+    "treatment": "SSRI",
+    "events": 46,
+    "n": 71
+  },
+  {
+    "study": 23,
+    "treatment": "TCA",
+    "events": 122,
+    "n": 191
+  },
+  {
+    "study": 23,
+    "treatment": "SSRI",
+    "events": 127,
+    "n": 184
+  },
+  {
+    "study": 24,
+    "treatment": "TCA",
+    "events": 16,
+    "n": 31
+  },
+  {
+    "study": 24,
+    "treatment": "Placebo",
+    "events": 9,
+    "n": 30
+  },
+  {
+    "study": 26,
+    "treatment": "SSRI",
+    "events": 183,
+    "n": 314
+  },
+  {
+    "study": 26,
+    "treatment": "Placebo",
+    "events": 74,
+    "n": 154
+  },
+  {
+    "study": 29,
+    "treatment": "TCA",
+    "events": 31,
+    "n": 51
+  },
+  {
+    "study": 29,
+    "treatment": "SSRI",
+    "events": 19,
+    "n": 49
+  },
+  {
+    "study": 30,
+    "treatment": "NaSSa",
+    "events": 17,
+    "n": 38
+  },
+  {
+    "study": 30,
+    "treatment": "rMAO-A",
+    "events": 34,
+    "n": 79
+  },
+  {
+    "study": 31,
+    "treatment": "TCA",
+    "events": 37,
+    "n": 90
+  },
+  {
+    "study": 31,
+    "treatment": "Placebo",
+    "events": 23,
+    "n": 88
+  },
+  {
+    "study": 33,
+    "treatment": "TCA",
+    "events": 120,
+    "n": 175
+  },
+  {
+    "study": 33,
+    "treatment": "rMAO-A",
+    "events": 95,
+    "n": 170
+  },
+  {
+    "study": 34,
+    "treatment": "TCA",
+    "events": 33,
+    "n": 68
+  },
+  {
+    "study": 34,
+    "treatment": "SSRI",
+    "events": 38,
+    "n": 70
+  },
+  {
+    "study": 37,
+    "treatment": "TCA",
+    "events": 18,
+    "n": 32
+  },
+  {
+    "study": 37,
+    "treatment": "SSRI",
+    "events": 35,
+    "n": 58
+  },
+  {
+    "study": 39,
+    "treatment": "NaSSa",
+    "events": 15,
+    "n": 27
+  },
+  {
+    "study": 39,
+    "treatment": "Placebo",
+    "events": 12,
+    "n": 25
+  },
+  {
+    "study": 41,
+    "treatment": "SSRI",
+    "events": 98,
+    "n": 170
+  },
+  {
+    "study": 41,
+    "treatment": "SNRI",
+    "events": 81,
+    "n": 171
+  },
+  {
+    "study": 46,
+    "treatment": "SSRI",
+    "events": 72,
+    "n": 118
+  },
+  {
+    "study": 46,
+    "treatment": "Hypericum",
+    "events": 70,
+    "n": 123
+  },
+  {
+    "study": 48,
+    "treatment": "SSRI",
+    "events": 103,
+    "n": 191
+  },
+  {
+    "study": 48,
+    "treatment": "Placebo",
+    "events": 79,
+    "n": 189
+  },
+  {
+    "study": 49,
+    "treatment": "SSRI",
+    "events": 60,
+    "n": 137
+  },
+  {
+    "study": 49,
+    "treatment": "Placebo",
+    "events": 43,
+    "n": 140
+  },
+  {
+    "study": 50,
+    "treatment": "SSRI",
+    "events": 71,
+    "n": 127
+  },
+  {
+    "study": 50,
+    "treatment": "Hypericum",
+    "events": 71,
+    "n": 131
+  },
+  {
+    "study": 50,
+    "treatment": "Placebo",
+    "events": 51,
+    "n": 130
+  },
+  {
+    "study": 52,
+    "treatment": "TCA",
+    "events": 14,
+    "n": 23
+  },
+  {
+    "study": 52,
+    "treatment": "rMAO-A",
+    "events": 13,
+    "n": 30
+  },
+  {
+    "study": 53,
+    "treatment": "SSRI",
+    "events": 66,
+    "n": 122
+  },
+  {
+    "study": 53,
+    "treatment": "NaSSa",
+    "events": 60,
+    "n": 121
+  },
+  {
+    "study": 53,
+    "treatment": "Placebo",
+    "events": 59,
+    "n": 129
+  },
+  {
+    "study": 55,
+    "treatment": "TCA",
+    "events": 70,
+    "n": 110
+  },
+  {
+    "study": 55,
+    "treatment": "Hypericum",
+    "events": 76,
+    "n": 106
+  },
+  {
+    "study": 55,
+    "treatment": "Placebo",
+    "events": 29,
+    "n": 47
+  },
+  {
+    "study": 56,
+    "treatment": "TCA",
+    "events": 49,
+    "n": 92
+  },
+  {
+    "study": 56,
+    "treatment": "SSRI",
+    "events": 202,
+    "n": 380
+  },
+  {
+    "study": 57,
+    "treatment": "TCA",
+    "events": 317,
+    "n": 506
+  },
+  {
+    "study": 57,
+    "treatment": "SSRI",
+    "events": 328,
+    "n": 513
+  },
+  {
+    "study": 61,
+    "treatment": "SSRI",
+    "events": 20,
+    "n": 56
+  },
+  {
+    "study": 61,
+    "treatment": "Hypericum",
+    "events": 22,
+    "n": 57
+  },
+  {
+    "study": 61,
+    "treatment": "Placebo",
+    "events": 21,
+    "n": 57
+  },
+  {
+    "study": 64,
+    "treatment": "SSRI",
+    "events": 45,
+    "n": 114
+  },
+  {
+    "study": 64,
+    "treatment": "Hypericum",
+    "events": 75,
+    "n": 126
+  },
+  {
+    "study": 65,
+    "treatment": "Hypericum",
+    "events": 35,
+    "n": 60
+  },
+  {
+    "study": 65,
+    "treatment": "Placebo",
+    "events": 10,
+    "n": 60
+  },
+  {
+    "study": 66,
+    "treatment": "Hypericum",
+    "events": 14,
+    "n": 20
+  },
+  {
+    "study": 66,
+    "treatment": "Placebo",
+    "events": 9,
+    "n": 20
+  },
+  {
+    "study": 67,
+    "treatment": "SSRI",
+    "events": 57,
+    "n": 84
+  },
+  {
+    "study": 67,
+    "treatment": "Hypericum",
+    "events": 50,
+    "n": 77
+  },
+  {
+    "study": 68,
+    "treatment": "Hypericum",
+    "events": 10,
+    "n": 20
+  },
+  {
+    "study": 68,
+    "treatment": "Placebo",
+    "events": 4,
+    "n": 20
+  },
+  {
+    "study": 70,
+    "treatment": "SSRI",
+    "events": 23,
+    "n": 45
+  },
+  {
+    "study": 70,
+    "treatment": "Hypericum",
+    "events": 25,
+    "n": 45
+  },
+  {
+    "study": 71,
+    "treatment": "Hypericum",
+    "events": 34,
+    "n": 48
+  },
+  {
+    "study": 71,
+    "treatment": "Placebo",
+    "events": 25,
+    "n": 49
+  },
+  {
+    "study": 72,
+    "treatment": "TCA",
+    "events": 40,
+    "n": 78
+  },
+  {
+    "study": 72,
+    "treatment": "Hypericum",
+    "events": 42,
+    "n": 87
+  },
+  {
+    "study": 73,
+    "treatment": "Hypericum",
+    "events": 32,
+    "n": 55
+  },
+  {
+    "study": 73,
+    "treatment": "Placebo",
+    "events": 29,
+    "n": 57
+  },
+  {
+    "study": 74,
+    "treatment": "Hypericum",
+    "events": 43,
+    "n": 98
+  },
+  {
+    "study": 74,
+    "treatment": "Placebo",
+    "events": 16,
+    "n": 49
+  },
+  {
+    "study": 76,
+    "treatment": "SSRI",
+    "events": 113,
+    "n": 148
+  },
+  {
+    "study": 76,
+    "treatment": "SNRI",
+    "events": 113,
+    "n": 145
+  },
+  {
+    "study": 83,
+    "treatment": "TCA",
+    "events": 56,
+    "n": 79
+  },
+  {
+    "study": 83,
+    "treatment": "Low-dose SARI",
+    "events": 58,
+    "n": 112
+  },
+  {
+    "study": 83,
+    "treatment": "NaSSa",
+    "events": 14,
+    "n": 36
+  },
+  {
+    "study": 88,
+    "treatment": "Low-dose SARI",
+    "events": 38,
+    "n": 61
+  },
+  {
+    "study": 88,
+    "treatment": "NaSSa",
+    "events": 25,
+    "n": 64
+  },
+  {
+    "study": 90,
+    "treatment": "TCA",
+    "events": 21,
+    "n": 42
+  },
+  {
+    "study": 90,
+    "treatment": "SSRI",
+    "events": 15,
+    "n": 42
+  },
+  {
+    "study": 91,
+    "treatment": "TCA",
+    "events": 35,
+    "n": 64
+  },
+  {
+    "study": 91,
+    "treatment": "rMAO-A",
+    "events": 31,
+    "n": 66
+  },
+  {
+    "study": 94,
+    "treatment": "TCA",
+    "events": 36,
+    "n": 80
+  },
+  {
+    "study": 94,
+    "treatment": "SSRI",
+    "events": 29,
+    "n": 82
+  },
+  {
+    "study": 95,
+    "treatment": "TCA",
+    "events": 35,
+    "n": 67
+  },
+  {
+    "study": 95,
+    "treatment": "SSRI",
+    "events": 29,
+    "n": 67
+  },
+  {
+    "study": 96,
+    "treatment": "TCA",
+    "events": 11,
+    "n": 30
+  },
+  {
+    "study": 96,
+    "treatment": "SSRI",
+    "events": 15,
+    "n": 29
+  },
+  {
+    "study": 100,
+    "treatment": "TCA",
+    "events": 57,
+    "n": 115
+  },
+  {
+    "study": 100,
+    "treatment": "SSRI",
+    "events": 72,
+    "n": 122
+  },
+  {
+    "study": 105,
+    "treatment": "TCA",
+    "events": 124,
+    "n": 186
+  },
+  {
+    "study": 105,
+    "treatment": "SSRI",
+    "events": 122,
+    "n": 179
+  },
+  {
+    "study": 112,
+    "treatment": "SSRI",
+    "events": 113,
+    "n": 178
+  },
+  {
+    "study": 112,
+    "treatment": "SNRI",
+    "events": 130,
+    "n": 183
+  },
+  {
+    "study": 113,
+    "treatment": "TCA",
+    "events": 52,
+    "n": 114
+  },
+  {
+    "study": 113,
+    "treatment": "Low-dose SARI",
+    "events": 54,
+    "n": 114
+  },
+  {
+    "study": 114,
+    "treatment": "Low-dose SARI",
+    "events": 15,
+    "n": 20
+  },
+  {
+    "study": 114,
+    "treatment": "NaSSa",
+    "events": 15,
+    "n": 20
+  },
+  {
+    "study": 116,
+    "treatment": "SSRI",
+    "events": 28,
+    "n": 31
+  },
+  {
+    "study": 116,
+    "treatment": "NaSSa",
+    "events": 25,
+    "n": 31
+  },
+  {
+    "study": 120,
+    "treatment": "TCA",
+    "events": 63,
+    "n": 218
+  },
+  {
+    "study": 120,
+    "treatment": "SSRI",
+    "events": 31,
+    "n": 109
+  },
+  {
+    "study": 121,
+    "treatment": "Low-dose SARI",
+    "events": 27,
+    "n": 43
+  },
+  {
+    "study": 121,
+    "treatment": "NaSSa",
+    "events": 15,
+    "n": 40
+  },
+  {
+    "study": 123,
+    "treatment": "SSRI",
+    "events": 35,
+    "n": 98
+  },
+  {
+    "study": 123,
+    "treatment": "NaSSa",
+    "events": 43,
+    "n": 99
+  },
+  {
+    "study": 128,
+    "treatment": "TCA",
+    "events": 22,
+    "n": 50
+  },
+  {
+    "study": 128,
+    "treatment": "SSRI",
+    "events": 21,
+    "n": 53
+  },
+  {
+    "study": 132,
+    "treatment": "TCA",
+    "events": 21,
+    "n": 43
+  },
+  {
+    "study": 132,
+    "treatment": "SNRI",
+    "events": 19,
+    "n": 45
+  },
+  {
+    "study": 135,
+    "treatment": "SSRI",
+    "events": 117,
+    "n": 298
+  },
+  {
+    "study": 135,
+    "treatment": "NRI",
+    "events": 107,
+    "n": 303
+  }
+]

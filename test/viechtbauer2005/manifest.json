@@ -1,0 +1,50 @@
+[
+  {
+    "condition": "nbar20_s2t0.125",
+    "nbar": 20,
+    "sigma2_theta_true": 0.125,
+    "k": 20,
+    "n_reps": 1000,
+    "data_dir": "test/viechtbauer2005/data/nbar20_s2t0.125"
+  },
+  {
+    "condition": "nbar20_s2t0.25",
+    "nbar": 20,
+    "sigma2_theta_true": 0.25,
+    "k": 20,
+    "n_reps": 1000,
+    "data_dir": "test/viechtbauer2005/data/nbar20_s2t0.25"
+  },
+  {
+    "condition": "nbar20_s2t0.5",
+    "nbar": 20,
+    "sigma2_theta_true": 0.5,
+    "k": 20,
+    "n_reps": 1000,
+    "data_dir": "test/viechtbauer2005/data/nbar20_s2t0.5"
+  },
+  {
+    "condition": "nbar40_s2t0.125",
+    "nbar": 40,
+    "sigma2_theta_true": 0.125,
+    "k": 20,
+    "n_reps": 1000,
+    "data_dir": "test/viechtbauer2005/data/nbar40_s2t0.125"
+  },
+  {
+    "condition": "nbar40_s2t0.25",
+    "nbar": 40,
+    "sigma2_theta_true": 0.25,
+    "k": 20,
+    "n_reps": 1000,
+    "data_dir": "test/viechtbauer2005/data/nbar40_s2t0.25"
+  },
+  {
+    "condition": "nbar40_s2t0.5",
+    "nbar": 40,
+    "sigma2_theta_true": 0.5,
+    "k": 20,
+    "n_reps": 1000,
+    "data_dir": "test/viechtbauer2005/data/nbar40_s2t0.5"
+  }
+]

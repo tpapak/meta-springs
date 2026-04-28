@@ -1,0 +1,107 @@
+[
+  {
+    "study": "Lieberman 1998",
+    "treatment": "Placebo",
+    "mean": -1.22,
+    "sd": 3.7,
+    "n": 54
+  },
+  {
+    "study": "Lieberman 1998",
+    "treatment": "Ropinirole",
+    "mean": -1.53,
+    "sd": 4.28,
+    "n": 95
+  },
+  {
+    "study": "Lieberman 1997",
+    "treatment": "Placebo",
+    "mean": -0.7,
+    "sd": 3.7,
+    "n": 172
+  },
+  {
+    "study": "Lieberman 1997",
+    "treatment": "Pramipexole",
+    "mean": -2.4,
+    "sd": 3.4,
+    "n": 173
+  },
+  {
+    "study": "Guttman 1997",
+    "treatment": "Placebo",
+    "mean": -0.3,
+    "sd": 4.4,
+    "n": 76
+  },
+  {
+    "study": "Guttman 1997",
+    "treatment": "Pramipexole",
+    "mean": -2.6,
+    "sd": 4.3,
+    "n": 71
+  },
+  {
+    "study": "Guttman 1997",
+    "treatment": "Bromocriptine",
+    "mean": -1.2,
+    "sd": 4.3,
+    "n": 81
+  },
+  {
+    "study": "Brunt 2002, Group A",
+    "treatment": "Ropinirole",
+    "mean": -0.24,
+    "sd": 3,
+    "n": 128
+  },
+  {
+    "study": "Brunt 2002, Group A",
+    "treatment": "Bromocriptine",
+    "mean": -0.59,
+    "sd": 3,
+    "n": 72
+  },
+  {
+    "study": "Brunt 2002, Group B",
+    "treatment": "Ropinirole",
+    "mean": -0.73,
+    "sd": 3,
+    "n": 80
+  },
+  {
+    "study": "Brunt 2002, Group B",
+    "treatment": "Bromocriptine",
+    "mean": -0.18,
+    "sd": 3,
+    "n": 46
+  },
+  {
+    "study": "Gershanik 1994b",
+    "treatment": "Bromocriptine",
+    "mean": -2.2,
+    "sd": 2.31,
+    "n": 137
+  },
+  {
+    "study": "Gershanik 1994b",
+    "treatment": "Cabergoline",
+    "mean": -2.5,
+    "sd": 2.18,
+    "n": 131
+  },
+  {
+    "study": "Gershanik 1994a",
+    "treatment": "Bromocriptine",
+    "mean": -1.8,
+    "sd": 2.48,
+    "n": 154
+  },
+  {
+    "study": "Gershanik 1994a",
+    "treatment": "Cabergoline",
+    "mean": -2.1,
+    "sd": 2.99,
+    "n": 143
+  }
+]

@@ -1,0 +1,152 @@
+[
+  {
+    "study": 1,
+    "treatment": 1,
+    "events": 74,
+    "n": 185
+  },
+  {
+    "study": 1,
+    "treatment": 2,
+    "events": 37,
+    "n": 101
+  },
+  {
+    "study": 2,
+    "treatment": 1,
+    "events": 52,
+    "n": 113
+  },
+  {
+    "study": 2,
+    "treatment": 3,
+    "events": 90,
+    "n": 135
+  },
+  {
+    "study": 3,
+    "treatment": 1,
+    "events": 53,
+    "n": 156
+  },
+  {
+    "study": 3,
+    "treatment": 2,
+    "events": 32,
+    "n": 85
+  },
+  {
+    "study": 3,
+    "treatment": 3,
+    "events": 49,
+    "n": 66
+  },
+  {
+    "study": 4,
+    "treatment": 1,
+    "events": 68,
+    "n": 171
+  },
+  {
+    "study": 4,
+    "treatment": 3,
+    "events": 151,
+    "n": 198
+  },
+  {
+    "study": 5,
+    "treatment": 1,
+    "events": 36,
+    "n": 73
+  },
+  {
+    "study": 5,
+    "treatment": 2,
+    "events": 47,
+    "n": 73
+  },
+  {
+    "study": 5,
+    "treatment": 3,
+    "events": 35,
+    "n": 51
+  },
+  {
+    "study": 6,
+    "treatment": 1,
+    "events": 62,
+    "n": 83
+  },
+  {
+    "study": 6,
+    "treatment": 2,
+    "events": 40,
+    "n": 67
+  },
+  {
+    "study": 7,
+    "treatment": 2,
+    "events": 44,
+    "n": 174
+  },
+  {
+    "study": 7,
+    "treatment": 3,
+    "events": 38,
+    "n": 108
+  },
+  {
+    "study": 8,
+    "treatment": 1,
+    "events": 11,
+    "n": 57
+  },
+  {
+    "study": 8,
+    "treatment": 2,
+    "events": 37,
+    "n": 162
+  },
+  {
+    "study": 8,
+    "treatment": 3,
+    "events": 122,
+    "n": 172
+  },
+  {
+    "study": 9,
+    "treatment": 1,
+    "events": 66,
+    "n": 189
+  },
+  {
+    "study": 9,
+    "treatment": 2,
+    "events": 100,
+    "n": 127
+  },
+  {
+    "study": 9,
+    "treatment": 3,
+    "events": 51,
+    "n": 68
+  },
+  {
+    "study": 10,
+    "treatment": 1,
+    "events": 118,
+    "n": 181
+  },
+  {
+    "study": 10,
+    "treatment": 2,
+    "events": 33,
+    "n": 114
+  },
+  {
+    "study": 10,
+    "treatment": 3,
+    "events": 81,
+    "n": 160
+  }
+]

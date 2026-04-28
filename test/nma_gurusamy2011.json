@@ -1,0 +1,176 @@
+[
+  {
+    "study": "Findlay 2001",
+    "treatment": "Control/Placebo",
+    "death": 1,
+    "n": 30
+  },
+  {
+    "study": "Findlay 2001",
+    "treatment": "Aprotonin",
+    "death": 0,
+    "n": 33
+  },
+  {
+    "study": "Garcia-Huete 1997",
+    "treatment": "Control/Placebo",
+    "death": 3,
+    "n": 41
+  },
+  {
+    "study": "Garcia-Huete 1997",
+    "treatment": "Aprotonin",
+    "death": 1,
+    "n": 39
+  },
+  {
+    "study": "Porte 2000",
+    "treatment": "Control/Placebo",
+    "death": 4,
+    "n": 48
+  },
+  {
+    "study": "Porte 2000",
+    "treatment": "Aprotonin",
+    "death": 5,
+    "n": 89
+  },
+  {
+    "study": "Boylan 1996",
+    "treatment": "Control/Placebo",
+    "death": 3,
+    "n": 20
+  },
+  {
+    "study": "Boylan 1996",
+    "treatment": "Tranexamic acid",
+    "death": 0,
+    "n": 25
+  },
+  {
+    "study": "Dalmau 2000",
+    "treatment": "Control/Placebo",
+    "death": 2,
+    "n": 20
+  },
+  {
+    "study": "Dalmau 2000",
+    "treatment": "Tranexamic acid",
+    "death": 3,
+    "n": 42
+  },
+  {
+    "study": "Dalmau 2000",
+    "treatment": "EACA",
+    "death": 3,
+    "n": 42
+  },
+  {
+    "study": "Kaspar 1997",
+    "treatment": "Control/Placebo",
+    "death": 0,
+    "n": 16
+  },
+  {
+    "study": "Kaspar 1997",
+    "treatment": "Tranexamic acid",
+    "death": 1,
+    "n": 16
+  },
+  {
+    "study": "Baudo 1992",
+    "treatment": "Control/Placebo",
+    "death": 2,
+    "n": 16
+  },
+  {
+    "study": "Baudo 1992",
+    "treatment": "Antithrombin III",
+    "death": 0,
+    "n": 13
+  },
+  {
+    "study": "Lodge 2005",
+    "treatment": "Control/Placebo",
+    "death": 1,
+    "n": 62
+  },
+  {
+    "study": "Lodge 2005",
+    "treatment": "rFVIIa",
+    "death": 3,
+    "n": 121
+  },
+  {
+    "study": "Planinsic 2005",
+    "treatment": "Control/Placebo",
+    "death": 1,
+    "n": 19
+  },
+  {
+    "study": "Planinsic 2005",
+    "treatment": "rFVIIa",
+    "death": 5,
+    "n": 64
+  },
+  {
+    "study": "Pugliese 2007",
+    "treatment": "Control/Placebo",
+    "death": 0,
+    "n": 10
+  },
+  {
+    "study": "Pugliese 2007",
+    "treatment": "rFVIIa",
+    "death": 0,
+    "n": 10
+  },
+  {
+    "study": "Himmelreich 1992",
+    "treatment": "Control/Placebo",
+    "death": 0,
+    "n": 10
+  },
+  {
+    "study": "Himmelreich 1992",
+    "treatment": "Aprotonin",
+    "death": 0,
+    "n": 13
+  },
+  {
+    "study": "Williamson 1999",
+    "treatment": "Control/Placebo",
+    "death": 0,
+    "n": 13
+  },
+  {
+    "study": "Williamson 1999",
+    "treatment": "Solvent detergent plasma",
+    "death": 0,
+    "n": 12
+  },
+  {
+    "study": "Dalmau 2004",
+    "treatment": "Aprotonin",
+    "death": 1,
+    "n": 63
+  },
+  {
+    "study": "Dalmau 2004",
+    "treatment": "Tranexamic acid",
+    "death": 4,
+    "n": 64
+  },
+  {
+    "study": "Ickx 2006",
+    "treatment": "Aprotonin",
+    "death": 0,
+    "n": 24
+  },
+  {
+    "study": "Ickx 2006",
+    "treatment": "Tranexamic acid",
+    "death": 2,
+    "n": 27
+  }
+]

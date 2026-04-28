@@ -1,0 +1,302 @@
+[
+  {
+    "study": 1,
+    "treatment": 2,
+    "events": 2,
+    "n": 52
+  },
+  {
+    "study": 1,
+    "treatment": 1,
+    "events": 2,
+    "n": 51
+  },
+  {
+    "study": 2,
+    "treatment": 2,
+    "events": 27,
+    "n": 541
+  },
+  {
+    "study": 2,
+    "treatment": 1,
+    "events": 25,
+    "n": 271
+  },
+  {
+    "study": 3,
+    "treatment": 2,
+    "events": 1,
+    "n": 83
+  },
+  {
+    "study": 3,
+    "treatment": 1,
+    "events": 3,
+    "n": 82
+  },
+  {
+    "study": 4,
+    "treatment": 2,
+    "events": 13,
+    "n": 319
+  },
+  {
+    "study": 4,
+    "treatment": 1,
+    "events": 19,
+    "n": 176
+  },
+  {
+    "study": 5,
+    "treatment": 2,
+    "events": 23,
+    "n": 182
+  },
+  {
+    "study": 5,
+    "treatment": 1,
+    "events": 49,
+    "n": 182
+  },
+  {
+    "study": 6,
+    "treatment": 2,
+    "events": 6,
+    "n": 77
+  },
+  {
+    "study": 6,
+    "treatment": 1,
+    "events": 13,
+    "n": 77
+  },
+  {
+    "study": 7,
+    "treatment": 2,
+    "events": 1,
+    "n": 163
+  },
+  {
+    "study": 7,
+    "treatment": 1,
+    "events": 2,
+    "n": 157
+  },
+  {
+    "study": 8,
+    "treatment": 2,
+    "events": 5,
+    "n": 275
+  },
+  {
+    "study": 8,
+    "treatment": 1,
+    "events": 7,
+    "n": 144
+  },
+  {
+    "study": 9,
+    "treatment": 2,
+    "events": 10,
+    "n": 131
+  },
+  {
+    "study": 9,
+    "treatment": 1,
+    "events": 25,
+    "n": 134
+  },
+  {
+    "study": 10,
+    "treatment": 2,
+    "events": 13,
+    "n": 166
+  },
+  {
+    "study": 10,
+    "treatment": 1,
+    "events": 23,
+    "n": 169
+  },
+  {
+    "study": 11,
+    "treatment": 2,
+    "events": 4,
+    "n": 152
+  },
+  {
+    "study": 11,
+    "treatment": 1,
+    "events": 6,
+    "n": 51
+  },
+  {
+    "study": 12,
+    "treatment": 2,
+    "events": 4,
+    "n": 216
+  },
+  {
+    "study": 12,
+    "treatment": 1,
+    "events": 8,
+    "n": 213
+  },
+  {
+    "study": 13,
+    "treatment": 2,
+    "events": 0,
+    "n": 110
+  },
+  {
+    "study": 13,
+    "treatment": 1,
+    "events": 5,
+    "n": 110
+  },
+  {
+    "study": 14,
+    "treatment": 2,
+    "events": 9,
+    "n": 255
+  },
+  {
+    "study": 14,
+    "treatment": 1,
+    "events": 6,
+    "n": 84
+  },
+  {
+    "study": 15,
+    "treatment": 2,
+    "events": 4,
+    "n": 52
+  },
+  {
+    "study": 15,
+    "treatment": 1,
+    "events": 7,
+    "n": 57
+  },
+  {
+    "study": 16,
+    "treatment": 3,
+    "events": 215,
+    "n": 970
+  },
+  {
+    "study": 16,
+    "treatment": 1,
+    "events": 81,
+    "n": 324
+  },
+  {
+    "study": 17,
+    "treatment": 3,
+    "events": 41,
+    "n": 322
+  },
+  {
+    "study": 17,
+    "treatment": 1,
+    "events": 57,
+    "n": 324
+  },
+  {
+    "study": 18,
+    "treatment": 3,
+    "events": 36,
+    "n": 286
+  },
+  {
+    "study": 18,
+    "treatment": 1,
+    "events": 27,
+    "n": 286
+  },
+  {
+    "study": 19,
+    "treatment": 3,
+    "events": 4,
+    "n": 100
+  },
+  {
+    "study": 19,
+    "treatment": 1,
+    "events": 1,
+    "n": 100
+  },
+  {
+    "study": 20,
+    "treatment": 3,
+    "events": 25,
+    "n": 590
+  },
+  {
+    "study": 20,
+    "treatment": 1,
+    "events": 17,
+    "n": 227
+  },
+  {
+    "study": 21,
+    "treatment": 3,
+    "events": 77,
+    "n": 1437
+  },
+  {
+    "study": 21,
+    "treatment": 1,
+    "events": 40,
+    "n": 460
+  },
+  {
+    "study": 22,
+    "treatment": 3,
+    "events": 36,
+    "n": 473
+  },
+  {
+    "study": 22,
+    "treatment": 1,
+    "events": 44,
+    "n": 471
+  },
+  {
+    "study": 23,
+    "treatment": 3,
+    "events": 9,
+    "n": 106
+  },
+  {
+    "study": 23,
+    "treatment": 1,
+    "events": 14,
+    "n": 104
+  },
+  {
+    "study": 24,
+    "treatment": 3,
+    "events": 4,
+    "n": 567
+  },
+  {
+    "study": 24,
+    "treatment": 1,
+    "events": 4,
+    "n": 188
+  },
+  {
+    "study": 25,
+    "treatment": 4,
+    "events": 4,
+    "n": 187
+  },
+  {
+    "study": 25,
+    "treatment": 1,
+    "events": 6,
+    "n": 179
+  }
+]

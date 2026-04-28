@@ -1,0 +1,11 @@
+{
+  "dataset": "test/binary.json",
+  "prior": "half-Normal(0, 1) on tau",
+  "model": "multinma exact binomial, logit link",
+  "tau2": {
+    "mode": 0.0778,
+    "median": 0.2034,
+    "mean": 0.3208,
+    "ci95": [0.0065, 1.3685]
+  }
+}

@@ -1,0 +1,182 @@
+[
+  {
+    "study": 1,
+    "treatment": 2,
+    "events": 64,
+    "n": 116
+  },
+  {
+    "study": 1,
+    "treatment": 1,
+    "events": 39,
+    "n": 118
+  },
+  {
+    "study": 2,
+    "treatment": 2,
+    "events": 73,
+    "n": 144
+  },
+  {
+    "study": 2,
+    "treatment": 1,
+    "events": 50,
+    "n": 139
+  },
+  {
+    "study": 3,
+    "treatment": 3,
+    "events": 14,
+    "n": 25
+  },
+  {
+    "study": 3,
+    "treatment": 1,
+    "events": 4,
+    "n": 26
+  },
+  {
+    "study": 4,
+    "treatment": 3,
+    "events": 7,
+    "n": 22
+  },
+  {
+    "study": 4,
+    "treatment": 9,
+    "events": 5,
+    "n": 21
+  },
+  {
+    "study": 4,
+    "treatment": 1,
+    "events": 1,
+    "n": 19
+  },
+  {
+    "study": 5,
+    "treatment": 4,
+    "events": 38,
+    "n": 75
+  },
+  {
+    "study": 5,
+    "treatment": 1,
+    "events": 23,
+    "n": 75
+  },
+  {
+    "study": 6,
+    "treatment": 5,
+    "events": 149,
+    "n": 399
+  },
+  {
+    "study": 6,
+    "treatment": 1,
+    "events": 115,
+    "n": 401
+  },
+  {
+    "study": 6,
+    "treatment": 6,
+    "events": 158,
+    "n": 396
+  },
+  {
+    "study": 7,
+    "treatment": 5,
+    "events": 76,
+    "n": 144
+  },
+  {
+    "study": 7,
+    "treatment": 1,
+    "events": 66,
+    "n": 164
+  },
+  {
+    "study": 7,
+    "treatment": 6,
+    "events": 155,
+    "n": 276
+  },
+  {
+    "study": 8,
+    "treatment": 6,
+    "events": 36,
+    "n": 97
+  },
+  {
+    "study": 8,
+    "treatment": 1,
+    "events": 6,
+    "n": 28
+  },
+  {
+    "study": 9,
+    "treatment": 7,
+    "events": 76,
+    "n": 183
+  },
+  {
+    "study": 9,
+    "treatment": 1,
+    "events": 56,
+    "n": 184
+  },
+  {
+    "study": 9,
+    "treatment": 8,
+    "events": 94,
+    "n": 190
+  },
+  {
+    "study": 10,
+    "treatment": 7,
+    "events": 50,
+    "n": 132
+  },
+  {
+    "study": 10,
+    "treatment": 1,
+    "events": 35,
+    "n": 129
+  },
+  {
+    "study": 10,
+    "treatment": 8,
+    "events": 62,
+    "n": 128
+  },
+  {
+    "study": 11,
+    "treatment": 7,
+    "events": 80,
+    "n": 185
+  },
+  {
+    "study": 11,
+    "treatment": 1,
+    "events": 67,
+    "n": 190
+  },
+  {
+    "study": 11,
+    "treatment": 8,
+    "events": 79,
+    "n": 183
+  },
+  {
+    "study": 12,
+    "treatment": 10,
+    "events": 65,
+    "n": 156
+  },
+  {
+    "study": 12,
+    "treatment": 1,
+    "events": 37,
+    "n": 157
+  }
+]

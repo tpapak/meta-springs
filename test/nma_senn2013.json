@@ -1,0 +1,373 @@
+[
+  {
+    "study": "De Fronzo (1995)",
+    "treatment": "metformin",
+    "mean": -1.7,
+    "sd": 1.459,
+    "n": 213
+  },
+  {
+    "study": "De Fronzo (1995)",
+    "treatment": "placebo",
+    "mean": 0.2,
+    "sd": 1.446,
+    "n": 209
+  },
+  {
+    "study": "Lewin (2007)",
+    "treatment": "metformin",
+    "mean": -0.74,
+    "sd": 1.106,
+    "n": 431
+  },
+  {
+    "study": "Lewin (2007)",
+    "treatment": "placebo",
+    "mean": 0.08,
+    "sd": 1.004,
+    "n": 144
+  },
+  {
+    "study": "Willms (1999)",
+    "treatment": "metformin",
+    "mean": -2.5,
+    "sd": 0.862,
+    "n": 29
+  },
+  {
+    "study": "Willms (1999)",
+    "treatment": "acarbose",
+    "mean": -2.3,
+    "sd": 1.782,
+    "n": 31
+  },
+  {
+    "study": "Willms (1999)",
+    "treatment": "placebo",
+    "mean": -1.3,
+    "sd": 1.831,
+    "n": 29
+  },
+  {
+    "study": "Davidson (2007)",
+    "treatment": "rosiglitazone",
+    "mean": -1.2,
+    "sd": 1.097,
+    "n": 117
+  },
+  {
+    "study": "Davidson (2007)",
+    "treatment": "placebo",
+    "mean": 0.14,
+    "sd": 1.093,
+    "n": 116
+  },
+  {
+    "study": "Wolffenbuttel (1999)",
+    "treatment": "rosiglitazone",
+    "mean": -0.9,
+    "sd": 1.1,
+    "n": 183
+  },
+  {
+    "study": "Wolffenbuttel (1999)",
+    "treatment": "placebo",
+    "mean": 0.2,
+    "sd": 1.11,
+    "n": 192
+  },
+  {
+    "study": "Kipnes (2001)",
+    "treatment": "pioglitazone",
+    "mean": -1.2,
+    "sd": 1.369,
+    "n": 182
+  },
+  {
+    "study": "Kipnes (2001)",
+    "treatment": "placebo",
+    "mean": 0.1,
+    "sd": 1.024,
+    "n": 181
+  },
+  {
+    "study": "Kerenyi (2004)",
+    "treatment": "rosiglitazone",
+    "mean": -0.91,
+    "sd": 0.99,
+    "n": 160
+  },
+  {
+    "study": "Kerenyi (2004)",
+    "treatment": "placebo",
+    "mean": -0.14,
+    "sd": 0.92,
+    "n": 154
+  },
+  {
+    "study": "Hanefeld (2004)",
+    "treatment": "pioglitazone",
+    "mean": 7.61,
+    "sd": 1.072,
+    "n": 319
+  },
+  {
+    "study": "Hanefeld (2004)",
+    "treatment": "metformin",
+    "mean": 7.45,
+    "sd": 1.073,
+    "n": 320
+  },
+  {
+    "study": "Derosa (2004)",
+    "treatment": "pioglitazone",
+    "mean": 6.8,
+    "sd": 0.8,
+    "n": 45
+  },
+  {
+    "study": "Derosa (2004)",
+    "treatment": "rosiglitazone",
+    "mean": 6.7,
+    "sd": 0.9,
+    "n": 42
+  },
+  {
+    "study": "Baksi (2004)",
+    "treatment": "rosiglitazone",
+    "mean": -1.2,
+    "sd": 1.112,
+    "n": 218
+  },
+  {
+    "study": "Baksi (2004)",
+    "treatment": "placebo",
+    "mean": 0.1,
+    "sd": 1.036,
+    "n": 233
+  },
+  {
+    "study": "Rosenstock (2008)",
+    "treatment": "rosiglitazone",
+    "mean": -1.17,
+    "sd": 1.229,
+    "n": 59
+  },
+  {
+    "study": "Rosenstock (2008)",
+    "treatment": "placebo",
+    "mean": -0.08,
+    "sd": 1.208,
+    "n": 57
+  },
+  {
+    "study": "Zhu (2003)",
+    "treatment": "rosiglitazone",
+    "mean": -1.9,
+    "sd": 1.47,
+    "n": 210
+  },
+  {
+    "study": "Zhu (2003)",
+    "treatment": "placebo",
+    "mean": -0.4,
+    "sd": 1.3,
+    "n": 105
+  },
+  {
+    "study": "Yang (2003)",
+    "treatment": "rosiglitazone",
+    "mean": -1.09,
+    "sd": 1.65,
+    "n": 102
+  },
+  {
+    "study": "Yang (2003)",
+    "treatment": "metformin",
+    "mean": -0.95,
+    "sd": 1.5,
+    "n": 96
+  },
+  {
+    "study": "Vongthavaravat (2002)",
+    "treatment": "rosiglitazone",
+    "mean": -1.1,
+    "sd": 1.559,
+    "n": 164
+  },
+  {
+    "study": "Vongthavaravat (2002)",
+    "treatment": "sulfonylurea",
+    "mean": 0.1,
+    "sd": 0.992,
+    "n": 170
+  },
+  {
+    "study": "Oyama (2008)",
+    "treatment": "acarbose",
+    "mean": -0.7,
+    "sd": 0.8,
+    "n": 41
+  },
+  {
+    "study": "Oyama (2008)",
+    "treatment": "sulfonylurea",
+    "mean": -0.3,
+    "sd": 0.6,
+    "n": 43
+  },
+  {
+    "study": "Costa (1997)",
+    "treatment": "acarbose",
+    "mean": -1.1,
+    "sd": 0.36,
+    "n": 36
+  },
+  {
+    "study": "Costa (1997)",
+    "treatment": "placebo",
+    "mean": -0.3,
+    "sd": 0.7,
+    "n": 29
+  },
+  {
+    "study": "Hermansen (2007)",
+    "treatment": "sitagliptin",
+    "mean": -0.3,
+    "sd": 0.94,
+    "n": 106
+  },
+  {
+    "study": "Hermansen (2007)",
+    "treatment": "placebo",
+    "mean": 0.27,
+    "sd": 0.94,
+    "n": 106
+  },
+  {
+    "study": "Garber (2008)",
+    "treatment": "vildagliptin",
+    "mean": -0.63,
+    "sd": 1.034,
+    "n": 132
+  },
+  {
+    "study": "Garber (2008)",
+    "treatment": "placebo",
+    "mean": 0.07,
+    "sd": 1.08,
+    "n": 144
+  },
+  {
+    "study": "Alex (1998)",
+    "treatment": "metformin",
+    "mean": 0.13,
+    "sd": 1.428,
+    "n": 291
+  },
+  {
+    "study": "Alex (1998)",
+    "treatment": "sulfonylurea",
+    "mean": 0.5,
+    "sd": 1.45,
+    "n": 300
+  },
+  {
+    "study": "Johnston (1994)",
+    "treatment": "miglitol",
+    "mean": -0.41,
+    "sd": 1.072,
+    "n": 68
+  },
+  {
+    "study": "Johnston (1994)",
+    "treatment": "placebo",
+    "mean": 0.33,
+    "sd": 1.032,
+    "n": 63
+  },
+  {
+    "study": "Johnston (1998a)",
+    "treatment": "miglitol",
+    "mean": -0.43,
+    "sd": 0.954,
+    "n": 91
+  },
+  {
+    "study": "Johnston (1998a)",
+    "treatment": "placebo",
+    "mean": 0.98,
+    "sd": 1.311,
+    "n": 43
+  },
+  {
+    "study": "Kim (2007)",
+    "treatment": "rosiglitazone",
+    "mean": -1.1,
+    "sd": 1.341,
+    "n": 57
+  },
+  {
+    "study": "Kim (2007)",
+    "treatment": "metformin",
+    "mean": -1.1,
+    "sd": 1.139,
+    "n": 56
+  },
+  {
+    "study": "Johnston (1998b)",
+    "treatment": "miglitol",
+    "mean": -0.12,
+    "sd": 1.4,
+    "n": 49
+  },
+  {
+    "study": "Johnston (1998b)",
+    "treatment": "placebo",
+    "mean": 0.56,
+    "sd": 1.166,
+    "n": 34
+  },
+  {
+    "study": "Gonzalez-Ortiz (2004)",
+    "treatment": "metformin",
+    "mean": -1.3,
+    "sd": 1.861,
+    "n": 34
+  },
+  {
+    "study": "Gonzalez-Ortiz (2004)",
+    "treatment": "placebo",
+    "mean": -0.9,
+    "sd": 1.803,
+    "n": 37
+  },
+  {
+    "study": "Stucci (1996)",
+    "treatment": "benfluorex",
+    "mean": 8.03,
+    "sd": 1.29,
+    "n": 28
+  },
+  {
+    "study": "Stucci (1996)",
+    "treatment": "placebo",
+    "mean": 8.26,
+    "sd": 1.35,
+    "n": 30
+  },
+  {
+    "study": "Moulin (2006)",
+    "treatment": "benfluorex",
+    "mean": -0.82,
+    "sd": 1.028,
+    "n": 161
+  },
+  {
+    "study": "Moulin (2006)",
+    "treatment": "placebo",
+    "mean": 0.19,
+    "sd": 1.374,
+    "n": 156
+  }
+]

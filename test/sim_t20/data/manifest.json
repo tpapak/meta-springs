@@ -1,0 +1,1202 @@
+[
+  {
+    "tau2_idx": 1,
+    "tau2": 0.01,
+    "rep": 1,
+    "file": "test/sim_t20/data/tau1_rep01.json",
+    "k_studies": 100,
+    "multi_arm_k": 26
+  },
+  {
+    "tau2_idx": 1,
+    "tau2": 0.01,
+    "rep": 2,
+    "file": "test/sim_t20/data/tau1_rep02.json",
+    "k_studies": 100,
+    "multi_arm_k": 40
+  },
+  {
+    "tau2_idx": 1,
+    "tau2": 0.01,
+    "rep": 3,
+    "file": "test/sim_t20/data/tau1_rep03.json",
+    "k_studies": 100,
+    "multi_arm_k": 35
+  },
+  {
+    "tau2_idx": 1,
+    "tau2": 0.01,
+    "rep": 4,
+    "file": "test/sim_t20/data/tau1_rep04.json",
+    "k_studies": 100,
+    "multi_arm_k": 51
+  },
+  {
+    "tau2_idx": 1,
+    "tau2": 0.01,
+    "rep": 5,
+    "file": "test/sim_t20/data/tau1_rep05.json",
+    "k_studies": 100,
+    "multi_arm_k": 39
+  },
+  {
+    "tau2_idx": 1,
+    "tau2": 0.01,
+    "rep": 6,
+    "file": "test/sim_t20/data/tau1_rep06.json",
+    "k_studies": 100,
+    "multi_arm_k": 40
+  },
+  {
+    "tau2_idx": 1,
+    "tau2": 0.01,
+    "rep": 7,
+    "file": "test/sim_t20/data/tau1_rep07.json",
+    "k_studies": 100,
+    "multi_arm_k": 47
+  },
+  {
+    "tau2_idx": 1,
+    "tau2": 0.01,
+    "rep": 8,
+    "file": "test/sim_t20/data/tau1_rep08.json",
+    "k_studies": 100,
+    "multi_arm_k": 32
+  },
+  {
+    "tau2_idx": 1,
+    "tau2": 0.01,
+    "rep": 9,
+    "file": "test/sim_t20/data/tau1_rep09.json",
+    "k_studies": 100,
+    "multi_arm_k": 49
+  },
+  {
+    "tau2_idx": 1,
+    "tau2": 0.01,
+    "rep": 10,
+    "file": "test/sim_t20/data/tau1_rep10.json",
+    "k_studies": 100,
+    "multi_arm_k": 42
+  },
+  {
+    "tau2_idx": 1,
+    "tau2": 0.01,
+    "rep": 11,
+    "file": "test/sim_t20/data/tau1_rep11.json",
+    "k_studies": 100,
+    "multi_arm_k": 36
+  },
+  {
+    "tau2_idx": 1,
+    "tau2": 0.01,
+    "rep": 12,
+    "file": "test/sim_t20/data/tau1_rep12.json",
+    "k_studies": 100,
+    "multi_arm_k": 47
+  },
+  {
+    "tau2_idx": 1,
+    "tau2": 0.01,
+    "rep": 13,
+    "file": "test/sim_t20/data/tau1_rep13.json",
+    "k_studies": 100,
+    "multi_arm_k": 45
+  },
+  {
+    "tau2_idx": 1,
+    "tau2": 0.01,
+    "rep": 14,
+    "file": "test/sim_t20/data/tau1_rep14.json",
+    "k_studies": 100,
+    "multi_arm_k": 39
+  },
+  {
+    "tau2_idx": 1,
+    "tau2": 0.01,
+    "rep": 15,
+    "file": "test/sim_t20/data/tau1_rep15.json",
+    "k_studies": 100,
+    "multi_arm_k": 39
+  },
+  {
+    "tau2_idx": 1,
+    "tau2": 0.01,
+    "rep": 16,
+    "file": "test/sim_t20/data/tau1_rep16.json",
+    "k_studies": 100,
+    "multi_arm_k": 45
+  },
+  {
+    "tau2_idx": 1,
+    "tau2": 0.01,
+    "rep": 17,
+    "file": "test/sim_t20/data/tau1_rep17.json",
+    "k_studies": 100,
+    "multi_arm_k": 36
+  },
+  {
+    "tau2_idx": 1,
+    "tau2": 0.01,
+    "rep": 18,
+    "file": "test/sim_t20/data/tau1_rep18.json",
+    "k_studies": 100,
+    "multi_arm_k": 47
+  },
+  {
+    "tau2_idx": 1,
+    "tau2": 0.01,
+    "rep": 19,
+    "file": "test/sim_t20/data/tau1_rep19.json",
+    "k_studies": 100,
+    "multi_arm_k": 48
+  },
+  {
+    "tau2_idx": 1,
+    "tau2": 0.01,
+    "rep": 20,
+    "file": "test/sim_t20/data/tau1_rep20.json",
+    "k_studies": 100,
+    "multi_arm_k": 45
+  },
+  {
+    "tau2_idx": 1,
+    "tau2": 0.01,
+    "rep": 21,
+    "file": "test/sim_t20/data/tau1_rep21.json",
+    "k_studies": 100,
+    "multi_arm_k": 41
+  },
+  {
+    "tau2_idx": 1,
+    "tau2": 0.01,
+    "rep": 22,
+    "file": "test/sim_t20/data/tau1_rep22.json",
+    "k_studies": 100,
+    "multi_arm_k": 55
+  },
+  {
+    "tau2_idx": 1,
+    "tau2": 0.01,
+    "rep": 23,
+    "file": "test/sim_t20/data/tau1_rep23.json",
+    "k_studies": 100,
+    "multi_arm_k": 39
+  },
+  {
+    "tau2_idx": 1,
+    "tau2": 0.01,
+    "rep": 24,
+    "file": "test/sim_t20/data/tau1_rep24.json",
+    "k_studies": 100,
+    "multi_arm_k": 40
+  },
+  {
+    "tau2_idx": 1,
+    "tau2": 0.01,
+    "rep": 25,
+    "file": "test/sim_t20/data/tau1_rep25.json",
+    "k_studies": 100,
+    "multi_arm_k": 44
+  },
+  {
+    "tau2_idx": 1,
+    "tau2": 0.01,
+    "rep": 26,
+    "file": "test/sim_t20/data/tau1_rep26.json",
+    "k_studies": 100,
+    "multi_arm_k": 44
+  },
+  {
+    "tau2_idx": 1,
+    "tau2": 0.01,
+    "rep": 27,
+    "file": "test/sim_t20/data/tau1_rep27.json",
+    "k_studies": 100,
+    "multi_arm_k": 41
+  },
+  {
+    "tau2_idx": 1,
+    "tau2": 0.01,
+    "rep": 28,
+    "file": "test/sim_t20/data/tau1_rep28.json",
+    "k_studies": 100,
+    "multi_arm_k": 40
+  },
+  {
+    "tau2_idx": 1,
+    "tau2": 0.01,
+    "rep": 29,
+    "file": "test/sim_t20/data/tau1_rep29.json",
+    "k_studies": 100,
+    "multi_arm_k": 48
+  },
+  {
+    "tau2_idx": 1,
+    "tau2": 0.01,
+    "rep": 30,
+    "file": "test/sim_t20/data/tau1_rep30.json",
+    "k_studies": 100,
+    "multi_arm_k": 44
+  },
+  {
+    "tau2_idx": 1,
+    "tau2": 0.01,
+    "rep": 31,
+    "file": "test/sim_t20/data/tau1_rep31.json",
+    "k_studies": 100,
+    "multi_arm_k": 36
+  },
+  {
+    "tau2_idx": 1,
+    "tau2": 0.01,
+    "rep": 32,
+    "file": "test/sim_t20/data/tau1_rep32.json",
+    "k_studies": 100,
+    "multi_arm_k": 47
+  },
+  {
+    "tau2_idx": 1,
+    "tau2": 0.01,
+    "rep": 33,
+    "file": "test/sim_t20/data/tau1_rep33.json",
+    "k_studies": 100,
+    "multi_arm_k": 38
+  },
+  {
+    "tau2_idx": 1,
+    "tau2": 0.01,
+    "rep": 34,
+    "file": "test/sim_t20/data/tau1_rep34.json",
+    "k_studies": 100,
+    "multi_arm_k": 39
+  },
+  {
+    "tau2_idx": 1,
+    "tau2": 0.01,
+    "rep": 35,
+    "file": "test/sim_t20/data/tau1_rep35.json",
+    "k_studies": 100,
+    "multi_arm_k": 39
+  },
+  {
+    "tau2_idx": 1,
+    "tau2": 0.01,
+    "rep": 36,
+    "file": "test/sim_t20/data/tau1_rep36.json",
+    "k_studies": 100,
+    "multi_arm_k": 40
+  },
+  {
+    "tau2_idx": 1,
+    "tau2": 0.01,
+    "rep": 37,
+    "file": "test/sim_t20/data/tau1_rep37.json",
+    "k_studies": 100,
+    "multi_arm_k": 44
+  },
+  {
+    "tau2_idx": 1,
+    "tau2": 0.01,
+    "rep": 38,
+    "file": "test/sim_t20/data/tau1_rep38.json",
+    "k_studies": 100,
+    "multi_arm_k": 40
+  },
+  {
+    "tau2_idx": 1,
+    "tau2": 0.01,
+    "rep": 39,
+    "file": "test/sim_t20/data/tau1_rep39.json",
+    "k_studies": 100,
+    "multi_arm_k": 40
+  },
+  {
+    "tau2_idx": 1,
+    "tau2": 0.01,
+    "rep": 40,
+    "file": "test/sim_t20/data/tau1_rep40.json",
+    "k_studies": 100,
+    "multi_arm_k": 41
+  },
+  {
+    "tau2_idx": 1,
+    "tau2": 0.01,
+    "rep": 41,
+    "file": "test/sim_t20/data/tau1_rep41.json",
+    "k_studies": 100,
+    "multi_arm_k": 37
+  },
+  {
+    "tau2_idx": 1,
+    "tau2": 0.01,
+    "rep": 42,
+    "file": "test/sim_t20/data/tau1_rep42.json",
+    "k_studies": 100,
+    "multi_arm_k": 44
+  },
+  {
+    "tau2_idx": 1,
+    "tau2": 0.01,
+    "rep": 43,
+    "file": "test/sim_t20/data/tau1_rep43.json",
+    "k_studies": 100,
+    "multi_arm_k": 43
+  },
+  {
+    "tau2_idx": 1,
+    "tau2": 0.01,
+    "rep": 44,
+    "file": "test/sim_t20/data/tau1_rep44.json",
+    "k_studies": 100,
+    "multi_arm_k": 32
+  },
+  {
+    "tau2_idx": 1,
+    "tau2": 0.01,
+    "rep": 45,
+    "file": "test/sim_t20/data/tau1_rep45.json",
+    "k_studies": 100,
+    "multi_arm_k": 48
+  },
+  {
+    "tau2_idx": 1,
+    "tau2": 0.01,
+    "rep": 46,
+    "file": "test/sim_t20/data/tau1_rep46.json",
+    "k_studies": 100,
+    "multi_arm_k": 32
+  },
+  {
+    "tau2_idx": 1,
+    "tau2": 0.01,
+    "rep": 47,
+    "file": "test/sim_t20/data/tau1_rep47.json",
+    "k_studies": 100,
+    "multi_arm_k": 43
+  },
+  {
+    "tau2_idx": 1,
+    "tau2": 0.01,
+    "rep": 48,
+    "file": "test/sim_t20/data/tau1_rep48.json",
+    "k_studies": 100,
+    "multi_arm_k": 35
+  },
+  {
+    "tau2_idx": 1,
+    "tau2": 0.01,
+    "rep": 49,
+    "file": "test/sim_t20/data/tau1_rep49.json",
+    "k_studies": 100,
+    "multi_arm_k": 38
+  },
+  {
+    "tau2_idx": 1,
+    "tau2": 0.01,
+    "rep": 50,
+    "file": "test/sim_t20/data/tau1_rep50.json",
+    "k_studies": 100,
+    "multi_arm_k": 34
+  },
+  {
+    "tau2_idx": 2,
+    "tau2": 0.1,
+    "rep": 1,
+    "file": "test/sim_t20/data/tau2_rep01.json",
+    "k_studies": 100,
+    "multi_arm_k": 39
+  },
+  {
+    "tau2_idx": 2,
+    "tau2": 0.1,
+    "rep": 2,
+    "file": "test/sim_t20/data/tau2_rep02.json",
+    "k_studies": 100,
+    "multi_arm_k": 49
+  },
+  {
+    "tau2_idx": 2,
+    "tau2": 0.1,
+    "rep": 3,
+    "file": "test/sim_t20/data/tau2_rep03.json",
+    "k_studies": 100,
+    "multi_arm_k": 38
+  },
+  {
+    "tau2_idx": 2,
+    "tau2": 0.1,
+    "rep": 4,
+    "file": "test/sim_t20/data/tau2_rep04.json",
+    "k_studies": 100,
+    "multi_arm_k": 40
+  },
+  {
+    "tau2_idx": 2,
+    "tau2": 0.1,
+    "rep": 5,
+    "file": "test/sim_t20/data/tau2_rep05.json",
+    "k_studies": 100,
+    "multi_arm_k": 40
+  },
+  {
+    "tau2_idx": 2,
+    "tau2": 0.1,
+    "rep": 6,
+    "file": "test/sim_t20/data/tau2_rep06.json",
+    "k_studies": 100,
+    "multi_arm_k": 44
+  },
+  {
+    "tau2_idx": 2,
+    "tau2": 0.1,
+    "rep": 7,
+    "file": "test/sim_t20/data/tau2_rep07.json",
+    "k_studies": 100,
+    "multi_arm_k": 37
+  },
+  {
+    "tau2_idx": 2,
+    "tau2": 0.1,
+    "rep": 8,
+    "file": "test/sim_t20/data/tau2_rep08.json",
+    "k_studies": 100,
+    "multi_arm_k": 34
+  },
+  {
+    "tau2_idx": 2,
+    "tau2": 0.1,
+    "rep": 9,
+    "file": "test/sim_t20/data/tau2_rep09.json",
+    "k_studies": 100,
+    "multi_arm_k": 42
+  },
+  {
+    "tau2_idx": 2,
+    "tau2": 0.1,
+    "rep": 10,
+    "file": "test/sim_t20/data/tau2_rep10.json",
+    "k_studies": 100,
+    "multi_arm_k": 29
+  },
+  {
+    "tau2_idx": 2,
+    "tau2": 0.1,
+    "rep": 11,
+    "file": "test/sim_t20/data/tau2_rep11.json",
+    "k_studies": 100,
+    "multi_arm_k": 38
+  },
+  {
+    "tau2_idx": 2,
+    "tau2": 0.1,
+    "rep": 12,
+    "file": "test/sim_t20/data/tau2_rep12.json",
+    "k_studies": 100,
+    "multi_arm_k": 34
+  },
+  {
+    "tau2_idx": 2,
+    "tau2": 0.1,
+    "rep": 13,
+    "file": "test/sim_t20/data/tau2_rep13.json",
+    "k_studies": 100,
+    "multi_arm_k": 36
+  },
+  {
+    "tau2_idx": 2,
+    "tau2": 0.1,
+    "rep": 14,
+    "file": "test/sim_t20/data/tau2_rep14.json",
+    "k_studies": 100,
+    "multi_arm_k": 34
+  },
+  {
+    "tau2_idx": 2,
+    "tau2": 0.1,
+    "rep": 15,
+    "file": "test/sim_t20/data/tau2_rep15.json",
+    "k_studies": 100,
+    "multi_arm_k": 37
+  },
+  {
+    "tau2_idx": 2,
+    "tau2": 0.1,
+    "rep": 16,
+    "file": "test/sim_t20/data/tau2_rep16.json",
+    "k_studies": 100,
+    "multi_arm_k": 40
+  },
+  {
+    "tau2_idx": 2,
+    "tau2": 0.1,
+    "rep": 17,
+    "file": "test/sim_t20/data/tau2_rep17.json",
+    "k_studies": 100,
+    "multi_arm_k": 41
+  },
+  {
+    "tau2_idx": 2,
+    "tau2": 0.1,
+    "rep": 18,
+    "file": "test/sim_t20/data/tau2_rep18.json",
+    "k_studies": 100,
+    "multi_arm_k": 37
+  },
+  {
+    "tau2_idx": 2,
+    "tau2": 0.1,
+    "rep": 19,
+    "file": "test/sim_t20/data/tau2_rep19.json",
+    "k_studies": 100,
+    "multi_arm_k": 31
+  },
+  {
+    "tau2_idx": 2,
+    "tau2": 0.1,
+    "rep": 20,
+    "file": "test/sim_t20/data/tau2_rep20.json",
+    "k_studies": 100,
+    "multi_arm_k": 42
+  },
+  {
+    "tau2_idx": 2,
+    "tau2": 0.1,
+    "rep": 21,
+    "file": "test/sim_t20/data/tau2_rep21.json",
+    "k_studies": 100,
+    "multi_arm_k": 39
+  },
+  {
+    "tau2_idx": 2,
+    "tau2": 0.1,
+    "rep": 22,
+    "file": "test/sim_t20/data/tau2_rep22.json",
+    "k_studies": 100,
+    "multi_arm_k": 44
+  },
+  {
+    "tau2_idx": 2,
+    "tau2": 0.1,
+    "rep": 23,
+    "file": "test/sim_t20/data/tau2_rep23.json",
+    "k_studies": 100,
+    "multi_arm_k": 55
+  },
+  {
+    "tau2_idx": 2,
+    "tau2": 0.1,
+    "rep": 24,
+    "file": "test/sim_t20/data/tau2_rep24.json",
+    "k_studies": 100,
+    "multi_arm_k": 35
+  },
+  {
+    "tau2_idx": 2,
+    "tau2": 0.1,
+    "rep": 25,
+    "file": "test/sim_t20/data/tau2_rep25.json",
+    "k_studies": 100,
+    "multi_arm_k": 43
+  },
+  {
+    "tau2_idx": 2,
+    "tau2": 0.1,
+    "rep": 26,
+    "file": "test/sim_t20/data/tau2_rep26.json",
+    "k_studies": 100,
+    "multi_arm_k": 40
+  },
+  {
+    "tau2_idx": 2,
+    "tau2": 0.1,
+    "rep": 27,
+    "file": "test/sim_t20/data/tau2_rep27.json",
+    "k_studies": 100,
+    "multi_arm_k": 44
+  },
+  {
+    "tau2_idx": 2,
+    "tau2": 0.1,
+    "rep": 28,
+    "file": "test/sim_t20/data/tau2_rep28.json",
+    "k_studies": 100,
+    "multi_arm_k": 39
+  },
+  {
+    "tau2_idx": 2,
+    "tau2": 0.1,
+    "rep": 29,
+    "file": "test/sim_t20/data/tau2_rep29.json",
+    "k_studies": 100,
+    "multi_arm_k": 45
+  },
+  {
+    "tau2_idx": 2,
+    "tau2": 0.1,
+    "rep": 30,
+    "file": "test/sim_t20/data/tau2_rep30.json",
+    "k_studies": 100,
+    "multi_arm_k": 31
+  },
+  {
+    "tau2_idx": 2,
+    "tau2": 0.1,
+    "rep": 31,
+    "file": "test/sim_t20/data/tau2_rep31.json",
+    "k_studies": 100,
+    "multi_arm_k": 47
+  },
+  {
+    "tau2_idx": 2,
+    "tau2": 0.1,
+    "rep": 32,
+    "file": "test/sim_t20/data/tau2_rep32.json",
+    "k_studies": 100,
+    "multi_arm_k": 36
+  },
+  {
+    "tau2_idx": 2,
+    "tau2": 0.1,
+    "rep": 33,
+    "file": "test/sim_t20/data/tau2_rep33.json",
+    "k_studies": 100,
+    "multi_arm_k": 37
+  },
+  {
+    "tau2_idx": 2,
+    "tau2": 0.1,
+    "rep": 34,
+    "file": "test/sim_t20/data/tau2_rep34.json",
+    "k_studies": 100,
+    "multi_arm_k": 41
+  },
+  {
+    "tau2_idx": 2,
+    "tau2": 0.1,
+    "rep": 35,
+    "file": "test/sim_t20/data/tau2_rep35.json",
+    "k_studies": 100,
+    "multi_arm_k": 32
+  },
+  {
+    "tau2_idx": 2,
+    "tau2": 0.1,
+    "rep": 36,
+    "file": "test/sim_t20/data/tau2_rep36.json",
+    "k_studies": 100,
+    "multi_arm_k": 40
+  },
+  {
+    "tau2_idx": 2,
+    "tau2": 0.1,
+    "rep": 37,
+    "file": "test/sim_t20/data/tau2_rep37.json",
+    "k_studies": 100,
+    "multi_arm_k": 42
+  },
+  {
+    "tau2_idx": 2,
+    "tau2": 0.1,
+    "rep": 38,
+    "file": "test/sim_t20/data/tau2_rep38.json",
+    "k_studies": 100,
+    "multi_arm_k": 39
+  },
+  {
+    "tau2_idx": 2,
+    "tau2": 0.1,
+    "rep": 39,
+    "file": "test/sim_t20/data/tau2_rep39.json",
+    "k_studies": 100,
+    "multi_arm_k": 30
+  },
+  {
+    "tau2_idx": 2,
+    "tau2": 0.1,
+    "rep": 40,
+    "file": "test/sim_t20/data/tau2_rep40.json",
+    "k_studies": 100,
+    "multi_arm_k": 44
+  },
+  {
+    "tau2_idx": 2,
+    "tau2": 0.1,
+    "rep": 41,
+    "file": "test/sim_t20/data/tau2_rep41.json",
+    "k_studies": 100,
+    "multi_arm_k": 48
+  },
+  {
+    "tau2_idx": 2,
+    "tau2": 0.1,
+    "rep": 42,
+    "file": "test/sim_t20/data/tau2_rep42.json",
+    "k_studies": 100,
+    "multi_arm_k": 39
+  },
+  {
+    "tau2_idx": 2,
+    "tau2": 0.1,
+    "rep": 43,
+    "file": "test/sim_t20/data/tau2_rep43.json",
+    "k_studies": 100,
+    "multi_arm_k": 44
+  },
+  {
+    "tau2_idx": 2,
+    "tau2": 0.1,
+    "rep": 44,
+    "file": "test/sim_t20/data/tau2_rep44.json",
+    "k_studies": 100,
+    "multi_arm_k": 45
+  },
+  {
+    "tau2_idx": 2,
+    "tau2": 0.1,
+    "rep": 45,
+    "file": "test/sim_t20/data/tau2_rep45.json",
+    "k_studies": 100,
+    "multi_arm_k": 46
+  },
+  {
+    "tau2_idx": 2,
+    "tau2": 0.1,
+    "rep": 46,
+    "file": "test/sim_t20/data/tau2_rep46.json",
+    "k_studies": 100,
+    "multi_arm_k": 34
+  },
+  {
+    "tau2_idx": 2,
+    "tau2": 0.1,
+    "rep": 47,
+    "file": "test/sim_t20/data/tau2_rep47.json",
+    "k_studies": 100,
+    "multi_arm_k": 45
+  },
+  {
+    "tau2_idx": 2,
+    "tau2": 0.1,
+    "rep": 48,
+    "file": "test/sim_t20/data/tau2_rep48.json",
+    "k_studies": 100,
+    "multi_arm_k": 48
+  },
+  {
+    "tau2_idx": 2,
+    "tau2": 0.1,
+    "rep": 49,
+    "file": "test/sim_t20/data/tau2_rep49.json",
+    "k_studies": 100,
+    "multi_arm_k": 56
+  },
+  {
+    "tau2_idx": 2,
+    "tau2": 0.1,
+    "rep": 50,
+    "file": "test/sim_t20/data/tau2_rep50.json",
+    "k_studies": 100,
+    "multi_arm_k": 45
+  },
+  {
+    "tau2_idx": 3,
+    "tau2": 0.6,
+    "rep": 1,
+    "file": "test/sim_t20/data/tau3_rep01.json",
+    "k_studies": 100,
+    "multi_arm_k": 37
+  },
+  {
+    "tau2_idx": 3,
+    "tau2": 0.6,
+    "rep": 2,
+    "file": "test/sim_t20/data/tau3_rep02.json",
+    "k_studies": 100,
+    "multi_arm_k": 32
+  },
+  {
+    "tau2_idx": 3,
+    "tau2": 0.6,
+    "rep": 3,
+    "file": "test/sim_t20/data/tau3_rep03.json",
+    "k_studies": 100,
+    "multi_arm_k": 35
+  },
+  {
+    "tau2_idx": 3,
+    "tau2": 0.6,
+    "rep": 4,
+    "file": "test/sim_t20/data/tau3_rep04.json",
+    "k_studies": 100,
+    "multi_arm_k": 37
+  },
+  {
+    "tau2_idx": 3,
+    "tau2": 0.6,
+    "rep": 5,
+    "file": "test/sim_t20/data/tau3_rep05.json",
+    "k_studies": 100,
+    "multi_arm_k": 38
+  },
+  {
+    "tau2_idx": 3,
+    "tau2": 0.6,
+    "rep": 6,
+    "file": "test/sim_t20/data/tau3_rep06.json",
+    "k_studies": 100,
+    "multi_arm_k": 43
+  },
+  {
+    "tau2_idx": 3,
+    "tau2": 0.6,
+    "rep": 7,
+    "file": "test/sim_t20/data/tau3_rep07.json",
+    "k_studies": 100,
+    "multi_arm_k": 32
+  },
+  {
+    "tau2_idx": 3,
+    "tau2": 0.6,
+    "rep": 8,
+    "file": "test/sim_t20/data/tau3_rep08.json",
+    "k_studies": 100,
+    "multi_arm_k": 46
+  },
+  {
+    "tau2_idx": 3,
+    "tau2": 0.6,
+    "rep": 9,
+    "file": "test/sim_t20/data/tau3_rep09.json",
+    "k_studies": 100,
+    "multi_arm_k": 41
+  },
+  {
+    "tau2_idx": 3,
+    "tau2": 0.6,
+    "rep": 10,
+    "file": "test/sim_t20/data/tau3_rep10.json",
+    "k_studies": 100,
+    "multi_arm_k": 37
+  },
+  {
+    "tau2_idx": 3,
+    "tau2": 0.6,
+    "rep": 11,
+    "file": "test/sim_t20/data/tau3_rep11.json",
+    "k_studies": 100,
+    "multi_arm_k": 42
+  },
+  {
+    "tau2_idx": 3,
+    "tau2": 0.6,
+    "rep": 12,
+    "file": "test/sim_t20/data/tau3_rep12.json",
+    "k_studies": 100,
+    "multi_arm_k": 35
+  },
+  {
+    "tau2_idx": 3,
+    "tau2": 0.6,
+    "rep": 13,
+    "file": "test/sim_t20/data/tau3_rep13.json",
+    "k_studies": 100,
+    "multi_arm_k": 42
+  },
+  {
+    "tau2_idx": 3,
+    "tau2": 0.6,
+    "rep": 14,
+    "file": "test/sim_t20/data/tau3_rep14.json",
+    "k_studies": 100,
+    "multi_arm_k": 41
+  },
+  {
+    "tau2_idx": 3,
+    "tau2": 0.6,
+    "rep": 15,
+    "file": "test/sim_t20/data/tau3_rep15.json",
+    "k_studies": 100,
+    "multi_arm_k": 40
+  },
+  {
+    "tau2_idx": 3,
+    "tau2": 0.6,
+    "rep": 16,
+    "file": "test/sim_t20/data/tau3_rep16.json",
+    "k_studies": 100,
+    "multi_arm_k": 46
+  },
+  {
+    "tau2_idx": 3,
+    "tau2": 0.6,
+    "rep": 17,
+    "file": "test/sim_t20/data/tau3_rep17.json",
+    "k_studies": 100,
+    "multi_arm_k": 39
+  },
+  {
+    "tau2_idx": 3,
+    "tau2": 0.6,
+    "rep": 18,
+    "file": "test/sim_t20/data/tau3_rep18.json",
+    "k_studies": 100,
+    "multi_arm_k": 53
+  },
+  {
+    "tau2_idx": 3,
+    "tau2": 0.6,
+    "rep": 19,
+    "file": "test/sim_t20/data/tau3_rep19.json",
+    "k_studies": 100,
+    "multi_arm_k": 32
+  },
+  {
+    "tau2_idx": 3,
+    "tau2": 0.6,
+    "rep": 20,
+    "file": "test/sim_t20/data/tau3_rep20.json",
+    "k_studies": 100,
+    "multi_arm_k": 46
+  },
+  {
+    "tau2_idx": 3,
+    "tau2": 0.6,
+    "rep": 21,
+    "file": "test/sim_t20/data/tau3_rep21.json",
+    "k_studies": 100,
+    "multi_arm_k": 43
+  },
+  {
+    "tau2_idx": 3,
+    "tau2": 0.6,
+    "rep": 22,
+    "file": "test/sim_t20/data/tau3_rep22.json",
+    "k_studies": 100,
+    "multi_arm_k": 38
+  },
+  {
+    "tau2_idx": 3,
+    "tau2": 0.6,
+    "rep": 23,
+    "file": "test/sim_t20/data/tau3_rep23.json",
+    "k_studies": 100,
+    "multi_arm_k": 42
+  },
+  {
+    "tau2_idx": 3,
+    "tau2": 0.6,
+    "rep": 24,
+    "file": "test/sim_t20/data/tau3_rep24.json",
+    "k_studies": 100,
+    "multi_arm_k": 43
+  },
+  {
+    "tau2_idx": 3,
+    "tau2": 0.6,
+    "rep": 25,
+    "file": "test/sim_t20/data/tau3_rep25.json",
+    "k_studies": 100,
+    "multi_arm_k": 45
+  },
+  {
+    "tau2_idx": 3,
+    "tau2": 0.6,
+    "rep": 26,
+    "file": "test/sim_t20/data/tau3_rep26.json",
+    "k_studies": 100,
+    "multi_arm_k": 45
+  },
+  {
+    "tau2_idx": 3,
+    "tau2": 0.6,
+    "rep": 27,
+    "file": "test/sim_t20/data/tau3_rep27.json",
+    "k_studies": 100,
+    "multi_arm_k": 36
+  },
+  {
+    "tau2_idx": 3,
+    "tau2": 0.6,
+    "rep": 28,
+    "file": "test/sim_t20/data/tau3_rep28.json",
+    "k_studies": 100,
+    "multi_arm_k": 43
+  },
+  {
+    "tau2_idx": 3,
+    "tau2": 0.6,
+    "rep": 29,
+    "file": "test/sim_t20/data/tau3_rep29.json",
+    "k_studies": 100,
+    "multi_arm_k": 32
+  },
+  {
+    "tau2_idx": 3,
+    "tau2": 0.6,
+    "rep": 30,
+    "file": "test/sim_t20/data/tau3_rep30.json",
+    "k_studies": 100,
+    "multi_arm_k": 37
+  },
+  {
+    "tau2_idx": 3,
+    "tau2": 0.6,
+    "rep": 31,
+    "file": "test/sim_t20/data/tau3_rep31.json",
+    "k_studies": 100,
+    "multi_arm_k": 32
+  },
+  {
+    "tau2_idx": 3,
+    "tau2": 0.6,
+    "rep": 32,
+    "file": "test/sim_t20/data/tau3_rep32.json",
+    "k_studies": 100,
+    "multi_arm_k": 41
+  },
+  {
+    "tau2_idx": 3,
+    "tau2": 0.6,
+    "rep": 33,
+    "file": "test/sim_t20/data/tau3_rep33.json",
+    "k_studies": 100,
+    "multi_arm_k": 40
+  },
+  {
+    "tau2_idx": 3,
+    "tau2": 0.6,
+    "rep": 34,
+    "file": "test/sim_t20/data/tau3_rep34.json",
+    "k_studies": 100,
+    "multi_arm_k": 47
+  },
+  {
+    "tau2_idx": 3,
+    "tau2": 0.6,
+    "rep": 35,
+    "file": "test/sim_t20/data/tau3_rep35.json",
+    "k_studies": 100,
+    "multi_arm_k": 37
+  },
+  {
+    "tau2_idx": 3,
+    "tau2": 0.6,
+    "rep": 36,
+    "file": "test/sim_t20/data/tau3_rep36.json",
+    "k_studies": 100,
+    "multi_arm_k": 43
+  },
+  {
+    "tau2_idx": 3,
+    "tau2": 0.6,
+    "rep": 37,
+    "file": "test/sim_t20/data/tau3_rep37.json",
+    "k_studies": 100,
+    "multi_arm_k": 36
+  },
+  {
+    "tau2_idx": 3,
+    "tau2": 0.6,
+    "rep": 38,
+    "file": "test/sim_t20/data/tau3_rep38.json",
+    "k_studies": 100,
+    "multi_arm_k": 33
+  },
+  {
+    "tau2_idx": 3,
+    "tau2": 0.6,
+    "rep": 39,
+    "file": "test/sim_t20/data/tau3_rep39.json",
+    "k_studies": 100,
+    "multi_arm_k": 40
+  },
+  {
+    "tau2_idx": 3,
+    "tau2": 0.6,
+    "rep": 40,
+    "file": "test/sim_t20/data/tau3_rep40.json",
+    "k_studies": 100,
+    "multi_arm_k": 42
+  },
+  {
+    "tau2_idx": 3,
+    "tau2": 0.6,
+    "rep": 41,
+    "file": "test/sim_t20/data/tau3_rep41.json",
+    "k_studies": 100,
+    "multi_arm_k": 40
+  },
+  {
+    "tau2_idx": 3,
+    "tau2": 0.6,
+    "rep": 42,
+    "file": "test/sim_t20/data/tau3_rep42.json",
+    "k_studies": 100,
+    "multi_arm_k": 42
+  },
+  {
+    "tau2_idx": 3,
+    "tau2": 0.6,
+    "rep": 43,
+    "file": "test/sim_t20/data/tau3_rep43.json",
+    "k_studies": 100,
+    "multi_arm_k": 37
+  },
+  {
+    "tau2_idx": 3,
+    "tau2": 0.6,
+    "rep": 44,
+    "file": "test/sim_t20/data/tau3_rep44.json",
+    "k_studies": 100,
+    "multi_arm_k": 45
+  },
+  {
+    "tau2_idx": 3,
+    "tau2": 0.6,
+    "rep": 45,
+    "file": "test/sim_t20/data/tau3_rep45.json",
+    "k_studies": 100,
+    "multi_arm_k": 39
+  },
+  {
+    "tau2_idx": 3,
+    "tau2": 0.6,
+    "rep": 46,
+    "file": "test/sim_t20/data/tau3_rep46.json",
+    "k_studies": 100,
+    "multi_arm_k": 47
+  },
+  {
+    "tau2_idx": 3,
+    "tau2": 0.6,
+    "rep": 47,
+    "file": "test/sim_t20/data/tau3_rep47.json",
+    "k_studies": 100,
+    "multi_arm_k": 45
+  },
+  {
+    "tau2_idx": 3,
+    "tau2": 0.6,
+    "rep": 48,
+    "file": "test/sim_t20/data/tau3_rep48.json",
+    "k_studies": 100,
+    "multi_arm_k": 43
+  },
+  {
+    "tau2_idx": 3,
+    "tau2": 0.6,
+    "rep": 49,
+    "file": "test/sim_t20/data/tau3_rep49.json",
+    "k_studies": 100,
+    "multi_arm_k": 45
+  },
+  {
+    "tau2_idx": 3,
+    "tau2": 0.6,
+    "rep": 50,
+    "file": "test/sim_t20/data/tau3_rep50.json",
+    "k_studies": 100,
+    "multi_arm_k": 58
+  }
+]

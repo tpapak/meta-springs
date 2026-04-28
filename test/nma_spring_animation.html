@@ -1,0 +1,619 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>NMA Spring System — nmadb 481195</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+    background: #fafafa; color: #222;
+    display: flex; flex-direction: column; align-items: center;
+    padding: 20px;
+  }
+  h1 { font-size: 18px; font-weight: 600; margin-bottom: 4px; }
+  .subtitle { font-size: 13px; color: #666; margin-bottom: 16px; }
+  .ctrl-row {
+    display: flex; gap: 10px; align-items: center; margin-bottom: 8px;
+    flex-wrap: wrap; justify-content: center;
+  }
+  button {
+    padding: 5px 14px; border: 1px solid #aaa; border-radius: 4px;
+    background: #fff; cursor: pointer; font-size: 13px;
+  }
+  button:hover { background: #eee; }
+  button.active { background: #333; color: #fff; border-color: #333; }
+  button.em { background: #e8f0fe; border-color: #4285f4; color: #1a73e8; }
+  button.em:hover { background: #d2e3fc; }
+  button.em.active { background: #1a73e8; color: #fff; }
+  label { font-size: 13px; color: #555; }
+  input[type=range] { width: 110px; vertical-align: middle; }
+  .tau-display {
+    font-family: 'SF Mono','Consolas',monospace; font-size: 14px;
+    background: #f0f4ff; border: 1px solid #c4d4f4; border-radius: 4px;
+    padding: 3px 10px; color: #1a3a6e; font-weight: 600;
+    min-width: 110px; text-align: center;
+  }
+  svg { border: 1px solid #ddd; border-radius: 6px; background: #fff; }
+  #info {
+    margin-top: 10px; font-size: 13px; color: #555;
+    display: flex; gap: 24px;
+  }
+  #info span { font-family: 'SF Mono','Consolas',monospace; }
+  .legend {
+    margin-top: 8px; font-size: 12px; color: #888;
+    max-width: 960px; text-align: center; line-height: 1.5;
+  }
+</style>
+</head>
+<body>
+
+<h1>Network Meta-Analysis: Spring Equilibrium</h1>
+<div class="subtitle">nmadb 481195 — 7 studies, 5 treatments, continuous (MD). Reference &tau;&sup2; = 1.212</div>
+
+<div class="ctrl-row">
+  <button id="btnPlay">Play</button>
+  <button id="btnStep">Step</button>
+  <button id="btnSnap">Snap to FE</button>
+  <button id="btnReset">Reset</button>
+  <label>Speed <input type="range" id="speed" min="1" max="20" value="8"></label>
+  <label>Damping <input type="range" id="damping" min="1" max="30" value="12"></label>
+</div>
+<div class="ctrl-row">
+  <span class="tau-display" id="tauDisplay">&tau;&sup2; = 0.000</span>
+  <label>&tau;&sup2; <input type="range" id="tauSlider" min="0" max="500" value="0" step="1"></label>
+  <button class="em" id="btnEM1">EM step</button>
+  <button class="em" id="btnRunEM">Run EM</button>
+  <button class="em" id="btnSnapRE">Snap to RE</button>
+</div>
+
+<svg id="canvas" width="1100" height="560"></svg>
+
+<div id="info">
+  <div>Energy: <span id="energy">--</span></div>
+  <div>KE: <span id="ke">--</span></div>
+  <div>Iter: <span id="iter">0</span></div>
+  <div>Q: <span id="qstat">--</span></div>
+</div>
+<div class="legend">
+  <b style="color:#555">Colored coils</b> = data precision (1/v<sub>i</sub>).
+  <b style="color:#8899bb">Gray coils</b> = heterogeneity (&tau;&sup2;).
+  As &tau;&sup2; grows, gray segments lengthen and springs soften.
+  EM iterates &tau;&sup2; to the REML estimate.
+</div>
+
+<script>
+// ===================== DATA: nmadb_481195 =====================
+// 7 studies, 5 treatments, all 2-arm, continuous (MD)
+// Reference tau^2 = 1.2116 (from netmeta REML)
+//
+// Network:
+//   Study 1: T1 vs T2
+//   Study 2: T1 vs T3
+//   Study 3: T1 vs T3
+//   Study 4: T3 vs T4
+//   Study 5: T3 vs T4
+//   Study 6: T1 vs T4
+//   Study 7: T4 vs T5
+
+const treatmentNames = ["T1", "T2", "T3", "T4", "T5"];
+const treatColors = ['#555', '#1b9e77', '#d95f02', '#7570b3', '#e7298a'];
+const nTreat = 5;
+
+// Pairwise comparisons: md = mean_to - mean_from, v = sampling variance
+const comparisons = [
+  { label: "Study 1 (T1-T2)",
+    from: 0, to: 1,
+    md: -1.8 - (-0.9),  // = -0.9
+    v: 3.3*3.3/285 + 4.5*4.5/574,
+    color: "#e41a1c" },
+  { label: "Study 2 (T1-T3)",
+    from: 0, to: 2,
+    md: -5.2 - (-3.6),  // = -1.6
+    v: 9.6*9.6/36 + 9.2*9.2/33,
+    color: "#377eb8" },
+  { label: "Study 3 (T1-T3)",
+    from: 0, to: 2,
+    md: -1.6 - (-0.9),  // = -0.7
+    v: 3.1*3.1/247 + 3.1*3.1/241,
+    color: "#4daf4a" },
+  { label: "Study 4 (T3-T4)",
+    from: 2, to: 3,
+    md: 1.8 - (-2.3),   // = 4.1
+    v: 5.2058*5.2058/282 + 5.0654*5.0654/267,
+    color: "#984ea3" },
+  { label: "Study 5 (T3-T4)",
+    from: 2, to: 3,
+    md: 3.0 - (-2.7),   // = 5.7
+    v: 3.3675*3.3675/118 + 3.3388*3.3388/116,
+    color: "#ff7f00" },
+  { label: "Study 6 (T1-T4)",
+    from: 0, to: 3,
+    md: 1.6 - (-0.4),   // = 2.0
+    v: 4.2*4.2/114 + 5.0*5.0/232,
+    color: "#a65628" },
+  { label: "Study 7 (T4-T5)",
+    from: 3, to: 4,
+    md: 2.8 - 3.0,      // = -0.2
+    v: 3.8*3.8/367 + 3.9*3.9/389,
+    color: "#f781bf" },
+];
+
+comparisons.forEach(c => { c.k0 = 1/c.v; });
+const nSprings = comparisons.length;
+const dfree = nTreat - 1; // free treatment parameters
+const dfHet = nSprings - dfree; // df for heterogeneity = 7 - 4 = 3
+
+// ===================== LAYOUT =====================
+const W = 1100, Hh = 560;
+const margin = { left: 155, right: 50, top: 90, bottom: 30 };
+const plotW = W - margin.left - margin.right;
+// Effect scale: need to cover md range (-1.6 to 5.7) plus treatment positions
+const xMin = -4, xMax = 8;
+function xScale(v) { return margin.left + (v - xMin) / (xMax - xMin) * plotW; }
+
+const yTreat = 75;
+const ySpring0 = 160;
+const ySpringGap = 52;
+function ySpring(i) { return ySpring0 + i * ySpringGap; }
+
+// ===================== TAU STATE =====================
+let tau2 = 0;
+function kEff(i) { return 1 / (comparisons[i].v + tau2); }
+
+// ===================== NMA SOLVER =====================
+function solveNMA(t2) {
+  const nFree = nTreat - 1;
+  const M = Array.from({length: nFree}, () => new Float64Array(nFree));
+  const rhs = new Float64Array(nFree);
+
+  comparisons.forEach(sp => {
+    const w = 1 / (sp.v + t2);
+    const a = sp.from, b = sp.to;
+    if (a > 0) {
+      M[a-1][a-1] += w;
+      if (b > 0) M[a-1][b-1] -= w;
+      rhs[a-1] += -w * sp.md;
+    }
+    if (b > 0) {
+      M[b-1][b-1] += w;
+      if (a > 0) M[b-1][a-1] -= w;
+      rhs[b-1] += w * sp.md;
+    }
+  });
+
+  const n = nFree;
+  const A = M.map((row, i) => [...row, rhs[i]]);
+  for (let col = 0; col < n; col++) {
+    let maxVal = Math.abs(A[col][col]), maxRow = col;
+    for (let row = col + 1; row < n; row++) {
+      if (Math.abs(A[row][col]) > maxVal) { maxVal = Math.abs(A[row][col]); maxRow = row; }
+    }
+    [A[col], A[maxRow]] = [A[maxRow], A[col]];
+    for (let row = col + 1; row < n; row++) {
+      const f = A[row][col] / A[col][col];
+      for (let j = col; j <= n; j++) A[row][j] -= f * A[col][j];
+    }
+  }
+  const theta = new Float64Array(n);
+  for (let i = n - 1; i >= 0; i--) {
+    let s = A[i][n];
+    for (let j = i + 1; j < n; j++) s -= A[i][j] * theta[j];
+    theta[i] = s / A[i][i];
+  }
+  return [0, ...theta];
+}
+
+// ===================== EM for tau^2 =====================
+function emStep(t2) {
+  const sol = solveNMA(t2);
+  let num = 0;
+  comparisons.forEach(sp => {
+    const w = 1 / (sp.v + t2);
+    const predicted = sol[sp.to] - sol[sp.from];
+    const r = sp.md - predicted;
+    const gamma = t2 * w;
+    num += gamma * gamma * r * r + t2 * (1 - gamma);
+  });
+  return Math.max(0, num / nSprings);
+}
+
+function computeQ(t2) {
+  const sol = solveNMA(t2);
+  let Q = 0;
+  comparisons.forEach(sp => {
+    const w = 1 / (sp.v + t2);
+    const predicted = sol[sp.to] - sol[sp.from];
+    const r = sp.md - predicted;
+    Q += w * r * r;
+  });
+  return Q;
+}
+
+function runEM() {
+  let t = tau2;
+  const path = [t];
+  for (let i = 0; i < 300; i++) {
+    const tNew = emStep(t);
+    path.push(tNew);
+    if (Math.abs(tNew - t) < 1e-8) break;
+    t = tNew;
+  }
+  return { tau2: t, path };
+}
+
+// ===================== STATE =====================
+let treatX, treatV;
+let iteration = 0;
+let running = false;
+let emRunning = false;
+let animId = null;
+
+function initState() {
+  treatX = [0, 0, 0, 0, 0];
+  treatV = [0, 0, 0, 0, 0];
+  tau2 = 0;
+  iteration = 0;
+  updateTauDisplay();
+}
+initState();
+
+// ===================== PHYSICS =====================
+function totalEnergy() {
+  let U = 0;
+  comparisons.forEach((sp, i) => {
+    const d = treatX[sp.to] - treatX[sp.from] - sp.md;
+    U += 0.5 * kEff(i) * d * d;
+  });
+  return U;
+}
+
+function kineticEnergy() {
+  let KE = 0;
+  for (let i = 1; i < nTreat; i++) KE += 0.5 * treatV[i] * treatV[i];
+  return KE;
+}
+
+function physicsStep() {
+  const dt = 0.005 * parseInt(document.getElementById('speed').value);
+  const damp = 1 - 0.008 * parseInt(document.getElementById('damping').value);
+  const force = new Float64Array(nTreat);
+
+  comparisons.forEach((sp, idx) => {
+    const d = treatX[sp.to] - treatX[sp.from] - sp.md;
+    const f = kEff(idx) * d;
+    force[sp.from] += f;
+    force[sp.to]  -= f;
+  });
+
+  const mass = 2.0;
+  for (let i = 1; i < nTreat; i++) {
+    treatV[i] += (force[i] / mass) * dt;
+    treatV[i] *= damp;
+    treatX[i] += treatV[i] * dt;
+  }
+  iteration++;
+}
+
+// ===================== RENDERING =====================
+const svg = document.getElementById('canvas');
+const ns = 'http://www.w3.org/2000/svg';
+
+function el(tag, attrs) {
+  const e = document.createElementNS(ns, tag);
+  for (const [k, v] of Object.entries(attrs || {})) e.setAttribute(k, v);
+  return e;
+}
+
+function coilPath(xStart, xEnd, y, numCoils, amplitude) {
+  if (Math.abs(xEnd - xStart) < 2) return `M ${xStart} ${y} L ${xEnd} ${y}`;
+  const left = Math.min(xStart, xEnd), right = Math.max(xStart, xEnd);
+  const len = right - left;
+  const segCount = Math.max(2, numCoils * 2);
+  const segW = len / segCount;
+  let d = `M ${left} ${y}`;
+  for (let i = 0; i < segCount; i++) {
+    d += ` L ${left + segW * (i + 1)} ${y + ((i % 2 === 0) ? -amplitude : amplitude)}`;
+  }
+  d += ` L ${right} ${y}`;
+  return d;
+}
+
+function drawStatic() {
+  svg.innerHTML = '';
+
+  // Grid
+  for (let v = Math.ceil(xMin); v <= Math.floor(xMax); v++) {
+    const x = xScale(v);
+    const isZero = v === 0;
+    svg.appendChild(el('line', {
+      x1: x, y1: margin.top - 15, x2: x, y2: ySpring(nSprings - 1) + 25,
+      stroke: isZero ? '#bbb' : '#eee', 'stroke-width': isZero ? 1.5 : 0.5
+    }));
+  }
+
+  // X-axis
+  const axisY = margin.top - 5;
+  svg.appendChild(el('line', {
+    x1: margin.left - 10, y1: axisY, x2: W - margin.right + 10, y2: axisY,
+    stroke: '#999', 'stroke-width': 1
+  }));
+  for (let v = Math.ceil(xMin); v <= Math.floor(xMax); v++) {
+    const x = xScale(v);
+    svg.appendChild(el('line', { x1: x, y1: axisY - 4, x2: x, y2: axisY + 4, stroke: '#999', 'stroke-width': 1 }));
+    const txt = el('text', { x, y: axisY - 10, 'text-anchor': 'middle', 'font-size': '11', fill: '#666' });
+    txt.textContent = v;
+    svg.appendChild(txt);
+  }
+
+  const axLbl = el('text', {
+    x: (margin.left + W - margin.right) / 2, y: 25,
+    'text-anchor': 'middle', 'font-size': '13', fill: '#888', 'font-weight': '500'
+  });
+  axLbl.textContent = 'Effect size (mean difference)';
+  svg.appendChild(axLbl);
+
+  comparisons.forEach((sp, i) => {
+    const y = ySpring(i);
+    const txt = el('text', {
+      x: margin.left - 12, y: y + 4, 'text-anchor': 'end',
+      'font-size': '12', fill: sp.color, 'font-weight': '500'
+    });
+    txt.textContent = sp.label;
+    svg.appendChild(txt);
+    svg.appendChild(el('line', {
+      x1: margin.left, y1: y, x2: W - margin.right, y2: y,
+      stroke: '#f8f8f8', 'stroke-width': 1
+    }));
+  });
+}
+
+let dynGroup;
+
+function render() {
+  if (dynGroup) dynGroup.remove();
+  dynGroup = el('g');
+
+  // Vertical treatment guides
+  for (let i = 0; i < nTreat; i++) {
+    const x = xScale(treatX[i]);
+    dynGroup.appendChild(el('line', {
+      x1: x, y1: yTreat + 16, x2: x, y2: ySpring(nSprings - 1) + 20,
+      stroke: treatColors[i], 'stroke-width': 1.2, opacity: 0.18,
+      'stroke-dasharray': '4,3'
+    }));
+  }
+
+  const maxK0 = Math.max(...comparisons.map(c => c.k0));
+
+  comparisons.forEach((sp, i) => {
+    const xFrom = xScale(treatX[sp.from]);
+    const xTo   = xScale(treatX[sp.to]);
+    const y = ySpring(i);
+    const left = Math.min(xFrom, xTo);
+    const right = Math.max(xFrom, xTo);
+    const totalPx = Math.max(1, right - left);
+
+    const vTotal = sp.v + tau2;
+    const tauFrac = tau2 / vTotal;
+    const tauEndPx = totalPx * tauFrac / 2;
+
+    // Data coil params (colored, tighter for more precise studies)
+    const dataThick = 1 + 3 * (sp.k0 / maxK0);
+    const dataAmp = Math.max(3, Math.min(14, 9 - 7 * (sp.k0 / maxK0)));
+    const dataCoils = Math.max(3, Math.round(10 * (1 - tauFrac)));
+
+    // Tau coil params — hardness = 1/tau2, so thickness/tightness tracks that
+    const kTau = tau2 > 1e-6 ? 1 / tau2 : 1e6;
+    const tauRel = Math.min(1, kTau / maxK0); // normalized tau hardness
+    const tauThick = Math.max(0.8, 1 + 3 * tauRel);
+    const tauAmp = Math.max(3, Math.min(16, 14 - 11 * tauRel));
+    const tauCoilsEach = Math.max(1, Math.round(5 * tauFrac));
+
+    if (totalPx < 4) {
+      dynGroup.appendChild(el('circle', { cx: left, cy: y, r: 2, fill: sp.color }));
+    } else {
+      const dataLeft = left + tauEndPx;
+      const dataRight = right - tauEndPx;
+
+      // Left tau segment
+      if (tauEndPx > 3 && tau2 > 0.005) {
+        dynGroup.appendChild(el('path', {
+          d: coilPath(left, dataLeft, y, tauCoilsEach, tauAmp),
+          fill: 'none', stroke: '#8899bb', 'stroke-width': tauThick,
+          opacity: 0.5, 'stroke-linecap': 'round', 'stroke-linejoin': 'round'
+        }));
+      }
+
+      // Data coil
+      const dL = (tau2 > 0.005 && tauEndPx > 3) ? dataLeft : left;
+      const dR = (tau2 > 0.005 && tauEndPx > 3) ? dataRight : right;
+      if (dR - dL > 3) {
+        dynGroup.appendChild(el('path', {
+          d: coilPath(dL, dR, y, dataCoils, dataAmp),
+          fill: 'none', stroke: sp.color,
+          'stroke-width': dataThick, opacity: 0.75,
+          'stroke-linecap': 'round', 'stroke-linejoin': 'round'
+        }));
+      }
+
+      // Right tau segment
+      if (tauEndPx > 3 && tau2 > 0.005) {
+        dynGroup.appendChild(el('path', {
+          d: coilPath(dataRight, right, y, tauCoilsEach, tauAmp),
+          fill: 'none', stroke: '#8899bb', 'stroke-width': tauThick,
+          opacity: 0.5, 'stroke-linecap': 'round', 'stroke-linejoin': 'round'
+        }));
+      }
+    }
+
+    // Endpoint dots
+    dynGroup.appendChild(el('circle', {
+      cx: xFrom, cy: y, r: 4, fill: treatColors[sp.from], stroke: '#fff', 'stroke-width': 1
+    }));
+    dynGroup.appendChild(el('circle', {
+      cx: xTo, cy: y, r: 4, fill: treatColors[sp.to], stroke: '#fff', 'stroke-width': 1
+    }));
+
+    // Natural length tick
+    const xNat = xScale(treatX[sp.from] + sp.md);
+    dynGroup.appendChild(el('line', {
+      x1: xNat, y1: y - 3, x2: xNat, y2: y + 3,
+      stroke: sp.color, 'stroke-width': 1.5, opacity: 0.35
+    }));
+  });
+
+  // Treatment nodes
+  for (let i = 0; i < nTreat; i++) {
+    const x = xScale(treatX[i]);
+    const pinned = i === 0;
+    const r = pinned ? 10 : 13;
+
+    dynGroup.appendChild(el('circle', {
+      cx: x, cy: yTreat, r,
+      fill: treatColors[i], stroke: '#fff', 'stroke-width': 2.5, opacity: 0.92
+    }));
+
+    if (pinned) {
+      const pinY = yTreat + r + 2;
+      dynGroup.appendChild(el('line', { x1: x, y1: pinY, x2: x, y2: pinY + 10, stroke: '#555', 'stroke-width': 2 }));
+      dynGroup.appendChild(el('line', { x1: x-6, y1: pinY+10, x2: x+6, y2: pinY+10, stroke: '#555', 'stroke-width': 2 }));
+      for (let h = -6; h <= 3; h += 3) {
+        dynGroup.appendChild(el('line', {
+          x1: x+h, y1: pinY+10, x2: x+h-3, y2: pinY+14, stroke: '#555', 'stroke-width': 1
+        }));
+      }
+    }
+
+    const lbl = el('text', {
+      x, y: yTreat - r - 6, 'text-anchor': 'middle',
+      'font-size': '12', fill: treatColors[i], 'font-weight': '600'
+    });
+    lbl.textContent = treatmentNames[i];
+    dynGroup.appendChild(lbl);
+
+    if (!pinned) {
+      const val = el('text', {
+        x, y: yTreat + r + 16, 'text-anchor': 'middle',
+        'font-size': '10', fill: '#888',
+        'font-family': "'SF Mono','Consolas',monospace"
+      });
+      val.textContent = treatX[i].toFixed(3);
+      dynGroup.appendChild(val);
+    }
+  }
+
+  svg.appendChild(dynGroup);
+
+  document.getElementById('energy').textContent = totalEnergy().toFixed(4);
+  document.getElementById('ke').textContent = kineticEnergy().toExponential(2);
+  document.getElementById('iter').textContent = iteration;
+  document.getElementById('qstat').textContent = computeQ(tau2).toFixed(3);
+}
+
+// ===================== TAU DISPLAY =====================
+function updateTauDisplay() {
+  document.getElementById('tauDisplay').innerHTML = '&tau;&sup2; = ' + tau2.toFixed(3);
+  document.getElementById('tauSlider').value = Math.round(tau2 * 100);
+}
+
+// ===================== ANIMATION =====================
+function animate() {
+  for (let i = 0; i < 12; i++) physicsStep();
+  render();
+  if (kineticEnergy() < 1e-12 && iteration > 200) {
+    running = false;
+    document.getElementById('btnPlay').classList.remove('active');
+    document.getElementById('btnPlay').textContent = 'Play';
+    snapToSolution();
+    return;
+  }
+  if (running) animId = requestAnimationFrame(animate);
+}
+
+function snapToSolution() {
+  const sol = solveNMA(tau2);
+  for (let i = 0; i < nTreat; i++) { treatX[i] = sol[i]; treatV[i] = 0; }
+  render();
+}
+
+let emAnimId = null, emPath = [], emIdx = 0;
+
+function animateEM() {
+  if (emIdx >= emPath.length) {
+    emRunning = false;
+    document.getElementById('btnRunEM').classList.remove('active');
+    document.getElementById('btnRunEM').textContent = 'Run EM';
+    return;
+  }
+  tau2 = emPath[emIdx++];
+  updateTauDisplay();
+  snapToSolution();
+  if (emRunning) emAnimId = setTimeout(animateEM, 350);
+}
+
+// ===================== CONTROLS =====================
+document.getElementById('btnPlay').addEventListener('click', () => {
+  running = !running;
+  const btn = document.getElementById('btnPlay');
+  if (running) { btn.textContent = 'Pause'; btn.classList.add('active'); animate(); }
+  else { btn.textContent = 'Play'; btn.classList.remove('active'); if (animId) cancelAnimationFrame(animId); }
+});
+
+document.getElementById('btnStep').addEventListener('click', () => {
+  if (running) return;
+  for (let i = 0; i < 12; i++) physicsStep();
+  render();
+});
+
+document.getElementById('btnSnap').addEventListener('click', () => {
+  stopAll(); tau2 = 0; updateTauDisplay(); snapToSolution();
+});
+
+document.getElementById('btnReset').addEventListener('click', () => {
+  stopAll(); initState(); drawStatic(); render();
+});
+
+document.getElementById('tauSlider').addEventListener('input', (e) => {
+  stopAll(); tau2 = parseInt(e.target.value) / 100; updateTauDisplay(); snapToSolution();
+});
+
+document.getElementById('btnEM1').addEventListener('click', () => {
+  stopAll(); tau2 = emStep(tau2); updateTauDisplay(); snapToSolution();
+});
+
+document.getElementById('btnRunEM').addEventListener('click', () => {
+  if (emRunning) {
+    emRunning = false; if (emAnimId) clearTimeout(emAnimId);
+    document.getElementById('btnRunEM').classList.remove('active');
+    document.getElementById('btnRunEM').textContent = 'Run EM';
+    return;
+  }
+  stopAll();
+  const result = runEM(); emPath = result.path; emIdx = 0;
+  emRunning = true;
+  document.getElementById('btnRunEM').textContent = 'Stop EM';
+  document.getElementById('btnRunEM').classList.add('active');
+  animateEM();
+});
+
+document.getElementById('btnSnapRE').addEventListener('click', () => {
+  stopAll(); const result = runEM(); tau2 = result.tau2; updateTauDisplay(); snapToSolution();
+});
+
+function stopAll() {
+  running = false; emRunning = false;
+  if (animId) cancelAnimationFrame(animId);
+  if (emAnimId) clearTimeout(emAnimId);
+  document.getElementById('btnPlay').textContent = 'Play';
+  document.getElementById('btnPlay').classList.remove('active');
+  document.getElementById('btnRunEM').textContent = 'Run EM';
+  document.getElementById('btnRunEM').classList.remove('active');
+}
+
+// ===================== INIT =====================
+drawStatic();
+render();
+</script>
+</body>
+</html>

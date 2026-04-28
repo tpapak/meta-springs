@@ -1,0 +1,434 @@
+[
+  {
+    "studyname": "AASK",
+    "study": 1,
+    "treatment": "ACE",
+    "events": 45,
+    "n": 410,
+    "rob": 1,
+    "indirectness": 1
+  },
+  {
+    "studyname": "AASK",
+    "study": 1,
+    "treatment": "BBlocker",
+    "events": 70,
+    "n": 405,
+    "rob": 1,
+    "indirectness": 1
+  },
+  {
+    "studyname": "AASK",
+    "study": 1,
+    "treatment": "CCB",
+    "events": 32,
+    "n": 202,
+    "rob": 1,
+    "indirectness": 1
+  },
+  {
+    "studyname": "ALLHAT",
+    "study": 2,
+    "treatment": "ACE",
+    "events": 119,
+    "n": 4096,
+    "rob": 1,
+    "indirectness": 1
+  },
+  {
+    "studyname": "ALLHAT",
+    "study": 2,
+    "treatment": "CCB",
+    "events": 154,
+    "n": 3954,
+    "rob": 1,
+    "indirectness": 1
+  },
+  {
+    "studyname": "ALLHAT",
+    "study": 2,
+    "treatment": "Diuretic",
+    "events": 302,
+    "n": 6766,
+    "rob": 1,
+    "indirectness": 1
+  },
+  {
+    "studyname": "ALPINE",
+    "study": 3,
+    "treatment": "ARB",
+    "events": 1,
+    "n": 196,
+    "rob": 1,
+    "indirectness": 1
+  },
+  {
+    "studyname": "ALPINE",
+    "study": 3,
+    "treatment": "Diuretic",
+    "events": 8,
+    "n": 196,
+    "rob": 1,
+    "indirectness": 1
+  },
+  {
+    "studyname": "ANBP-2",
+    "study": 4,
+    "treatment": "ACE",
+    "events": 138,
+    "n": 2800,
+    "rob": 1,
+    "indirectness": 1
+  },
+  {
+    "studyname": "ANBP-2",
+    "study": 4,
+    "treatment": "Diuretic",
+    "events": 200,
+    "n": 2826,
+    "rob": 1,
+    "indirectness": 1
+  },
+  {
+    "studyname": "ASCOT",
+    "study": 5,
+    "treatment": "BBlocker",
+    "events": 799,
+    "n": 7040,
+    "rob": 1,
+    "indirectness": 1
+  },
+  {
+    "studyname": "ASCOT",
+    "study": 5,
+    "treatment": "CCB",
+    "events": 567,
+    "n": 7072,
+    "rob": 1,
+    "indirectness": 1
+  },
+  {
+    "studyname": "CAPPP",
+    "study": 6,
+    "treatment": "ACE",
+    "events": 337,
+    "n": 5183,
+    "rob": 2,
+    "indirectness": 1
+  },
+  {
+    "studyname": "CAPPP",
+    "study": 6,
+    "treatment": "BBlocker",
+    "events": 380,
+    "n": 5230,
+    "rob": 2,
+    "indirectness": 1
+  },
+  {
+    "studyname": "CHARM",
+    "study": 7,
+    "treatment": "ARB",
+    "events": 163,
+    "n": 2715,
+    "rob": 1,
+    "indirectness": 1
+  },
+  {
+    "studyname": "CHARM",
+    "study": 7,
+    "treatment": "Placebo",
+    "events": 202,
+    "n": 2721,
+    "rob": 1,
+    "indirectness": 1
+  },
+  {
+    "studyname": "DREAM",
+    "study": 8,
+    "treatment": "ACE",
+    "events": 449,
+    "n": 2623,
+    "rob": 1,
+    "indirectness": 1
+  },
+  {
+    "studyname": "DREAM",
+    "study": 8,
+    "treatment": "Placebo",
+    "events": 489,
+    "n": 2646,
+    "rob": 1,
+    "indirectness": 1
+  },
+  {
+    "studyname": "EWPHE",
+    "study": 9,
+    "treatment": "Diuretic",
+    "events": 29,
+    "n": 416,
+    "rob": 2,
+    "indirectness": 1
+  },
+  {
+    "studyname": "EWPHE",
+    "study": 9,
+    "treatment": "Placebo",
+    "events": 20,
+    "n": 424,
+    "rob": 2,
+    "indirectness": 1
+  },
+  {
+    "studyname": "FEVER",
+    "study": 10,
+    "treatment": "CCB",
+    "events": 177,
+    "n": 4841,
+    "rob": 1,
+    "indirectness": 1
+  },
+  {
+    "studyname": "FEVER",
+    "study": 10,
+    "treatment": "Placebo",
+    "events": 154,
+    "n": 4870,
+    "rob": 1,
+    "indirectness": 1
+  },
+  {
+    "studyname": "HAPPHY",
+    "study": 11,
+    "treatment": "BBlocker",
+    "events": 86,
+    "n": 3297,
+    "rob": 3,
+    "indirectness": 1
+  },
+  {
+    "studyname": "HAPPHY",
+    "study": 11,
+    "treatment": "Diuretic",
+    "events": 75,
+    "n": 3272,
+    "rob": 3,
+    "indirectness": 1
+  },
+  {
+    "studyname": "HOPE",
+    "study": 12,
+    "treatment": "ACE",
+    "events": 102,
+    "n": 2837,
+    "rob": 1,
+    "indirectness": 1
+  },
+  {
+    "studyname": "HOPE",
+    "study": 12,
+    "treatment": "Placebo",
+    "events": 155,
+    "n": 2883,
+    "rob": 1,
+    "indirectness": 1
+  },
+  {
+    "studyname": "INSIGHT",
+    "study": 13,
+    "treatment": "CCB",
+    "events": 136,
+    "n": 2508,
+    "rob": 1,
+    "indirectness": 1
+  },
+  {
+    "studyname": "INSIGHT",
+    "study": 13,
+    "treatment": "Diuretic",
+    "events": 176,
+    "n": 2511,
+    "rob": 1,
+    "indirectness": 1
+  },
+  {
+    "studyname": "INVEST",
+    "study": 14,
+    "treatment": "BBlocker",
+    "events": 665,
+    "n": 8078,
+    "rob": 1,
+    "indirectness": 1
+  },
+  {
+    "studyname": "INVEST",
+    "study": 14,
+    "treatment": "CCB",
+    "events": 569,
+    "n": 8098,
+    "rob": 1,
+    "indirectness": 1
+  },
+  {
+    "studyname": "LIFE",
+    "study": 15,
+    "treatment": "ARB",
+    "events": 242,
+    "n": 4020,
+    "rob": 1,
+    "indirectness": 1
+  },
+  {
+    "studyname": "LIFE",
+    "study": 15,
+    "treatment": "BBlocker",
+    "events": 320,
+    "n": 3979,
+    "rob": 1,
+    "indirectness": 1
+  },
+  {
+    "studyname": "MRC",
+    "study": 16,
+    "treatment": "BBlocker",
+    "events": 37,
+    "n": 1102,
+    "rob": 1,
+    "indirectness": 1
+  },
+  {
+    "studyname": "MRC",
+    "study": 16,
+    "treatment": "Diuretic",
+    "events": 43,
+    "n": 1081,
+    "rob": 1,
+    "indirectness": 1
+  },
+  {
+    "studyname": "MRC",
+    "study": 16,
+    "treatment": "Placebo",
+    "events": 34,
+    "n": 2213,
+    "rob": 1,
+    "indirectness": 1
+  },
+  {
+    "studyname": "NORDIL",
+    "study": 17,
+    "treatment": "BBlocker",
+    "events": 251,
+    "n": 5059,
+    "rob": 1,
+    "indirectness": 1
+  },
+  {
+    "studyname": "NORDIL",
+    "study": 17,
+    "treatment": "CCB",
+    "events": 216,
+    "n": 5095,
+    "rob": 1,
+    "indirectness": 1
+  },
+  {
+    "studyname": "PEACE",
+    "study": 18,
+    "treatment": "ACE",
+    "events": 335,
+    "n": 3432,
+    "rob": 1,
+    "indirectness": 1
+  },
+  {
+    "studyname": "PEACE",
+    "study": 18,
+    "treatment": "Placebo",
+    "events": 399,
+    "n": 3472,
+    "rob": 1,
+    "indirectness": 1
+  },
+  {
+    "studyname": "SCOPE",
+    "study": 19,
+    "treatment": "ARB",
+    "events": 93,
+    "n": 2167,
+    "rob": 2,
+    "indirectness": 1
+  },
+  {
+    "studyname": "SCOPE",
+    "study": 19,
+    "treatment": "Placebo",
+    "events": 115,
+    "n": 2175,
+    "rob": 2,
+    "indirectness": 1
+  },
+  {
+    "studyname": "SHEP",
+    "study": 20,
+    "treatment": "Diuretic",
+    "events": 140,
+    "n": 1631,
+    "rob": 1,
+    "indirectness": 1
+  },
+  {
+    "studyname": "SHEP",
+    "study": 20,
+    "treatment": "Placebo",
+    "events": 118,
+    "n": 1578,
+    "rob": 1,
+    "indirectness": 1
+  },
+  {
+    "studyname": "STOP-2",
+    "study": 21,
+    "treatment": "ACE",
+    "events": 93,
+    "n": 1970,
+    "rob": 2,
+    "indirectness": 1
+  },
+  {
+    "studyname": "STOP-2",
+    "study": 21,
+    "treatment": "BBlocker",
+    "events": 97,
+    "n": 1960,
+    "rob": 2,
+    "indirectness": 1
+  },
+  {
+    "studyname": "STOP-2",
+    "study": 21,
+    "treatment": "CCB",
+    "events": 95,
+    "n": 1965,
+    "rob": 2,
+    "indirectness": 1
+  },
+  {
+    "studyname": "VALUE",
+    "study": 22,
+    "treatment": "ARB",
+    "events": 690,
+    "n": 5087,
+    "rob": 2,
+    "indirectness": 1
+  },
+  {
+    "studyname": "VALUE",
+    "study": 22,
+    "treatment": "CCB",
+    "events": 845,
+    "n": 5074,
+    "rob": 2,
+    "indirectness": 1
+  }
+]

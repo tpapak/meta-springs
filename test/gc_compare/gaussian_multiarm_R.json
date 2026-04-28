@@ -1,0 +1,144 @@
+{
+  "results": [
+    {
+      "name": "senn2013",
+      "file": "test/nma_senn2013.json",
+      "k_studies": 26,
+      "multi_arm_k": 1,
+      "netmeta_tau2": 0.1011,
+      "rma_mv_tau2": 0.121,
+      "multinma_tau2_mode": null,
+      "multinma_tau2_median": null
+    },
+    {
+      "name": "parkinson",
+      "file": "test/nma_parkinson.json",
+      "k_studies": 7,
+      "multi_arm_k": 1,
+      "netmeta_tau2": 2.5615e-11,
+      "rma_mv_tau2": 9.3523e-08,
+      "multinma_tau2_mode": null,
+      "multinma_tau2_median": null
+    },
+    {
+      "name": "franchini2012",
+      "file": "test/nma_franchini2012.json",
+      "k_studies": 7,
+      "multi_arm_k": 1,
+      "netmeta_tau2": 3.9011e-11,
+      "rma_mv_tau2": null,
+      "multinma_tau2_mode": null,
+      "multinma_tau2_median": null
+    },
+    {
+      "name": "stowe2010",
+      "file": "test/nma_stowe2010.json",
+      "k_studies": 29,
+      "multi_arm_k": 1,
+      "netmeta_tau2": 0.128,
+      "rma_mv_tau2": 0.1429,
+      "multinma_tau2_mode": null,
+      "multinma_tau2_median": null
+    },
+    {
+      "name": "synth_c1",
+      "file": "test/nma_synth_c1.json",
+      "k_studies": 15,
+      "multi_arm_k": 7,
+      "netmeta_tau2": 1.316,
+      "rma_mv_tau2": 1.2716,
+      "multinma_tau2_mode": null,
+      "multinma_tau2_median": null
+    },
+    {
+      "name": "synth_c2",
+      "file": "test/nma_synth_c2.json",
+      "k_studies": 20,
+      "multi_arm_k": 8,
+      "netmeta_tau2": 0.5778,
+      "rma_mv_tau2": 0.5098,
+      "multinma_tau2_mode": null,
+      "multinma_tau2_median": null
+    },
+    {
+      "name": "synth_c3",
+      "file": "test/nma_synth_c3.json",
+      "k_studies": 30,
+      "multi_arm_k": 12,
+      "netmeta_tau2": 2.0184,
+      "rma_mv_tau2": 1.9785,
+      "multinma_tau2_mode": null,
+      "multinma_tau2_median": null
+    },
+    {
+      "name": "synth_c4",
+      "file": "test/nma_synth_c4.json",
+      "k_studies": 10,
+      "multi_arm_k": 6,
+      "netmeta_tau2": 0.1699,
+      "rma_mv_tau2": 0.4141,
+      "multinma_tau2_mode": null,
+      "multinma_tau2_median": null
+    },
+    {
+      "name": "synth_c5",
+      "file": "test/nma_synth_c5.json",
+      "k_studies": 25,
+      "multi_arm_k": 14,
+      "netmeta_tau2": 0.002,
+      "rma_mv_tau2": 6.1006e-13,
+      "multinma_tau2_mode": null,
+      "multinma_tau2_median": null
+    },
+    {
+      "name": "synth_c6",
+      "file": "test/nma_synth_c6.json",
+      "k_studies": 40,
+      "multi_arm_k": 21,
+      "netmeta_tau2": 0.8669,
+      "rma_mv_tau2": 0.5642,
+      "multinma_tau2_mode": null,
+      "multinma_tau2_median": null
+    },
+    {
+      "name": "synth_c7",
+      "file": "test/nma_synth_c7.json",
+      "k_studies": 12,
+      "multi_arm_k": 5,
+      "netmeta_tau2": 1.8591,
+      "rma_mv_tau2": 1.8177,
+      "multinma_tau2_mode": null,
+      "multinma_tau2_median": null
+    },
+    {
+      "name": "synth_c8",
+      "file": "test/nma_synth_c8.json",
+      "k_studies": 50,
+      "multi_arm_k": 24,
+      "netmeta_tau2": 0.0122,
+      "rma_mv_tau2": null,
+      "multinma_tau2_mode": null,
+      "multinma_tau2_median": null
+    },
+    {
+      "name": "synth_c9",
+      "file": "test/nma_synth_c9.json",
+      "k_studies": 8,
+      "multi_arm_k": 4,
+      "netmeta_tau2": 0.4304,
+      "rma_mv_tau2": null,
+      "multinma_tau2_mode": null,
+      "multinma_tau2_median": null
+    },
+    {
+      "name": "synth_c10",
+      "file": "test/nma_synth_c10.json",
+      "k_studies": 35,
+      "multi_arm_k": 19,
+      "netmeta_tau2": 0.3091,
+      "rma_mv_tau2": 0.3056,
+      "multinma_tau2_mode": null,
+      "multinma_tau2_median": null
+    }
+  ]
+}

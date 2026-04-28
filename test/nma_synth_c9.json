@@ -1,0 +1,142 @@
+[
+  {
+    "study": 1,
+    "treatment": 1,
+    "mean": 0.2275,
+    "sd": 1.382,
+    "n": 63
+  },
+  {
+    "study": 1,
+    "treatment": 2,
+    "mean": 0.6613,
+    "sd": 1.3644,
+    "n": 88
+  },
+  {
+    "study": 1,
+    "treatment": 3,
+    "mean": 0.5244,
+    "sd": 1.4533,
+    "n": 83
+  },
+  {
+    "study": 2,
+    "treatment": 1,
+    "mean": -1.3916,
+    "sd": 1.6454,
+    "n": 92
+  },
+  {
+    "study": 2,
+    "treatment": 2,
+    "mean": -2.2233,
+    "sd": 1.275,
+    "n": 54
+  },
+  {
+    "study": 2,
+    "treatment": 4,
+    "mean": -1.1639,
+    "sd": 1.0814,
+    "n": 38
+  },
+  {
+    "study": 3,
+    "treatment": 1,
+    "mean": 1.9617,
+    "sd": 0.7006,
+    "n": 24
+  },
+  {
+    "study": 3,
+    "treatment": 4,
+    "mean": 1.5483,
+    "sd": 1.4058,
+    "n": 59
+  },
+  {
+    "study": 4,
+    "treatment": 2,
+    "mean": 0.5315,
+    "sd": 1.039,
+    "n": 100
+  },
+  {
+    "study": 4,
+    "treatment": 4,
+    "mean": 1.2053,
+    "sd": 1.6912,
+    "n": 82
+  },
+  {
+    "study": 5,
+    "treatment": 1,
+    "mean": 0.1453,
+    "sd": 1.0487,
+    "n": 41
+  },
+  {
+    "study": 5,
+    "treatment": 4,
+    "mean": 1.2062,
+    "sd": 1.6034,
+    "n": 70
+  },
+  {
+    "study": 6,
+    "treatment": 2,
+    "mean": -1.7413,
+    "sd": 1.8489,
+    "n": 94
+  },
+  {
+    "study": 6,
+    "treatment": 3,
+    "mean": -1.359,
+    "sd": 1.5612,
+    "n": 76
+  },
+  {
+    "study": 6,
+    "treatment": 4,
+    "mean": -1.7572,
+    "sd": 1.104,
+    "n": 87
+  },
+  {
+    "study": 7,
+    "treatment": 1,
+    "mean": 0.5176,
+    "sd": 1.6517,
+    "n": 34
+  },
+  {
+    "study": 7,
+    "treatment": 3,
+    "mean": -0.5918,
+    "sd": 1.7754,
+    "n": 77
+  },
+  {
+    "study": 7,
+    "treatment": 4,
+    "mean": -0.1027,
+    "sd": 1.1103,
+    "n": 75
+  },
+  {
+    "study": 8,
+    "treatment": 2,
+    "mean": -0.4666,
+    "sd": 1.7437,
+    "n": 25
+  },
+  {
+    "study": 8,
+    "treatment": 3,
+    "mean": 0.779,
+    "sd": 1.3878,
+    "n": 73
+  }
+]

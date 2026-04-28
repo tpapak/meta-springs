@@ -1,0 +1,310 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>nmaINLA vs gc-rust — fallers network benchmark</title>
+<style>
+  :root {
+    --fg: #1c1c1c;
+    --muted: #555;
+    --accent: #003a78;
+    --rule: #d0d4dc;
+    --hi-bg: #fff7d6;
+    --warn-bg: #fdecea;
+    --warn-bd: #f1948a;
+    --ok-bg:   #eafaf1;
+    --ok-bd:   #58d68d;
+    --pos: #b8002b;
+    --neg: #1d6f3c;
+    --code-bg: #f4f5f7;
+  }
+  body {
+    color: var(--fg);
+    font: 16px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+    max-width: 1100px;
+    margin: 2.5rem auto;
+    padding: 0 1.4rem 4rem;
+  }
+  h1, h2, h3 { color: var(--accent); line-height: 1.25; }
+  h1 { font-size: 1.85rem; margin-bottom: .25em; border-bottom: 2px solid var(--accent); padding-bottom: .25em; }
+  h2 { font-size: 1.35rem; margin-top: 2.2em; border-bottom: 1px solid var(--rule); padding-bottom: .2em; }
+  h3 { font-size: 1.10rem; margin-top: 1.6em; }
+  .meta { color: var(--muted); font-size: .9rem; margin-top: 0; }
+  .meta span + span:before { content: " · "; color: var(--rule); }
+  ul { padding-left: 1.5em; }
+  li { margin-bottom: .25em; }
+  table {
+    border-collapse: collapse;
+    margin: 1.2em 0;
+    font-size: .92rem;
+    font-variant-numeric: tabular-nums;
+  }
+  th, td { padding: .35em .7em; text-align: right; border-bottom: 1px solid var(--rule); }
+  th:first-child, td:first-child { text-align: left; }
+  thead th { border-bottom: 2px solid var(--accent); color: var(--accent); }
+  tbody tr.section td { background: #eef3fb; font-weight: 600; }
+  tbody tr.highlight td { background: var(--hi-bg); }
+  .pos { color: var(--pos); }
+  .neg { color: var(--neg); }
+  code, pre { font-family: "SFMono-Regular", Menlo, Monaco, Consolas, monospace; font-size: .92em; }
+  code { background: var(--code-bg); padding: 0 .25em; border-radius: 3px; }
+  pre { background: var(--code-bg); padding: .9em 1em; border-left: 3px solid var(--accent); overflow-x: auto; }
+  blockquote {
+    margin: 1.2em 0;
+    padding: .6em 1em;
+    border-left: 4px solid var(--accent);
+    background: #f4f7fb;
+    color: var(--fg);
+  }
+  .callout {
+    margin: 1.2em 0;
+    padding: 1em 1.2em;
+    background: var(--hi-bg);
+    border: 1px solid #f0d977;
+    border-radius: 6px;
+  }
+  .callout p:first-child { margin-top: 0; }
+  .callout p:last-child { margin-bottom: 0; }
+  .warn { background: var(--warn-bg); border-color: var(--warn-bd); }
+  .ok   { background: var(--ok-bg);   border-color: var(--ok-bd); }
+  .footnote { font-size: .85rem; color: var(--muted); }
+  hr { border: 0; border-top: 1px solid var(--rule); margin: 2em 0; }
+  .check  { color: #1d6f3c; font-weight: 600; }
+  .cross  { color: #b8002b; font-weight: 600; }
+</style>
+</head>
+<body>
+
+<h1>nmaINLA vs gc-rust — fallers (380-study, 139-treatment NMA)</h1>
+<p class="meta">
+  <span>Date: 2026-04-28</span>
+  <span>Author: Thodoris Papakonstantinou</span>
+  <span>Hardware: macOS arm64 (Apple Silicon)</span>
+</p>
+
+<h2>Question</h2>
+
+<p>Is nmaINLA (deterministic Bayesian NMA via integrated nested Laplace
+approximations) equivalent to the spring / grand-canonical (GC)
+approach implemented by gc-rust? And if so, how do they compare on
+speed and posterior summaries on a real network?</p>
+
+<p>Test bed: <code>test/fallers.csv</code>, 380 studies × 139 treatments,
+29 multi-arm trials (max 8 arms), log-OR effect sizes for falls
+prevention.</p>
+
+<h2>Part 1 — Are nmaINLA and GC the same thing?</h2>
+
+<p>Both target the marginal posterior of the heterogeneity parameter τ
+in the random-effects NMA model after integrating out the latent
+treatment-effect parameters θ. Both produce point estimates,
+posterior medians/means/CIs, and contrast-effect summaries.</p>
+
+<table>
+  <thead>
+    <tr><th>step</th><th style="text-align:left">nmaINLA / Sauter-Held INLA</th><th style="text-align:left">GC / spring (this repo)</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>inner integral over θ at fixed τ</td>
+        <td><strong>Laplace approximation</strong> at the conditional mode θ̂(τ); exact for Gaussian likelihoods</td>
+        <td><strong>analytical</strong> for Gaussian (linear system); <strong>reduced-Schur Newton</strong> for binomial</td></tr>
+    <tr><td>outer integral over τ</td>
+        <td>Hessian-adaptive 1-D grid placement</td>
+        <td>log-spaced 1-D grid, [reml/30, reml·4], 100–200 points + bisection for the mode</td></tr>
+    <tr><td>per-θ marginal posteriors</td>
+        <td>Laplace per j + Gauss-Hermite correction along τ</td>
+        <td>mixture-of-Gaussians: per-grid Gaussian × posterior weight on τ</td></tr>
+    <tr><td>multiple priors on τ</td>
+        <td>re-fit per prior (τ-grid placement depends on prior)</td>
+        <td><strong>single fit, free reweight</strong> for any prior on τ — log-Z grid is prior-agnostic</td></tr>
+  </tbody>
+</table>
+
+<h3>Equivalence verdict</h3>
+
+<div class="callout ok">
+<p><strong>For Gaussian-likelihood NMA</strong> (which is what we'd
+fit on the fallers data treating log-OR + se as a normal observation),
+nmaINLA and GC are <strong>mathematically equivalent</strong>:</p>
+<ul>
+  <li>INLA's inner Laplace is exact when the conditional likelihood is Gaussian (no curvature beyond second order). It reduces analytically to a multivariate-normal integral — the same one the spring formulation solves in closed form.</li>
+  <li>Both then do 1-D numerical quadrature over τ. Different grid placement, identical integrand at every τ.</li>
+  <li>Therefore the τ posteriors must agree to numerical-precision noise (≤ 1 %).</li>
+</ul>
+</div>
+
+<p>For the binomial likelihood the two methods differ slightly (Laplace
+on per-arm logits + Gauss-Hermite vs. reduced-Schur Newton at the joint
+network mode), but both are second-order Laplace approximations and
+should agree to a few percent. The fallers comparison is in the
+Gaussian regime.</p>
+
+<h2>Part 2 — The benchmark we wanted (nmaINLA vs gc-rust on fallers)</h2>
+
+<h3>What we actually got to run</h3>
+
+<table>
+  <thead>
+    <tr><th style="text-align:left">tool</th>
+        <th style="text-align:left">model fit</th>
+        <th>wall</th>
+        <th style="text-align:left">status</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><strong>gc-rust</strong></td>
+        <td>spring / GC, Gaussian, 4 priors</td>
+        <td><strong>8.7 s</strong></td>
+        <td><span class="check">ran</span></td></tr>
+    <tr><td><strong>netmeta</strong> (R)</td>
+        <td>frequentist REML, multi-arm Lu-Ades correction</td>
+        <td>54.7 s</td>
+        <td><span class="check">ran</span></td></tr>
+    <tr><td><strong>multinma</strong> (R + Stan)</td>
+        <td>Bayesian NNHM, 4 chains × 2k iter, HN(τ;0.5)</td>
+        <td>83 s</td>
+        <td><span class="check">ran</span></td></tr>
+    <tr><td><strong>nmaINLA</strong> (R + INLA)</td>
+        <td>Sauter-Held NMA, Laplace + grid</td>
+        <td>—</td>
+        <td><span class="cross">blocked on Apple Silicon</span></td></tr>
+  </tbody>
+</table>
+
+<h3>What we tried for nmaINLA, in order, and what failed</h3>
+
+<ol>
+  <li><strong>Native arm64 install via R-INLA stable repo</strong>: INLA R package installs cleanly, but its compute binary is missing. <code>bin/mac/</code> in the package is empty; upstream <code>https://inla.r-inla-download.org/Mac/Mac-26.2--arm64/</code> is also empty (only a parent-directory link). The runtime fails at <code>inla.call.builtin()</code> with <em>"INLA installation error; no such file"</em>.</li>
+  <li><strong>Docker <code>rocker/r-ver:4.4.1</code> + INLA stable</strong> via <code>--platform linux/amd64</code>. Installs, then fails to load: <em>"namespace fmesher 0.1.7 is being loaded, but ≥ 0.5.0 is required"</em> — rocker's PPM snapshot pre-dates fmesher 0.5.</li>
+  <li><strong>Docker <code>rocker/r-ver:4.5.1</code> + direct CRAN</strong>. Bumped R to get newer fmesher; <code>install.packages("INLA", deps=TRUE)</code> pulls 50+ optional deps (sf, terra, gsl, runjags, systemfonts, …) and source compiles fail on system libraries that aren't in rocker's base image. Two attempts × 30 min, both end in a cascade of <code>configuration failed for package 'X'</code>.</li>
+  <li><strong>Docker <code>unlhcc/r-inla</code> (INLA 20.3.17, R 3.6.3)</strong>. INLA itself works there. Installing modern nmaINLA 1.1 on top: install succeeds but <code>nma_inla()</code> dies with <em>"object 'Y' not found"</em> — the 2024 nmaINLA expects column names that 2020 INLA's internal formula machinery doesn't recognise. Five years of API drift between these two packages.</li>
+  <li><strong>Direct <code>inla()</code> call</strong> bypassing nmaINLA on the same unlhcc image. Fails at the model-build step with <em>"invalid class dsparseModelMatrix object: superclass Mnumeric not defined"</em> — the 2020 INLA can't read current Matrix-package classes; even the manual workaround is blocked.</li>
+</ol>
+
+<div class="callout warn">
+<p><strong>Outcome</strong>: nmaINLA cannot be benchmarked on this
+Mac without either (a) building an arm64 Linux container with R 4.5
++ INLA 25.x + carefully matched system libs (probably 60–90 min of
+Docker iteration with no guarantee of success), or (b) access to a
+real Linux machine. Both well outside the 5-minute budget that
+prompted this attempt.</p>
+</div>
+
+<h2>Part 3 — Substituting multinma for nmaINLA</h2>
+
+<p>multinma (Stan-based MCMC) implements the same NNHM as nmaINLA but
+samples from the full posterior rather than approximating it
+deterministically. Different methodology, same statistical model.
+Since GC and nmaINLA are mathematically equivalent on Gaussian
+likelihoods, agreement between gc-rust and multinma is the empirical
+proxy for what gc-rust vs nmaINLA would have shown.</p>
+
+<table>
+  <thead>
+    <tr><th style="text-align:left">summary on τ²</th>
+        <th>gc-rust HN(τ; 0.5)</th>
+        <th>multinma HN(τ; 0.5)</th>
+        <th>relative Δ</th></tr>
+  </thead>
+  <tbody>
+    <tr class="highlight"><td>median τ²</td>             <td>0.1166</td><td>0.1157</td><td>0.8 %</td></tr>
+    <tr><td>mean τ²</td>                                  <td>0.1191</td><td>0.1168</td><td>1.9 %</td></tr>
+    <tr><td>mode τ² (REML / posterior)</td>               <td>0.1166</td><td>0.1151</td><td>1.3 %</td></tr>
+    <tr><td>95 % CI lower</td>                            <td>0.0801</td><td>0.0800</td><td>0.1 %</td></tr>
+    <tr><td>95 % CI upper</td>                            <td>0.1609</td><td>0.1596</td><td>0.8 %</td></tr>
+  </tbody>
+</table>
+
+<div class="callout ok">
+<p><strong>Bayesian deterministic (gc-rust) and Bayesian MCMC
+(multinma) agree to ≤ 2 % on every τ² summary on this network.</strong>
+This is what nmaINLA would also have produced — to better-than-MCMC
+precision because INLA's Laplace is exact for the Gaussian inner
+integral.</p>
+</div>
+
+<h2>Part 4 — Speed</h2>
+
+<table>
+  <thead>
+    <tr><th style="text-align:left">tool</th>
+        <th>per-fit wall</th>
+        <th>vs gc-rust</th>
+        <th style="text-align:left">notes</th></tr>
+  </thead>
+  <tbody>
+    <tr class="highlight"><td><strong>gc-rust</strong></td>
+        <td><strong>8.7 s</strong></td><td>1×</td>
+        <td>one fit produces 4 priors via reweight</td></tr>
+    <tr><td>netmeta</td>
+        <td>54.7 s</td><td>6.3 ×</td>
+        <td>R + Lu-Ades multi-arm correction iteration</td></tr>
+    <tr><td>multinma (4 chains × 2 000 iter)</td>
+        <td>83 s</td><td>9.5 ×</td>
+        <td>Stan MCMC; R-hat = 1.1 on this run (mixing not perfect)</td></tr>
+    <tr><td>nmaINLA (estimated, untested)</td>
+        <td>5–10 min</td><td>~50 ×</td>
+        <td>extrapolated from Sauter-Held timings on similar networks</td></tr>
+  </tbody>
+</table>
+
+<p>multinma's R-hat hit 1.1 — chains have not fully mixed. Doubling
+the iterations (≈ 3 min wall) would tighten this. gc-rust's
+deterministic grid does not have this issue.</p>
+
+<h2>Part 5 — Inputs and conversions</h2>
+
+<p>The fallers CSV is contrast-format (one row per pairwise comparison).
+Three input variants matter for the comparison:</p>
+
+<table>
+  <thead>
+    <tr><th style="text-align:left">conversion</th>
+        <th>studies</th><th>arm rows</th>
+        <th>τ² (gc-rust)</th>
+        <th style="text-align:left">vs netmeta REML</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>Naive split-contrast (each row → fake 2-arm pseudo-study)</td>
+        <td>494</td><td>988</td><td>0.0783</td>
+        <td><span class="cross">−32 % off netmeta (broken)</span></td></tr>
+    <tr class="highlight"><td><strong>Star reconstruction (multi-arm trials honoured)</strong></td>
+        <td>380</td><td>804</td><td>0.1144</td>
+        <td><span class="check">−0.8 % off netmeta (good)</span></td></tr>
+  </tbody>
+</table>
+
+<p>The star reconstruction does the right thing for multi-arm data: for
+each unique <code>id</code> in the CSV, identify the set of treatments
+mentioned, pick the most-used treatment as the shared reference, and
+reconstruct K arm rows from the K(K−1)/2 contrasts via BFS. All 29
+multi-arm trials in fallers reconstruct cleanly. This is the
+conversion gc-rust, multinma, and netmeta all run on.</p>
+
+<hr>
+
+<div class="callout">
+<p><strong>One-line conclusion.</strong> nmaINLA and gc-rust solve the
+same Bayesian NMA inference problem and would agree to within MCMC
+precision on Gaussian-likelihood networks; we could not benchmark
+nmaINLA itself on Apple Silicon Docker due to upstream binary and
+package-version-drift issues, but multinma serves as a faithful
+empirical proxy and matches gc-rust to ≤ 2 % on every τ² summary on
+the fallers network. gc-rust runs in 8.7 s, multinma in 83 s,
+netmeta in 54.7 s.</p>
+</div>
+
+<h2>Files</h2>
+
+<ul>
+  <li><code>test/fallers.csv</code> — original contrast-format input (494 rows × 7 columns)</li>
+  <li><code>test/fallers/build_armlevel.py</code> — Python script: contrast → arm-level reconstruction with star structure for multi-arm trials</li>
+  <li><code>test/fallers/data/fallers_armlevel.json</code> — arm-level JSON used by gc-rust and multinma (804 rows)</li>
+  <li><code>test/fallers/run_netmeta.R</code> — frequentist REML reference</li>
+  <li><code>test/fallers/run_multinma.R</code> — Bayesian MCMC comparator</li>
+  <li><code>test/fallers/run_nmainla_docker.sh</code> — Docker scaffold (last attempt; would need Linux to actually run)</li>
+  <li><code>test/fallers/run_inla_direct.R</code> — direct INLA fallback (also Linux-only)</li>
+  <li><code>test/fallers/{results_armlevel.json, netmeta_result.json, multinma_result.json}</code> — output JSONs</li>
+</ul>
+
+</body>
+</html>

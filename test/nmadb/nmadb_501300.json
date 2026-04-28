@@ -1,0 +1,177 @@
+[
+  {
+    "study": 1,
+    "treatment": 2,
+    "mean": -2,
+    "sd": 2.4,
+    "n": 27
+  },
+  {
+    "study": 1,
+    "treatment": 4,
+    "mean": -2,
+    "sd": 3.4,
+    "n": 27
+  },
+  {
+    "study": 2,
+    "treatment": 1,
+    "mean": -0.16,
+    "sd": 2.62,
+    "n": 126
+  },
+  {
+    "study": 2,
+    "treatment": 4,
+    "mean": -0.92,
+    "sd": 2.51,
+    "n": 126
+  },
+  {
+    "study": 3,
+    "treatment": 1,
+    "mean": -0.6,
+    "sd": 2.1,
+    "n": 45
+  },
+  {
+    "study": 3,
+    "treatment": 4,
+    "mean": -0.8,
+    "sd": 1.6,
+    "n": 43
+  },
+  {
+    "study": 4,
+    "treatment": 4,
+    "mean": -0.3,
+    "sd": 0.7,
+    "n": 25
+  },
+  {
+    "study": 4,
+    "treatment": 3,
+    "mean": -0.7,
+    "sd": 0.96,
+    "n": 28
+  },
+  {
+    "study": 5,
+    "treatment": 1,
+    "mean": -0.5,
+    "sd": 1.54,
+    "n": 68
+  },
+  {
+    "study": 5,
+    "treatment": 2,
+    "mean": -0.13,
+    "sd": 2.2,
+    "n": 72
+  },
+  {
+    "study": 5,
+    "treatment": 4,
+    "mean": -0.36,
+    "sd": 3.14,
+    "n": 68
+  },
+  {
+    "study": 6,
+    "treatment": 1,
+    "mean": -0.5,
+    "sd": 1.54,
+    "n": 344
+  },
+  {
+    "study": 6,
+    "treatment": 4,
+    "mean": -0.9,
+    "sd": 1.54,
+    "n": 345
+  },
+  {
+    "study": 7,
+    "treatment": 1,
+    "mean": -0.07,
+    "sd": 2.12,
+    "n": 22
+  },
+  {
+    "study": 7,
+    "treatment": 4,
+    "mean": -1.62,
+    "sd": 1.83,
+    "n": 17
+  },
+  {
+    "study": 8,
+    "treatment": 4,
+    "mean": 0.25,
+    "sd": 0.96,
+    "n": 50
+  },
+  {
+    "study": 8,
+    "treatment": 3,
+    "mean": -0.59,
+    "sd": 1.35,
+    "n": 51
+  },
+  {
+    "study": 9,
+    "treatment": 2,
+    "mean": -1.6,
+    "sd": 1.9,
+    "n": 82
+  },
+  {
+    "study": 9,
+    "treatment": 4,
+    "mean": -1.5,
+    "sd": 2.1,
+    "n": 68
+  },
+  {
+    "study": 10,
+    "treatment": 1,
+    "mean": -0.85,
+    "sd": 1.87,
+    "n": 11
+  },
+  {
+    "study": 10,
+    "treatment": 4,
+    "mean": -1.54,
+    "sd": 1.46,
+    "n": 12
+  },
+  {
+    "study": 11,
+    "treatment": 1,
+    "mean": -0.54,
+    "sd": 1.41,
+    "n": 110
+  },
+  {
+    "study": 11,
+    "treatment": 4,
+    "mean": -1,
+    "sd": 1.08,
+    "n": 113
+  },
+  {
+    "study": 12,
+    "treatment": 1,
+    "mean": -0.24,
+    "sd": 1.87,
+    "n": 25
+  },
+  {
+    "study": 12,
+    "treatment": 4,
+    "mean": 0,
+    "sd": 2.16,
+    "n": 25
+  }
+]

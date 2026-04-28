@@ -1,0 +1,11 @@
+{
+  "wall_sec": 54.691,
+  "tau2": 0.1153,
+  "tau": 0.3396,
+  "Q": 735.5768,
+  "df_Q": 286,
+  "pval_Q": 2.3256e-41,
+  "k_studies": 380,
+  "n_treatments": 139,
+  "n_contrasts": 494
+}

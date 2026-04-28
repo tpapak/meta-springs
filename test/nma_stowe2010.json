@@ -1,0 +1,415 @@
+[
+  {
+    "study": "DA(pr/B) Int",
+    "treatment": "Dopamine Agonist",
+    "mean": -1.9,
+    "sd": 4.3,
+    "n": 152
+  },
+  {
+    "study": "DA(pr/B) Int",
+    "treatment": "Placebo",
+    "mean": -0.3,
+    "sd": 4.4,
+    "n": 76
+  },
+  {
+    "study": "DA(B) Germany",
+    "treatment": "Dopamine Agonist",
+    "mean": -3.4,
+    "sd": 2.78,
+    "n": 20
+  },
+  {
+    "study": "DA(B) Germany",
+    "treatment": "Placebo",
+    "mean": 0.3,
+    "sd": 3.66,
+    "n": 20
+  },
+  {
+    "study": "DA(C)Spain",
+    "treatment": "Dopamine Agonist",
+    "mean": -3.33,
+    "sd": 3.47,
+    "n": 14
+  },
+  {
+    "study": "DA(C)Spain",
+    "treatment": "Placebo",
+    "mean": -2.47,
+    "sd": 3.91,
+    "n": 12
+  },
+  {
+    "study": "DA(C) UK",
+    "treatment": "Dopamine Agonist",
+    "mean": -2,
+    "sd": 2.33,
+    "n": 18
+  },
+  {
+    "study": "DA(C) UK",
+    "treatment": "Placebo",
+    "mean": -0.7,
+    "sd": 2.25,
+    "n": 16
+  },
+  {
+    "study": "DA(C) USA",
+    "treatment": "Dopamine Agonist",
+    "mean": -2.08,
+    "sd": 3.19,
+    "n": 89
+  },
+  {
+    "study": "DA(C) USA",
+    "treatment": "Placebo",
+    "mean": -0.77,
+    "sd": 3.34,
+    "n": 46
+  },
+  {
+    "study": "DA(pe) N America",
+    "treatment": "Dopamine Agonist",
+    "mean": -1.8,
+    "sd": 4.8,
+    "n": 189
+  },
+  {
+    "study": "DA(pe) N America",
+    "treatment": "Placebo",
+    "mean": -0.2,
+    "sd": 4.8,
+    "n": 187
+  },
+  {
+    "study": "DA(Pr) Aus/ger",
+    "treatment": "Dopamine Agonist",
+    "mean": -2.3,
+    "sd": 2.7,
+    "n": 23
+  },
+  {
+    "study": "DA(Pr) Aus/ger",
+    "treatment": "Placebo",
+    "mean": 0.4,
+    "sd": 3.5,
+    "n": 37
+  },
+  {
+    "study": "DA(Pr) CLEOPATRA",
+    "treatment": "Dopamine Agonist",
+    "mean": -2.8,
+    "sd": 2.83,
+    "n": 200
+  },
+  {
+    "study": "DA(Pr) CLEOPATRA",
+    "treatment": "Placebo",
+    "mean": -0.9,
+    "sd": 5,
+    "n": 100
+  },
+  {
+    "study": "DA(Pr) Denmark",
+    "treatment": "Dopamine Agonist",
+    "mean": -1.2,
+    "sd": 2.9,
+    "n": 29
+  },
+  {
+    "study": "DA(Pr) Denmark",
+    "treatment": "Placebo",
+    "mean": -0.9,
+    "sd": 5,
+    "n": 29
+  },
+  {
+    "study": "DA(Pr) Europe",
+    "treatment": "Dopamine Agonist",
+    "mean": -1.94,
+    "sd": 2.59,
+    "n": 174
+  },
+  {
+    "study": "DA(Pr) Europe",
+    "treatment": "Placebo",
+    "mean": -0.12,
+    "sd": 3.11,
+    "n": 180
+  },
+  {
+    "study": "DA(Pr) US/CANADA",
+    "treatment": "Dopamine Agonist",
+    "mean": -2.4,
+    "sd": 3.4,
+    "n": 174
+  },
+  {
+    "study": "DA(Pr) US/CANADA",
+    "treatment": "Placebo",
+    "mean": -0.7,
+    "sd": 3.7,
+    "n": 172
+  },
+  {
+    "study": "DA(Pr) EASE-PD",
+    "treatment": "Dopamine Agonist",
+    "mean": -2.1,
+    "sd": 4.54,
+    "n": 201
+  },
+  {
+    "study": "DA(Pr) EASE-PD",
+    "treatment": "Placebo",
+    "mean": -0.3,
+    "sd": 4.41,
+    "n": 190
+  },
+  {
+    "study": "DA(Pr) France/Eng",
+    "treatment": "Dopamine Agonist",
+    "mean": -1.74,
+    "sd": 2.36,
+    "n": 23
+  },
+  {
+    "study": "DA(Pr) France/Eng",
+    "treatment": "Placebo",
+    "mean": -2.22,
+    "sd": 3,
+    "n": 23
+  },
+  {
+    "study": "DA(Pr) UK/Israel",
+    "treatment": "Dopamine Agonist",
+    "mean": -1.33,
+    "sd": 2.35,
+    "n": 42
+  },
+  {
+    "study": "DA(Pr) UK/Israel",
+    "treatment": "Placebo",
+    "mean": -0.75,
+    "sd": 2.81,
+    "n": 22
+  },
+  {
+    "study": "DA(Pr) USA",
+    "treatment": "Dopamine Agonist",
+    "mean": -1.53,
+    "sd": 4.28,
+    "n": 90
+  },
+  {
+    "study": "DA(Pr) USA",
+    "treatment": "Placebo",
+    "mean": -1.22,
+    "sd": 3.7,
+    "n": 53
+  },
+  {
+    "study": "COMTI(E) Colemen",
+    "treatment": "COMTI",
+    "mean": -1.6,
+    "sd": 2.5,
+    "n": 129
+  },
+  {
+    "study": "COMTI(E) Colemen",
+    "treatment": "Placebo",
+    "mean": -0.9,
+    "sd": 3.4,
+    "n": 74
+  },
+  {
+    "study": "COMTI(E) ComQol",
+    "treatment": "COMTI",
+    "mean": -1,
+    "sd": 1.9,
+    "n": 174
+  },
+  {
+    "study": "COMTI(E) ComQol",
+    "treatment": "Placebo",
+    "mean": -0.9,
+    "sd": 2,
+    "n": 96
+  },
+  {
+    "study": "COMTI(E) INT-OZ",
+    "treatment": "COMTI",
+    "mean": -0.86,
+    "sd": 2.9,
+    "n": 99
+  },
+  {
+    "study": "COMTI(E) INT-OZ",
+    "treatment": "Placebo",
+    "mean": -0.54,
+    "sd": 3.13,
+    "n": 63
+  },
+  {
+    "study": "LARGO",
+    "treatment": "COMTI",
+    "mean": -1.2,
+    "sd": 2.21,
+    "n": 218
+  },
+  {
+    "study": "LARGO",
+    "treatment": "Placebo",
+    "mean": -0.4,
+    "sd": 2.21,
+    "n": 218
+  },
+  {
+    "study": "LARGO",
+    "treatment": "MAOBI",
+    "mean": -1.18,
+    "sd": 2.23,
+    "n": 222
+  },
+  {
+    "study": "COMTI(E) Nomecomt",
+    "treatment": "COMTI",
+    "mean": -1.3,
+    "sd": 2.2,
+    "n": 85
+  },
+  {
+    "study": "COMTI(E) Nomecomt",
+    "treatment": "Placebo",
+    "mean": -0.1,
+    "sd": 2.45,
+    "n": 86
+  },
+  {
+    "study": "COMTI(E) Sth Korea",
+    "treatment": "COMTI",
+    "mean": -1.5,
+    "sd": 2.55,
+    "n": 98
+  },
+  {
+    "study": "COMTI(E) Sth Korea",
+    "treatment": "Placebo",
+    "mean": -1,
+    "sd": 2.29,
+    "n": 99
+  },
+  {
+    "study": "COMTI(E) UK/Irish",
+    "treatment": "COMTI",
+    "mean": -1.1,
+    "sd": 2.55,
+    "n": 115
+  },
+  {
+    "study": "COMTI(E) UK/Irish",
+    "treatment": "Placebo",
+    "mean": -0.3,
+    "sd": 2.85,
+    "n": 57
+  },
+  {
+    "study": "COMTI(T) China",
+    "treatment": "COMTI",
+    "mean": -1.9,
+    "sd": 3.3,
+    "n": 20
+  },
+  {
+    "study": "COMTI(T) China",
+    "treatment": "Placebo",
+    "mean": 0.15,
+    "sd": 3.3,
+    "n": 20
+  },
+  {
+    "study": "COMTI(T) Europe",
+    "treatment": "COMTI",
+    "mean": -2.03,
+    "sd": 2.6,
+    "n": 60
+  },
+  {
+    "study": "COMTI(T) Europe",
+    "treatment": "Placebo",
+    "mean": -0.67,
+    "sd": 2.8,
+    "n": 58
+  },
+  {
+    "study": "COMTI(T) TFSG1",
+    "treatment": "COMTI",
+    "mean": -1.61,
+    "sd": 1.77,
+    "n": 40
+  },
+  {
+    "study": "COMTI(T) TFSG1",
+    "treatment": "Placebo",
+    "mean": -0.04,
+    "sd": 1.75,
+    "n": 42
+  },
+  {
+    "study": "COMTI(T) TFSG3",
+    "treatment": "COMTI",
+    "mean": -2,
+    "sd": 2.49,
+    "n": 69
+  },
+  {
+    "study": "COMTI(T) TFSG3",
+    "treatment": "Placebo",
+    "mean": -0.3,
+    "sd": 2.55,
+    "n": 72
+  },
+  {
+    "study": "COMTI(T) TIPS I",
+    "treatment": "COMTI",
+    "mean": -1.78,
+    "sd": 2.76,
+    "n": 31
+  },
+  {
+    "study": "COMTI(T) TIPS I",
+    "treatment": "Placebo",
+    "mean": -0.11,
+    "sd": 2.63,
+    "n": 37
+  },
+  {
+    "study": "MAOBI(R) PRESTO",
+    "treatment": "MAOBI",
+    "mean": -1.85,
+    "sd": 2.5,
+    "n": 149
+  },
+  {
+    "study": "MAOBI(R) PRESTO",
+    "treatment": "Placebo",
+    "mean": -0.91,
+    "sd": 2.5,
+    "n": 159
+  },
+  {
+    "study": "MAOBI(ZS) USA",
+    "treatment": "MAOBI",
+    "mean": -2.2,
+    "sd": 2.43,
+    "n": 94
+  },
+  {
+    "study": "MAOBI(ZS) USA",
+    "treatment": "Placebo",
+    "mean": -0.6,
+    "sd": 2.49,
+    "n": 46
+  }
+]

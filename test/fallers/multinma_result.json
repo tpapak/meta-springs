@@ -1,0 +1,16 @@
+{
+  "wall_sec": 82.9878,
+  "tau_mean": 0.3404,
+  "tau_median": 0.3402,
+  "tau_sd": 0.0299,
+  "tau_ci_lo": 0.2828,
+  "tau_ci_hi": 0.3995,
+  "tau2_mean": 0.1168,
+  "tau2_median": 0.1157,
+  "tau2_mode": 0.1151,
+  "tau2_ci_lo": 0.08,
+  "tau2_ci_hi": 0.1596,
+  "n_studies": 380,
+  "n_treatments": 139,
+  "prior": "half_normal(scale = 0.5)"
+}

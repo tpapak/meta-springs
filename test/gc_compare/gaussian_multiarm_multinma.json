@@ -1,0 +1,58 @@
+{
+  "results": [
+    {
+      "name": "senn2013",
+      "k": 26,
+      "tau2_mode": 0.0861,
+      "tau2_median": 0.1085,
+      "tau2_mean": 0.1203,
+      "tau2_ci_lo": 0.0471,
+      "tau2_ci_hi": 0.2634
+    },
+    {
+      "name": "parkinson",
+      "k": 7,
+      "tau2_mode": 0.0147,
+      "tau2_median": 0.0537,
+      "tau2_mean": 0.1625,
+      "tau2_ci_lo": 0.0001,
+      "tau2_ci_hi": 0.9556
+    },
+    {
+      "name": "stowe2010",
+      "k": 29,
+      "tau2_mode": 0.1025,
+      "tau2_median": 0.1357,
+      "tau2_mean": 0.163,
+      "tau2_ci_lo": 0.0122,
+      "tau2_ci_hi": 0.4613
+    },
+    {
+      "name": "synth_c1",
+      "k": 15,
+      "tau2_mode": 1.2166,
+      "tau2_median": 1.3302,
+      "tau2_mean": 1.4225,
+      "tau2_ci_lo": 0.7359,
+      "tau2_ci_hi": 2.6372
+    },
+    {
+      "name": "synth_c4",
+      "k": 10,
+      "tau2_mode": 0.3916,
+      "tau2_median": 0.4614,
+      "tau2_mean": 0.5151,
+      "tau2_ci_lo": 0.2105,
+      "tau2_ci_hi": 1.1462
+    },
+    {
+      "name": "synth_c6",
+      "k": 40,
+      "tau2_mode": 0.8217,
+      "tau2_median": 0.87,
+      "tau2_mean": 0.8889,
+      "tau2_ci_lo": 0.5988,
+      "tau2_ci_hi": 1.2967
+    }
+  ]
+}

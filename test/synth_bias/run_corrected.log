@@ -1,0 +1,22 @@
+Running springREMLBin on 1605 datasets (correction=True)...
+Name                                 tau2_true tau2_est iters
+----------------------------------------------------------------
+[   1/1605] nma_T04_tau0.1_r01                   true=0.1000 est=0.0614 iters=63
+[   2/1605] nma_T10_tau0.1_r01                   true=0.1000 est=0.0304 iters=106
+[   3/1605] nma_T14_tau0.1_r01                   true=0.1000 est=0.0963 iters=76
+[   4/1605] nma_T20_tau0.1_r01                   true=0.1000 est=0.1401 iters=68
+[   5/1605] nma_T04_tau0.3_r01                   true=0.3000 est=0.0162 iters=98
+[   6/1605] nma_T10_tau0.3_r01                   true=0.3000 est=0.1731 iters=49
+[   7/1605] nma_T14_tau0.3_r01                   true=0.3000 est=0.3792 iters=43
+[   8/1605] nma_T20_tau0.3_r01                   true=0.3000 est=0.3953 iters=43
+[   9/1605] nma_T04_tau0.6_r01                   true=0.6000 est=0.4244 iters=27
+[  10/1605] nma_T10_tau0.6_r01                   true=0.6000 est=0.7625 iters=46
+[  11/1605] nma_T14_tau0.6_r01                   true=0.6000 est=0.5598 iters=44
+[  12/1605] nma_T20_tau0.6_r01                   true=0.6000 est=0.6425 iters=39
+[  13/1605] nma_T04_tau1.0_r01                   true=1.0000 est=0.5336 iters=27
+[  14/1605] nma_T10_tau1.0_r01                   true=1.0000 est=0.6522 iters=35
+[  15/1605] nma_T14_tau1.0_r01                   true=1.0000 est=1.2742 iters=38
+[  16/1605] nma_T20_tau1.0_r01                   true=1.0000 est=1.0489 iters=40
+[  17/1605] nma_T04_tau0.1_r02                   true=0.1000 est=0.0737 iters=54
+[  18/1605] nma_T10_tau0.1_r02                   true=0.1000 est=0.1172 iters=55
+[  19/1605] nma_T14_tau0.1_r02                   true=0.1000 est=0.0893 iters=68

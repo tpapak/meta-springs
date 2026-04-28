@@ -1,0 +1,266 @@
+[
+  {
+    "study": "AFASAK-I 1989",
+    "treatment": "VKAs",
+    "stroke": 9,
+    "total": 335
+  },
+  {
+    "study": "AFASAK-I 1989",
+    "treatment": "Aspirin",
+    "stroke": 16,
+    "total": 336
+  },
+  {
+    "study": "AFASAK-I 1989",
+    "treatment": "Placebo/Control",
+    "stroke": 19,
+    "total": 336
+  },
+  {
+    "study": "BAATAF 1990",
+    "treatment": "VKAs",
+    "stroke": 3,
+    "total": 212
+  },
+  {
+    "study": "BAATAF 1990",
+    "treatment": "Placebo/Control",
+    "stroke": 13,
+    "total": 208
+  },
+  {
+    "study": "CAFA 1991",
+    "treatment": "VKAs",
+    "stroke": 6,
+    "total": 187
+  },
+  {
+    "study": "CAFA 1991",
+    "treatment": "Placebo/Control",
+    "stroke": 9,
+    "total": 191
+  },
+  {
+    "study": "SPAF-I 1991",
+    "treatment": "VKAs",
+    "stroke": 8,
+    "total": 210
+  },
+  {
+    "study": "SPAF-I 1991",
+    "treatment": "Aspirin",
+    "stroke": 24,
+    "total": 552
+  },
+  {
+    "study": "SPAF-I 1991",
+    "treatment": "Placebo/Control",
+    "stroke": 42,
+    "total": 568
+  },
+  {
+    "study": "SPINAF 1992",
+    "treatment": "VKAs",
+    "stroke": 7,
+    "total": 260
+  },
+  {
+    "study": "SPINAF 1992",
+    "treatment": "Placebo/Control",
+    "stroke": 23,
+    "total": 265
+  },
+  {
+    "study": "EAFT 1993",
+    "treatment": "VKAs",
+    "stroke": 20,
+    "total": 225
+  },
+  {
+    "study": "EAFT 1993",
+    "treatment": "Aspirin",
+    "stroke": 88,
+    "total": 404
+  },
+  {
+    "study": "EAFT 1993",
+    "treatment": "Placebo/Control",
+    "stroke": 90,
+    "total": 378
+  },
+  {
+    "study": "SPAF-II 1994",
+    "treatment": "VKAs",
+    "stroke": 39,
+    "total": 555
+  },
+  {
+    "study": "SPAF-II 1994",
+    "treatment": "Aspirin",
+    "stroke": 42,
+    "total": 545
+  },
+  {
+    "study": "AFASAK-II 1998",
+    "treatment": "VKAs",
+    "stroke": 10,
+    "total": 170
+  },
+  {
+    "study": "AFASAK-II 1998",
+    "treatment": "Aspirin",
+    "stroke": 9,
+    "total": 169
+  },
+  {
+    "study": "PATAF 1999",
+    "treatment": "VKAs",
+    "stroke": 3,
+    "total": 131
+  },
+  {
+    "study": "PATAF 1999",
+    "treatment": "Aspirin",
+    "stroke": 22,
+    "total": 319
+  },
+  {
+    "study": "LASAF 1999",
+    "treatment": "Aspirin",
+    "stroke": 5,
+    "total": 194
+  },
+  {
+    "study": "LASAF 1999",
+    "treatment": "Placebo/Control",
+    "stroke": 3,
+    "total": 91
+  },
+  {
+    "study": "ACTIVE (W) 2006",
+    "treatment": "VKAs",
+    "stroke": 59,
+    "total": 3371
+  },
+  {
+    "study": "ACTIVE (W) 2006",
+    "treatment": "Aspirin+Clopidogtrel",
+    "stroke": 100,
+    "total": 3335
+  },
+  {
+    "study": "JAST 2006",
+    "treatment": "Aspirin",
+    "stroke": 17,
+    "total": 426
+  },
+  {
+    "study": "JAST 2006",
+    "treatment": "Placebo/Control",
+    "stroke": 18,
+    "total": 445
+  },
+  {
+    "study": "ACTIVE (A) 2006",
+    "treatment": "Aspirin+Clopidogtrel",
+    "stroke": 296,
+    "total": 3772
+  },
+  {
+    "study": "ACTIVE (A) 2006",
+    "treatment": "Aspirin",
+    "stroke": 408,
+    "total": 3782
+  },
+  {
+    "study": "Chinese/ATAFS 2006",
+    "treatment": "VKAs",
+    "stroke": 9,
+    "total": 335
+  },
+  {
+    "study": "Chinese/ATAFS 2006",
+    "treatment": "Aspirin",
+    "stroke": 17,
+    "total": 369
+  },
+  {
+    "study": "BAFTA 2007",
+    "treatment": "VKAs",
+    "stroke": 21,
+    "total": 488
+  },
+  {
+    "study": "BAFTA 2007",
+    "treatment": "Aspirin",
+    "stroke": 44,
+    "total": 485
+  },
+  {
+    "study": "RE-LY 2009",
+    "treatment": "Dabigatran 110mg",
+    "stroke": 171,
+    "total": 6015
+  },
+  {
+    "study": "RE-LY 2009",
+    "treatment": "Dabigatran 150mg",
+    "stroke": 122,
+    "total": 6076
+  },
+  {
+    "study": "RE-LY 2009",
+    "treatment": "VKAs",
+    "stroke": 185,
+    "total": 6022
+  },
+  {
+    "study": "ROCKET 2011",
+    "treatment": "Rivaroxaban",
+    "stroke": 188,
+    "total": 7081
+  },
+  {
+    "study": "ROCKET 2011",
+    "treatment": "VKAs",
+    "stroke": 240,
+    "total": 7090
+  },
+  {
+    "study": "ARISTOTLE 2011",
+    "treatment": "Apixaban",
+    "stroke": 197,
+    "total": 9120
+  },
+  {
+    "study": "ARISTOTLE 2011",
+    "treatment": "VKAs",
+    "stroke": 248,
+    "total": 9081
+  },
+  {
+    "study": "AVERROES 2011",
+    "treatment": "Apixaban",
+    "stroke": 49,
+    "total": 2808
+  },
+  {
+    "study": "AVERROES 2011",
+    "treatment": "Aspirin",
+    "stroke": 105,
+    "total": 2791
+  },
+  {
+    "study": "WASPO, 2007",
+    "treatment": "VKAs",
+    "stroke": 0,
+    "total": 36
+  },
+  {
+    "study": "WASPO, 2007",
+    "treatment": "Aspirin",
+    "stroke": 0,
+    "total": 39
+  }
+]

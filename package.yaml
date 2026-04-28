@@ -1,0 +1,117 @@
+name:                meta-analysis
+version:             0.3.0.0
+github:              "tpapak/meta-analysis"
+license:             GPL-3
+author:              "Thodoris Papakonstantinou"
+maintainer:          "dev@tpapak.com"
+copyright:           "2024 Thodoris Papakonstantinou"
+
+extra-source-files:
+- README.md
+- ChangeLog.md
+
+# Meta-analysis evidence synthesis bio statistics
+# synopsis:            Basic functions for synthesizing medical studies.
+# category:            Medical research
+
+# To avoid duplicated efforts in documentation and dealing with the
+# complications of embedding Haddock markup inside cabal files, it is
+# common to point users to the README.md file.
+description:         Please see the README on GitHub at <https://github.com/tpapak/meta-analysis#readme>
+
+dependencies:
+- base >= 4.8
+- extra
+- text
+- graph >= 0.6.0.1
+- split
+- vector
+
+
+library:
+  source-dirs: src
+  ghc-options:
+   - -O2
+  dependencies:
+   - aeson
+   - bytestring
+   - aeson-pretty
+   - containers
+   - cassava
+   - parallel
+   - deepseq
+   - hmatrix >= 0.18.0.0
+  exposed-modules:
+   - Data.Numerics
+   - Data.Meta.Effects
+   - Data.Meta.Multiarm
+   - Data.Meta.Matrices
+   - Data.Meta.Studies
+   - Data.Meta.Pairwise.CommonEffect
+   - Data.Meta.NMA
+   - Data.Meta.RandomEffects
+   - Data.Meta.Matrix
+
+executables:
+  metabin:
+    main:                Main.hs
+    source-dirs:         app/metabin
+    ghc-options:
+    - -threaded
+    - -rtsopts
+    - -with-rtsopts=-N
+    dependencies:
+    - meta-analysis
+    - vector
+    - cassava
+    - aeson
+    - containers
+    - bytestring
+  metacont:
+    main:                Main.hs
+    source-dirs:         app/metacont
+    ghc-options:
+    - -threaded
+    - -rtsopts
+    - -with-rtsopts=-N
+    dependencies:
+    - meta-analysis
+    - vector
+    - cassava
+    - aeson
+    - containers
+    - bytestring
+
+  bench:
+    main:                Main.hs
+    source-dirs:         bench
+    ghc-options:
+    - -threaded
+    - -rtsopts
+    - -with-rtsopts=-N
+    - -O2
+    dependencies:
+    - meta-analysis
+    - aeson
+    - bytestring
+    - containers
+
+tests:
+  meta-analysis-test:
+    main:                Spec.hs
+    source-dirs:         test
+    ghc-options:
+    - -threaded
+    - -rtsopts
+    - -with-rtsopts=-N
+    dependencies:
+    - meta-analysis
+    - vector
+    - cassava
+    - tesths
+    - aeson
+    - containers
+    - bytestring
+    - random
+    - hmatrix >= 0.18.0.0
+    - hmatrix-gsl

@@ -1,0 +1,102 @@
+[
+  {
+    "name": "cont_t6_01",
+    "tau2_true": 0.001,
+    "k": 8,
+    "treats": 6,
+    "d_true": [0, 0.5, -0.8, 1.2, -0.3, 0.9],
+    "mu0": 0,
+    "sigma_within": 1,
+    "n_arm": 60
+  },
+  {
+    "name": "cont_t6_02",
+    "tau2_true": 0.01,
+    "k": 12,
+    "treats": 6,
+    "d_true": [0, 0.5, -0.8, 1.2, -0.3, 0.9],
+    "mu0": 0,
+    "sigma_within": 1,
+    "n_arm": 60
+  },
+  {
+    "name": "cont_t6_03",
+    "tau2_true": 0.05,
+    "k": 14,
+    "treats": 6,
+    "d_true": [0, 0.5, -0.8, 1.2, -0.3, 0.9],
+    "mu0": 0,
+    "sigma_within": 1,
+    "n_arm": 60
+  },
+  {
+    "name": "cont_t6_04",
+    "tau2_true": 0.1,
+    "k": 10,
+    "treats": 6,
+    "d_true": [0, 0.5, -0.8, 1.2, -0.3, 0.9],
+    "mu0": 0,
+    "sigma_within": 1,
+    "n_arm": 60
+  },
+  {
+    "name": "cont_t6_05",
+    "tau2_true": 0.15,
+    "k": 16,
+    "treats": 6,
+    "d_true": [0, 0.5, -0.8, 1.2, -0.3, 0.9],
+    "mu0": 0,
+    "sigma_within": 1,
+    "n_arm": 60
+  },
+  {
+    "name": "cont_t6_06",
+    "tau2_true": 0.25,
+    "k": 12,
+    "treats": 6,
+    "d_true": [0, 0.5, -0.8, 1.2, -0.3, 0.9],
+    "mu0": 0,
+    "sigma_within": 1,
+    "n_arm": 60
+  },
+  {
+    "name": "cont_t6_07",
+    "tau2_true": 0.4,
+    "k": 18,
+    "treats": 6,
+    "d_true": [0, 0.5, -0.8, 1.2, -0.3, 0.9],
+    "mu0": 0,
+    "sigma_within": 1,
+    "n_arm": 60
+  },
+  {
+    "name": "cont_t6_08",
+    "tau2_true": 0.6,
+    "k": 10,
+    "treats": 6,
+    "d_true": [0, 0.5, -0.8, 1.2, -0.3, 0.9],
+    "mu0": 0,
+    "sigma_within": 1,
+    "n_arm": 60
+  },
+  {
+    "name": "cont_t6_09",
+    "tau2_true": 1,
+    "k": 14,
+    "treats": 6,
+    "d_true": [0, 0.5, -0.8, 1.2, -0.3, 0.9],
+    "mu0": 0,
+    "sigma_within": 1,
+    "n_arm": 60
+  },
+  {
+    "name": "cont_t6_10",
+    "tau2_true": 1.5,
+    "k": 20,
+    "treats": 6,
+    "d_true": [0, 0.5, -0.8, 1.2, -0.3, 0.9],
+    "mu0": 0,
+    "sigma_within": 1,
+    "n_arm": 60
+  }
+]

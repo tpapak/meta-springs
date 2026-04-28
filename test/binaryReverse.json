@@ -1,0 +1,62 @@
+[
+  {
+    "study": "Saint",
+    "treatmentB": "A",
+    "eventsB": 12,
+    "nB": 65,
+    "treatmentA": "B",
+    "eventsA": 16,
+    "nA": 65,
+    "optional": 65
+  },
+  {
+    "study": "Kelly",
+    "treatmentB": "A",
+    "eventsB": 8,
+    "nB": 40,
+    "treatmentA": "B",
+    "eventsA": 10,
+    "nA": 40,
+    "optional": 40
+  },
+  {
+    "study": "Pilbeam",
+    "treatmentB": "A",
+    "eventsB": 14,
+    "nB": 80,
+    "treatmentA": "B",
+    "eventsA": 19,
+    "nA": 80,
+    "optional": 80
+  },
+  {
+    "study": "Lane",
+    "treatmentB": "A",
+    "eventsB": 25,
+    "nB": 400,
+    "treatmentA": "B",
+    "eventsA": 80,
+    "nA": 400,
+    "optional": 400
+  },
+  {
+    "study": "Wright",
+    "treatmentB": "A",
+    "eventsB": 8,
+    "nB": 40,
+    "treatmentA": "B",
+    "eventsA": 11,
+    "nA": 40,
+    "optional": 40
+  },
+  {
+    "study": "Day",
+    "treatmentB": "A",
+    "eventsB": 16,
+    "nB": 65,
+    "treatmentA": "B",
+    "eventsA": 18,
+    "nA": 65,
+    "optional": 65
+  }
+]

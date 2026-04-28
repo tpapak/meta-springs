@@ -1,0 +1,26 @@
+{
+  "binary": [
+    {"name": "synth_015", "k": 22, "tau2_true": 0.0007, "file": "test/synth_bin/synth_015.json"},
+    {"name": "synth_069", "k": 18, "tau2_true": 0.0063, "file": "test/synth_bin/synth_069.json"},
+    {"name": "synth_061", "k": 17, "tau2_true": 0.1280, "file": "test/synth_bin/synth_061.json"},
+    {"name": "synth_056", "k": 11, "tau2_true": 0.1526, "file": "test/synth_bin/synth_056.json"},
+    {"name": "synth_012", "k": 12, "tau2_true": 0.2294, "file": "test/synth_bin/synth_012.json"},
+    {"name": "synth_025", "k": 11, "tau2_true": 0.2569, "file": "test/synth_bin/synth_025.json"},
+    {"name": "synth_041", "k": 20, "tau2_true": 0.3904, "file": "test/synth_bin/synth_041.json"},
+    {"name": "synth_026", "k": 5,  "tau2_true": 0.5965, "file": "test/synth_bin/synth_026.json"},
+    {"name": "synth_018", "k": 23, "tau2_true": 1.1249, "file": "test/synth_bin/synth_018.json"},
+    {"name": "synth_090", "k": 15, "tau2_true": 1.2635, "file": "test/synth_bin/synth_090.json"}
+  ],
+  "continuous": [
+    {"name": "cont_t6_01", "k": 8,  "tau2_true": 0.001, "file": "test/gc_compare/data/cont_t6_01.json"},
+    {"name": "cont_t6_02", "k": 12, "tau2_true": 0.01,  "file": "test/gc_compare/data/cont_t6_02.json"},
+    {"name": "cont_t6_03", "k": 14, "tau2_true": 0.05,  "file": "test/gc_compare/data/cont_t6_03.json"},
+    {"name": "cont_t6_04", "k": 10, "tau2_true": 0.1,   "file": "test/gc_compare/data/cont_t6_04.json"},
+    {"name": "cont_t6_05", "k": 16, "tau2_true": 0.15,  "file": "test/gc_compare/data/cont_t6_05.json"},
+    {"name": "cont_t6_06", "k": 12, "tau2_true": 0.25,  "file": "test/gc_compare/data/cont_t6_06.json"},
+    {"name": "cont_t6_07", "k": 18, "tau2_true": 0.4,   "file": "test/gc_compare/data/cont_t6_07.json"},
+    {"name": "cont_t6_08", "k": 10, "tau2_true": 0.6,   "file": "test/gc_compare/data/cont_t6_08.json"},
+    {"name": "cont_t6_09", "k": 14, "tau2_true": 1.0,   "file": "test/gc_compare/data/cont_t6_09.json"},
+    {"name": "cont_t6_10", "k": 20, "tau2_true": 1.5,   "file": "test/gc_compare/data/cont_t6_10.json"}
+  ]
+}

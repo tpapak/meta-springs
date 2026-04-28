@@ -1,0 +1,345 @@
+[
+  {
+    "study": 1,
+    "treatment": 3,
+    "mean": 175,
+    "sd": 172.3387,
+    "n": 34
+  },
+  {
+    "study": 1,
+    "treatment": 6,
+    "mean": 121,
+    "sd": 127.813,
+    "n": 35
+  },
+  {
+    "study": 2,
+    "treatment": 1,
+    "mean": 394.6,
+    "sd": 228.2431,
+    "n": 18
+  },
+  {
+    "study": 2,
+    "treatment": 2,
+    "mean": 400.78,
+    "sd": 252.9352,
+    "n": 19
+  },
+  {
+    "study": 2,
+    "treatment": 4,
+    "mean": 338.73,
+    "sd": 243.7418,
+    "n": 19
+  },
+  {
+    "study": 3,
+    "treatment": 3,
+    "mean": 523,
+    "sd": 283.9338,
+    "n": 19
+  },
+  {
+    "study": 3,
+    "treatment": 4,
+    "mean": 186,
+    "sd": 208.9383,
+    "n": 16
+  },
+  {
+    "study": 3,
+    "treatment": 5,
+    "mean": 484,
+    "sd": 282.1078,
+    "n": 17
+  },
+  {
+    "study": 4,
+    "treatment": 3,
+    "mean": 230.3092,
+    "sd": 205.1655,
+    "n": 56
+  },
+  {
+    "study": 4,
+    "treatment": 5,
+    "mean": 282.0113,
+    "sd": 205.1655,
+    "n": 166
+  },
+  {
+    "study": 5,
+    "treatment": 1,
+    "mean": 122,
+    "sd": 285.0486,
+    "n": 20
+  },
+  {
+    "study": 5,
+    "treatment": 4,
+    "mean": 139,
+    "sd": 344.1475,
+    "n": 28
+  },
+  {
+    "study": 6,
+    "treatment": 2,
+    "mean": 130.9,
+    "sd": 300.3627,
+    "n": 30
+  },
+  {
+    "study": 6,
+    "treatment": 3,
+    "mean": 103.4,
+    "sd": 346.9182,
+    "n": 30
+  },
+  {
+    "study": 7,
+    "treatment": 3,
+    "mean": 260,
+    "sd": 209.9573,
+    "n": 58
+  },
+  {
+    "study": 7,
+    "treatment": 5,
+    "mean": 96,
+    "sd": 172.7642,
+    "n": 52
+  },
+  {
+    "study": 8,
+    "treatment": 2,
+    "mean": 166.7,
+    "sd": 80.6,
+    "n": 15
+  },
+  {
+    "study": 8,
+    "treatment": 3,
+    "mean": 178.5,
+    "sd": 78.8,
+    "n": 16
+  },
+  {
+    "study": 8,
+    "treatment": 4,
+    "mean": 164.6,
+    "sd": 148.8,
+    "n": 14
+  },
+  {
+    "study": 8,
+    "treatment": 5,
+    "mean": 196.7,
+    "sd": 111.2,
+    "n": 13
+  },
+  {
+    "study": 9,
+    "treatment": 3,
+    "mean": 185,
+    "sd": 238.1616,
+    "n": 38
+  },
+  {
+    "study": 9,
+    "treatment": 4,
+    "mean": 171.4211,
+    "sd": 218.5503,
+    "n": 38
+  },
+  {
+    "study": 9,
+    "treatment": 5,
+    "mean": 192.0526,
+    "sd": 241.0405,
+    "n": 38
+  },
+  {
+    "study": 10,
+    "treatment": 3,
+    "mean": 191.23,
+    "sd": 244.9418,
+    "n": 29
+  },
+  {
+    "study": 10,
+    "treatment": 4,
+    "mean": 175.682,
+    "sd": 289.0653,
+    "n": 30
+  },
+  {
+    "study": 11,
+    "treatment": 3,
+    "mean": 221.32,
+    "sd": 315.216,
+    "n": 52
+  },
+  {
+    "study": 11,
+    "treatment": 4,
+    "mean": 235,
+    "sd": 262.4,
+    "n": 17
+  },
+  {
+    "study": 12,
+    "treatment": 2,
+    "mean": 79,
+    "sd": 313.1,
+    "n": 35
+  },
+  {
+    "study": 12,
+    "treatment": 3,
+    "mean": -42.3,
+    "sd": 180.1,
+    "n": 35
+  },
+  {
+    "study": 13,
+    "treatment": 3,
+    "mean": 254,
+    "sd": 49.33,
+    "n": 10
+  },
+  {
+    "study": 13,
+    "treatment": 6,
+    "mean": 227,
+    "sd": 40.16,
+    "n": 10
+  },
+  {
+    "study": 14,
+    "treatment": 3,
+    "mean": 137,
+    "sd": 225,
+    "n": 47
+  },
+  {
+    "study": 14,
+    "treatment": 4,
+    "mean": 116,
+    "sd": 172,
+    "n": 48
+  },
+  {
+    "study": 15,
+    "treatment": 3,
+    "mean": 219,
+    "sd": 348.3917,
+    "n": 50
+  },
+  {
+    "study": 15,
+    "treatment": 4,
+    "mean": 240,
+    "sd": 343.3752,
+    "n": 53
+  },
+  {
+    "study": 16,
+    "treatment": 4,
+    "mean": 0,
+    "sd": 188,
+    "n": 39
+  },
+  {
+    "study": 16,
+    "treatment": 5,
+    "mean": 62,
+    "sd": 233,
+    "n": 39
+  },
+  {
+    "study": 17,
+    "treatment": 1,
+    "mean": 140.7,
+    "sd": 132.5,
+    "n": 19
+  },
+  {
+    "study": 17,
+    "treatment": 2,
+    "mean": 235,
+    "sd": 157.7,
+    "n": 12
+  },
+  {
+    "study": 17,
+    "treatment": 4,
+    "mean": 351.7,
+    "sd": 176.3,
+    "n": 20
+  },
+  {
+    "study": 17,
+    "treatment": 5,
+    "mean": 339.05,
+    "sd": 223.5,
+    "n": 30
+  },
+  {
+    "study": 18,
+    "treatment": 2,
+    "mean": 74.1,
+    "sd": 287,
+    "n": 70
+  },
+  {
+    "study": 18,
+    "treatment": 4,
+    "mean": 26.5,
+    "sd": 314.6,
+    "n": 70
+  },
+  {
+    "study": 19,
+    "treatment": 3,
+    "mean": 336,
+    "sd": 199.8852,
+    "n": 20
+  },
+  {
+    "study": 19,
+    "treatment": 6,
+    "mean": 271,
+    "sd": 206.1273,
+    "n": 37
+  },
+  {
+    "study": 20,
+    "treatment": 1,
+    "mean": 61.1024,
+    "sd": 205.1655,
+    "n": 79
+  },
+  {
+    "study": 20,
+    "treatment": 3,
+    "mean": 47.0019,
+    "sd": 205.1655,
+    "n": 78
+  },
+  {
+    "study": 21,
+    "treatment": 1,
+    "mean": 250.15,
+    "sd": 199.0233,
+    "n": 55
+  },
+  {
+    "study": 21,
+    "treatment": 2,
+    "mean": 436.23,
+    "sd": 214.4582,
+    "n": 55
+  }
+]

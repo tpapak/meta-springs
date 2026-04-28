@@ -1,0 +1,68 @@
+[
+  {
+    "study": "Carroll",
+    "treatmentA": "A",
+    "meanA": 94,
+    "sdA": 22,
+    "nA": 60,
+    "treatmentB": "B",
+    "meanB": 92,
+    "sdB": 20,
+    "nB": 60
+  },
+  {
+    "study": "Grant",
+    "treatmentA": "A",
+    "meanA": 98,
+    "sdA": 21,
+    "nA": 65,
+    "treatmentB": "B",
+    "meanB": 92,
+    "sdB": 22,
+    "nB": 65
+  },
+  {
+    "study": "Peck",
+    "treatmentA": "A",
+    "meanA": 98,
+    "sdA": 28,
+    "nA": 40,
+    "treatmentB": "B",
+    "meanB": 88,
+    "sdB": 26,
+    "nB": 40
+  },
+  {
+    "study": "Donat",
+    "treatmentA": "A",
+    "meanA": 94,
+    "sdA": 19,
+    "nA": 200,
+    "treatmentB": "B",
+    "meanB": 82,
+    "sdB": 17,
+    "nB": 200
+  },
+  {
+    "study": "Stewart",
+    "treatmentA": "A",
+    "meanA": 98,
+    "sdA": 21,
+    "nA": 50,
+    "treatmentB": "B",
+    "meanB": 88,
+    "sdB": 22,
+    "nB": 45
+  },
+  {
+    "study": "Young",
+    "treatmentA": "A",
+    "meanA": 96,
+    "sdA": 21,
+    "nA": 85,
+    "treatmentB": "B",
+    "meanB": 92,
+    "sdB": 22,
+    "nB": 85
+  }
+]
