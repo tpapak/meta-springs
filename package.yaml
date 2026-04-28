@@ -51,6 +51,8 @@ library:
    - Data.Meta.NMA
    - Data.Meta.RandomEffects
    - Data.Meta.Matrix
+   - Data.Meta.Hatmatrix
+   - Data.Meta.Contribution
 
 executables:
   metabin:

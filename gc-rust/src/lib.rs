@@ -7,8 +7,10 @@
 //!   - springGrandCanonicalAdaptive   (1308-1465)    -> [`gc::run_adaptive_cont`]
 //!     (Gaussian / mean-difference path; one LU solve per τ², no IRLS).
 
+pub mod contribution;
 pub mod data;
 pub mod gc;
+pub mod nma_iv;
 pub mod output;
 pub mod solver;
 pub mod solver_cont;
