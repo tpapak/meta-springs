@@ -45,7 +45,234 @@
 use std::process::Command;
 use std::time::Instant;
 
-use nalgebra::{Cholesky, DMatrix, DVector};
+use nalgebra::{DMatrix, DVector};
+use rayon::prelude::*;
+
+// ---------- Block PCG matrix-free for multi-axis Laplacian ----------
+//
+// The (n*K)*(n*K) block-Laplacian is L = Σ_e (e_u-e_v)(e_u-e_v)ᵀ ⊗ S_e.
+// We never materialise it. Matvec iterates edges:
+//   for each edge e=(u,v):
+//     diff_e = phi[u,:] - phi[v,:]              (K-vector)
+//     contrib = S_e * diff_e                     (K-vector)
+//     out[u,:] += contrib;  out[v,:] -= contrib
+//
+// Pinning: pinned (vertex, axis) entries get identity action — out[i] =
+// phi[i], and we maintain phi[pinned] = 0 throughout PCG.
+//
+// Preconditioner: block-Jacobi. Per-vertex K*K diagonal block is
+// Σ_{e at v} S_e (each edge contributes its full S_e to BOTH endpoints'
+// diagonal block). Invert per-vertex K*K once, apply per-iteration.
+
+/// Per-edge compliance H_eff^{-1} = diag(d_inv) − r·rᵀ stored as just
+/// (d_inv, r) (length-K vectors per edge). Exploits the rank-1 structure
+/// for O(K) per-edge matvec instead of O(K²) — at K=100 that's 100× faster.
+struct EdgeCompliance {
+    d_prime: Vec<f64>, // d_inv[k] = (D')^{-1}_k per edge axis k
+    r:       Vec<f64>, // rank-1 vector with sign baked in (subtracted)
+}
+
+fn apply_l_block_factored(
+    s_e_fac: &[EdgeCompliance],
+    edges: &[(usize, usize, i64)],
+    _n: usize, k: usize,
+    pinned: &[bool],
+    phi: &DVector<f64>,
+    out: &mut DVector<f64>,
+) {
+    let dim = phi.len();
+    for i in 0..dim { out[i] = 0.0; }
+    let mut diff = vec![0.0_f64; k];
+    let mut contrib = vec![0.0_f64; k];
+    for (e, &(u, v, _)) in edges.iter().enumerate() {
+        let s = &s_e_fac[e];
+        // diff_e = phi[u,:] − phi[v,:]
+        let mut rdot = 0.0_f64;
+        for ki in 0..k {
+            let d = phi[u * k + ki] - phi[v * k + ki];
+            diff[ki] = d;
+            rdot += s.r[ki] * d;
+        }
+        // contrib = diag(d_inv) · diff − r · (r · diff)   (rank-1 SUBTRACT)
+        for ki in 0..k {
+            contrib[ki] = s.d_prime[ki] * diff[ki] - s.r[ki] * rdot;
+        }
+        for ki in 0..k {
+            out[u * k + ki] += contrib[ki];
+            out[v * k + ki] -= contrib[ki];
+        }
+    }
+    for i in 0..dim {
+        if pinned[i] { out[i] = phi[i]; }
+    }
+}
+
+#[allow(dead_code)]
+fn apply_l_block(
+    s_e: &[DMatrix<f64>],
+    edges: &[(usize, usize, i64)],
+    n: usize, k: usize,
+    pinned: &[bool],
+    phi: &DVector<f64>,
+    out: &mut DVector<f64>,
+) {
+    let dim = n * k;
+    for i in 0..dim { out[i] = 0.0; }
+    let mut diff = vec![0.0_f64; k];
+    let mut contrib = vec![0.0_f64; k];
+    for (e, &(u, v, _)) in edges.iter().enumerate() {
+        for ki in 0..k { diff[ki] = phi[u * k + ki] - phi[v * k + ki]; }
+        for ki in 0..k {
+            let mut c = 0.0;
+            for kj in 0..k { c += s_e[e][(ki, kj)] * diff[kj]; }
+            contrib[ki] = c;
+        }
+        for ki in 0..k {
+            out[u * k + ki] += contrib[ki];
+            out[v * k + ki] -= contrib[ki];
+        }
+    }
+    for i in 0..dim {
+        if pinned[i] { out[i] = phi[i]; }
+    }
+}
+
+/// Build a graph-aware preconditioner: K independent scalar weighted
+/// Laplacians, one per commodity axis, using diagonal entry S_e[k, k] as
+/// the edge weight. These capture the graph topology (block-Jacobi only
+/// captures per-vertex coupling, not edge coupling). Each n*n scalar
+/// Laplacian is factored once per Newton step via dense Cholesky.
+struct AxisLaplaciansPrec {
+    factors: Vec<nalgebra::Cholesky<f64, nalgebra::Dyn>>,
+}
+
+fn build_axis_laplacians_prec(
+    s_e_fac: &[EdgeCompliance],
+    edges: &[(usize, usize, i64)],
+    n: usize, k: usize,
+    pinned: &[bool],
+) -> AxisLaplaciansPrec {
+    // K independent factorisations → parallelise across axes.
+    let factors: Vec<nalgebra::Cholesky<f64, nalgebra::Dyn>> = (0..k).into_par_iter().map(|ki| {
+        let mut a = DMatrix::<f64>::zeros(n, n);
+        for (e, &(u, v, _)) in edges.iter().enumerate() {
+            let s_kk = (s_e_fac[e].d_prime[ki] - s_e_fac[e].r[ki] * s_e_fac[e].r[ki]).max(1e-14);
+            a[(u, u)] += s_kk;
+            a[(v, v)] += s_kk;
+            a[(u, v)] -= s_kk;
+            a[(v, u)] -= s_kk;
+        }
+        for v in 0..n {
+            if pinned[v * k + ki] {
+                for c in 0..n { a[(v, c)] = 0.0; a[(c, v)] = 0.0; }
+                a[(v, v)] = 1.0;
+            }
+        }
+        for v in 0..n { a[(v, v)] += 1e-12; }
+        nalgebra::Cholesky::new(a).expect("axis-Laplacian preconditioner factor")
+    }).collect();
+    AxisLaplaciansPrec { factors }
+}
+
+fn apply_axis_laplacians_prec(
+    prec: &AxisLaplaciansPrec,
+    n: usize, k: usize,
+    pinned: &[bool],
+    v: &DVector<f64>,
+    z: &mut DVector<f64>,
+) {
+    // K back-solves are independent. Parallelise only when work per axis
+    // is large enough to amortise rayon overhead — empirically n*K > ~5000
+    // and K ≥ 8 is the sweet spot. Below that, serial loop is faster.
+    let work_per_axis = n * n; // back-solve cost
+    if k >= 8 && work_per_axis >= 4096 {
+        let sols: Vec<DVector<f64>> = (0..k).into_par_iter().map(|ki| {
+            let mut rhs_axis = DVector::<f64>::zeros(n);
+            for vert in 0..n { rhs_axis[vert] = v[vert * k + ki]; }
+            for vert in 0..n { if pinned[vert * k + ki] { rhs_axis[vert] = 0.0; } }
+            prec.factors[ki].solve(&rhs_axis)
+        }).collect();
+        for ki in 0..k {
+            for vert in 0..n { z[vert * k + ki] = sols[ki][vert]; }
+        }
+    } else {
+        let mut rhs_axis = DVector::<f64>::zeros(n);
+        for ki in 0..k {
+            for vert in 0..n { rhs_axis[vert] = v[vert * k + ki]; }
+            for vert in 0..n { if pinned[vert * k + ki] { rhs_axis[vert] = 0.0; } }
+            let sol = prec.factors[ki].solve(&rhs_axis);
+            for vert in 0..n { z[vert * k + ki] = sol[vert]; }
+        }
+    }
+    for i in 0..(n * k) {
+        if pinned[i] { z[i] = v[i]; }
+    }
+}
+
+/// Wrapper: zero warm-start, fresh PCG solve with on-the-fly preconditioner.
+#[allow(dead_code)]
+fn block_pcg_solve(
+    s_e_fac: &[EdgeCompliance],
+    edges: &[(usize, usize, i64)],
+    n: usize, k: usize,
+    pinned: &[bool],
+    rhs: &DVector<f64>,
+    tol: f64,
+    max_iter: usize,
+) -> (DVector<f64>, usize) {
+    let warm = DVector::<f64>::zeros(n * k);
+    let prec = build_axis_laplacians_prec(s_e_fac, edges, n, k, pinned);
+    block_pcg_solve_with_prec(s_e_fac, edges, n, k, pinned, &prec, rhs, &warm, tol, max_iter)
+}
+
+/// PCG with warm-start AND a pre-built preconditioner. Uses factored
+/// edge compliance (D' + r·rᵀ) for O(K) per-edge matvec instead of O(K²).
+fn block_pcg_solve_with_prec(
+    s_e_fac: &[EdgeCompliance],
+    edges: &[(usize, usize, i64)],
+    n: usize, k: usize,
+    pinned: &[bool],
+    prec: &AxisLaplaciansPrec,
+    rhs: &DVector<f64>,
+    x0: &DVector<f64>,
+    tol: f64,
+    max_iter: usize,
+) -> (DVector<f64>, usize) {
+    let dim = n * k;
+    let mut x = x0.clone();
+    for i in 0..dim { if pinned[i] { x[i] = 0.0; } }
+    // r = rhs - L_block * x
+    let mut r = rhs.clone();
+    let mut lx = DVector::<f64>::zeros(dim);
+    apply_l_block_factored(s_e_fac, edges, n, k, pinned, &x, &mut lx);
+    for i in 0..dim { r[i] -= lx[i]; if pinned[i] { r[i] = 0.0; } }
+    let mut z = DVector::<f64>::zeros(dim);
+    apply_axis_laplacians_prec(prec, n, k, pinned, &r, &mut z);
+    let mut p = z.clone();
+    let mut ap = DVector::<f64>::zeros(dim);
+    let mut rz_old: f64 = r.dot(&z);
+    let b_norm: f64 = rhs.norm().max(1.0);
+    for it in 0..max_iter {
+        apply_l_block_factored(s_e_fac, edges, n, k, pinned, &p, &mut ap);
+        let p_ap: f64 = p.dot(&ap);
+        if p_ap.abs() < 1e-30 { return (x, it); }
+        let alpha = rz_old / p_ap;
+        for i in 0..dim {
+            x[i] += alpha * p[i];
+            r[i] -= alpha * ap[i];
+        }
+        for i in 0..dim { if pinned[i] { x[i] = 0.0; r[i] = 0.0; } }
+        let r_norm = r.norm();
+        if r_norm / b_norm < tol { return (x, it + 1); }
+        apply_axis_laplacians_prec(prec, n, k, pinned, &r, &mut z);
+        let rz_new: f64 = r.dot(&z);
+        let beta = rz_new / rz_old;
+        for i in 0..dim { p[i] = z[i] + beta * p[i]; }
+        for i in 0..dim { if pinned[i] { p[i] = 0.0; } }
+        rz_old = rz_new;
+    }
+    (x, max_iter)
+}
 
 // ---------- RNG / graph ----------
 
@@ -182,9 +409,10 @@ fn potential_u(f: &[f64], t: &[f64], g: &Graph, caps: &[f64], mu: f64) -> f64 {
 // ---------- Newton step ----------
 
 /// One Newton step on (f, t) under the slack-variable LP-IPM Hamiltonian.
-/// Two-stage Schur: per-edge K×K reduction over t, then multi-axis
-/// block-Laplacian solve over the conservation constraint on f.
-/// Writes Δf and Δt; returns gradient norm (gradient on f, post-t-Schur).
+/// `prec_cache` holds the K-axis Laplacian preconditioner from a previous
+/// step; if `force_rebuild` is true (or cache is empty), we rebuild it.
+/// The Hessian changes slowly across Newton iters so a stale preconditioner
+/// gives near-optimal PCG convergence at much lower amortised cost.
 fn newton_step(
     f: &[f64],
     t: &[f64],
@@ -193,6 +421,10 @@ fn newton_step(
     mu: f64,
     df: &mut [f64],
     dt: &mut [f64],
+    lambda_warm: &mut Option<DVector<f64>>,
+    pcg_iters_acc: &mut usize,
+    prec_cache: &mut Option<AxisLaplaciansPrec>,
+    force_rebuild_prec: bool,
 ) -> Option<f64> {
     let n = g.n;
     let m = g.edges.len();
@@ -247,12 +479,15 @@ fn newton_step(
     //   H_tt^{-1} = diag(1/β) - (γ/(1+γ Σ 1/β))(1/β)(1/β)^T,
     //   so H_ft H_tt^{-1} g_t per axis k:
     //     = δ_k [g_t_k/β_k - (1/β_k)(γ/(1+γ Σ 1/β)) Σ_j g_t_j/β_j].
-    let mut s_e: Vec<DMatrix<f64>> = Vec::with_capacity(m);
+    // We need H_eff^{-1} per edge. H_eff = D' + r·rᵀ; the inverse is
+    // (D')^{-1} - α' · a'·a'ᵀ where a' = (D')^{-1} r, α' = 1/(1+rᵀa').
+    // STORE the inverse in factored form: D'_inv (vector) and a' (vector),
+    // α' (scalar). Apply via O(K) per edge: x → diag(D'_inv)·x − α'·(a'·x)·a'.
+    let mut s_e_fac: Vec<EdgeCompliance> = Vec::with_capacity(m);
     let mut g_eff = vec![0.0_f64; k * m];
     for e in 0..m {
-        // Per-edge K-vectors.
-        let mut d_prime = DVector::<f64>::zeros(k);
-        let mut rvec    = DVector::<f64>::zeros(k);
+        let mut d_prime = vec![0.0_f64; k];
+        let mut rvec = vec![0.0_f64; k];
         let mut sum_inv_beta = 0.0_f64;
         let mut sum_gt_over_beta = 0.0_f64;
         for kk in 0..k {
@@ -262,67 +497,58 @@ fn newton_step(
         }
         let denom = 1.0 + gamma[e] * sum_inv_beta;
         let scale = (gamma[e] / denom).sqrt();
-        let woodbury_coef = gamma[e] / denom; // for g_t correction
+        let woodbury_coef = gamma[e] / denom;
         for kk in 0..k {
-            let a = alpha[kk * m + e];
             let b = beta[kk * m + e];
             let d = delta[kk * m + e];
-            let dp = (b * b - d * d) / b; // β² − δ² over β
+            let dp = (b * b - d * d) / b;
             d_prime[kk] = dp.max(1e-14);
             rvec[kk] = scale * (d / b);
-            // g_eff contribution per axis kk:
-            //   H_ft H_tt^{-1} g_t at kk = δ_k · [(1/β_k) g_t_k − (1/β_k) · woodbury_coef · Σ_j g_t_j/β_j]
             let gt_corrected = g_t[kk * m + e] / b
                 - (1.0 / b) * woodbury_coef * sum_gt_over_beta;
             g_eff[kk * m + e] = g_f[kk * m + e] - d * gt_corrected;
-            let _ = a;
         }
-        // Build H_eff^{-1} = D'^{-1} - (D'^{-1} r r^T D'^{-1})/(1 + r^T D'^{-1} r).
-        let mut a_vec = DVector::<f64>::zeros(k);
+        // Build H_eff^{-1} = (D')^{-1} - α' a' a'ᵀ where
+        //   a' = (D')^{-1} r, α' = 1/(1 + rᵀ a').
+        // Store as (d_prime_inv, a_prime_neg_alpha_sqrt) so that
+        //   H_eff^{-1} v = diag(d_prime_inv)·v + a_prime_neg·(a_prime_neg·v)
+        // with a_prime_neg = a' · sqrt(α') (sign flipped to fold into +rᵀr form).
+        let mut d_prime_inv = vec![0.0_f64; k];
+        let mut a_prime = vec![0.0_f64; k];
         let mut p = 0.0_f64;
         for kk in 0..k {
-            a_vec[kk] = rvec[kk] / d_prime[kk];
-            p += rvec[kk] * a_vec[kk];
+            d_prime_inv[kk] = 1.0 / d_prime[kk];
+            a_prime[kk] = rvec[kk] / d_prime[kk];
+            p += rvec[kk] * a_prime[kk];
         }
-        let denom_inner = 1.0 + p;
-        let mut s_mat = DMatrix::<f64>::zeros(k, k);
-        for ki in 0..k {
-            s_mat[(ki, ki)] = 1.0 / d_prime[ki];
-            for kj in 0..k {
-                s_mat[(ki, kj)] -= a_vec[ki] * a_vec[kj] / denom_inner;
-            }
-        }
-        s_e.push(s_mat);
-    }
-
-    // Build the multi-axis block-Laplacian Σ_e B_eᵀ H_eff^{-1} B_e.
-    let dim = n * k;
-    let mut a = DMatrix::<f64>::zeros(dim, dim);
-    let row_of = |vert: usize, com: usize| vert * k + com;
-    for (e, &(u, v_idx, _)) in g.edges.iter().enumerate() {
-        let s = &s_e[e];
-        for (sa_, ta) in [(-1.0_f64, v_idx), (1.0, u)] {
-            for (sb_, tb) in [(-1.0_f64, v_idx), (1.0, u)] {
-                let scalar = sa_ * sb_;
-                for ki in 0..k {
-                    for kj in 0..k {
-                        a[(row_of(ta, ki), row_of(tb, kj))] += scalar * s[(ki, kj)];
-                    }
-                }
-            }
-        }
+        let alpha_w = 1.0 / (1.0 + p);
+        let neg_sqrt_alpha = -(alpha_w).sqrt();
+        let r_compl: Vec<f64> = a_prime.iter().map(|&a| a * neg_sqrt_alpha).collect();
+        // H_eff^{-1} = diag(d_prime_inv) + r_compl · r_complᵀ
+        // (because (-√α a')·(-√α a')ᵀ = α a'a'ᵀ — wait that's +α a'a'ᵀ but we
+        // want −α. Sign trick: store as diag + rrᵀ and SUBTRACT in matvec.
+        // Simpler: store with a sign field — but easier yet, just keep the
+        // diag-plus-rank-one-MINUS form. For convenience, store r and a sign,
+        // or just store r so H_eff^{-1} v = diag(d_inv)·v − (a_p · v)·a_p · α_w.
+        // We use r = a' · √α_w with the convention: matvec subtracts r·(r·v).
+        let _ = neg_sqrt_alpha;
+        let _ = r_compl;
+        let r_stored: Vec<f64> = a_prime.iter().map(|&a| a * alpha_w.sqrt()).collect();
+        s_e_fac.push(EdgeCompliance { d_prime: d_prime_inv, r: r_stored });
     }
 
     // Schur RHS: rhs = -C H_eff^{-1} g_eff (matches sign convention used elsewhere).
+    // Built by edge-iteration; never materialise the (n·K)*(n·K) Laplacian.
+    // Per-edge apply of H_eff^{-1} = diag(d_inv) − r·rᵀ in O(K).
+    let dim = n * k;
+    let row_of = |vert: usize, com: usize| vert * k + com;
     let mut v_per_edge = vec![0.0_f64; k * m];
     for e in 0..m {
-        let s = &s_e[e];
+        let s = &s_e_fac[e];
+        let mut rdot = 0.0_f64;
+        for ki in 0..k { rdot += s.r[ki] * g_eff[ki * m + e]; }
         for ki in 0..k {
-            let mut acc = 0.0;
-            for kj in 0..k {
-                acc += s[(ki, kj)] * g_eff[kj * m + e];
-            }
-            v_per_edge[ki * m + e] = acc;
+            v_per_edge[ki * m + e] = s.d_prime[ki] * g_eff[ki * m + e] - s.r[ki] * rdot;
         }
     }
     let mut rhs = DVector::<f64>::zeros(dim);
@@ -334,33 +560,78 @@ fn newton_step(
         }
     }
 
-    // Per-axis pinning of (s_k, k) and (t_k, k) — single matrix.
+    // Per-axis pinning mask: (s_k, k) and (t_k, k) for each commodity.
+    let mut pinned = vec![false; dim];
     for ki in 0..k {
         let (s_k, t_k) = g.commodities[ki];
-        for &pv in &[s_k, t_k] {
-            let r = row_of(pv, ki);
-            for c in 0..dim { a[(r, c)] = 0.0; a[(c, r)] = 0.0; }
-            a[(r, r)] = 1.0;
-            rhs[r] = 0.0;
-        }
+        pinned[row_of(s_k, ki)] = true;
+        pinned[row_of(t_k, ki)] = true;
     }
-    // Ridge for numerical safety.
-    let ridge = 1e-12 * a.diagonal().abs().max();
-    for i in 0..dim { a[(i, i)] += ridge; }
+    for i in 0..dim { if pinned[i] { rhs[i] = 0.0; } }
 
-    let chol = Cholesky::new(a)?;
-    let lambda = chol.solve(&rhs);
+    // Hybrid: dense Cholesky for small dim (cache-friendly cubic),
+    // block-PCG matrix-free with axis-Lapl preconditioner for large dim.
+    // Crossover empirically around dim ≈ 200.
+    let lambda = if dim <= 200 {
+        // Materialise the (n·K)*(n·K) matrix from factored compliance:
+        //   S_e[ki, kj] = δ_ki,kj · d_inv[ki] − r[ki]·r[kj]
+        let mut a_dense = DMatrix::<f64>::zeros(dim, dim);
+        for (e, &(u, v_idx, _)) in g.edges.iter().enumerate() {
+            let s = &s_e_fac[e];
+            for (sa_, ta) in [(-1.0_f64, v_idx), (1.0, u)] {
+                for (sb_, tb) in [(-1.0_f64, v_idx), (1.0, u)] {
+                    let scalar = sa_ * sb_;
+                    for ki in 0..k {
+                        // diag piece
+                        a_dense[(row_of(ta, ki), row_of(tb, ki))] += scalar * s.d_prime[ki];
+                        // rank-1 piece (negative)
+                        for kj in 0..k {
+                            a_dense[(row_of(ta, ki), row_of(tb, kj))] -= scalar * s.r[ki] * s.r[kj];
+                        }
+                    }
+                }
+            }
+        }
+        for i in 0..dim {
+            if pinned[i] {
+                for c in 0..dim { a_dense[(i, c)] = 0.0; a_dense[(c, i)] = 0.0; }
+                a_dense[(i, i)] = 1.0;
+            }
+        }
+        let ridge = 1e-12 * a_dense.diagonal().abs().max();
+        for i in 0..dim { a_dense[(i, i)] += ridge; }
+        let chol = nalgebra::Cholesky::new(a_dense)?;
+        chol.solve(&rhs)
+    } else {
+        let pcg_tol = 1e-12_f64;
+        let max_pcg = (40 * n).max(2000);
+        let warm = lambda_warm.clone().unwrap_or_else(|| DVector::<f64>::zeros(dim));
+        if force_rebuild_prec || prec_cache.is_none() {
+            *prec_cache = Some(build_axis_laplacians_prec(&s_e_fac, &g.edges, n, k, &pinned));
+        }
+        let prec = prec_cache.as_ref().unwrap();
+        let (lambda_pcg, n_it) = block_pcg_solve_with_prec(
+            &s_e_fac, &g.edges, n, k, &pinned, prec, &rhs, &warm, pcg_tol, max_pcg,
+        );
+        *pcg_iters_acc += n_it;
+        *lambda_warm = Some(lambda_pcg.clone());
+        lambda_pcg
+    };
 
     // Δf per edge: Δf = -H_eff^{-1} (g_eff + B^T λ).
+    // Apply factored H_eff^{-1} = diag(d_inv) − r·rᵀ in O(K) per edge.
     for kk in 0..k * m { df[kk] = 0.0; }
+    let mut h_e = vec![0.0_f64; k];
     for (e, &(u, v_idx, _)) in g.edges.iter().enumerate() {
-        let s = &s_e[e];
-        let mut h_e = DVector::<f64>::zeros(k);
+        let s = &s_e_fac[e];
+        let mut rdot = 0.0_f64;
         for ki in 0..k {
             h_e[ki] = g_eff[ki * m + e] + (lambda[row_of(u, ki)] - lambda[row_of(v_idx, ki)]);
+            rdot += s.r[ki] * h_e[ki];
         }
-        let de = -(s * &h_e);
-        for ki in 0..k { df[ki * m + e] = de[ki]; }
+        for ki in 0..k {
+            df[ki * m + e] = -(s.d_prime[ki] * h_e[ki] - s.r[ki] * rdot);
+        }
     }
 
     // Δt per edge: Δt = -H_tt^{-1} (H_tf Δf + g_t).
@@ -429,11 +700,23 @@ fn solve_lpipm(
     let mut df = vec![0.0_f64; k * m];
     let mut dt = vec![0.0_f64; k * m];
     let mut iters = 0usize;
+    let mut total_pcg_iters = 0usize;
+    let mut lambda_warm: Option<DVector<f64>> = None;
+    let mut prec_cache: Option<AxisLaplaciansPrec> = None;
     let mut eta = eta_init;
-    for &mu in mu_schedule {
+    // Rebuild preconditioner every PREC_REBUILD Newton steps. Stale prec
+    // costs a few extra PCG iters but saves ~10× on factor builds.
+    const PREC_REBUILD: usize = 32;
+    let mut prev_f_total = 0.0_f64;
+    for (_mu_idx, &mu) in mu_schedule.iter().enumerate() {
         for inner in 0..inner_iters {
             iters += 1;
-            let grad_norm = match newton_step(&f, &t, g, &caps, mu, &mut df, &mut dt) {
+            let force_rebuild = iters % PREC_REBUILD == 1;
+            let grad_norm = match newton_step(
+                &f, &t, g, &caps, mu, &mut df, &mut dt,
+                &mut lambda_warm, &mut total_pcg_iters,
+                &mut prec_cache, force_rebuild,
+            ) {
                 Some(g) => g,
                 None => {
                     if verbose { eprintln!("[lpipm] Cholesky failed at mu={mu:.1e} inner={inner}"); }
@@ -441,6 +724,25 @@ fn solve_lpipm(
                 }
             };
             if grad_norm < 1e-12 { break; }
+            // Early termination per μ: if F_total stops moving (centring done),
+            // drop μ instead of grinding more inner iters.
+            if inner >= 3 && inner % 3 == 0 {
+                let mut cur_f_total = 0.0;
+                for kk in 0..k {
+                    let (s_kk, _t_kk) = g.commodities[kk];
+                    let mut div_s = 0.0;
+                    for (e, &(u, vtx, _)) in g.edges.iter().enumerate() {
+                        if u == s_kk { div_s += f[kk * m + e]; }
+                        else if vtx == s_kk { div_s -= f[kk * m + e]; }
+                    }
+                    cur_f_total += div_s;
+                }
+                if (cur_f_total - prev_f_total).abs() < 1e-10 * cur_f_total.abs().max(1.0) {
+                    prev_f_total = cur_f_total;
+                    break;
+                }
+                prev_f_total = cur_f_total;
+            }
 
             // Backtracking line search.
             let u_curr = potential_u(&f, &t, g, &caps, mu);
@@ -477,7 +779,8 @@ fn solve_lpipm(
                 }
                 f_total += div_s;
             }
-            eprintln!("[lpipm] after mu={mu:.1e}: F = {:.6}", f_total);
+            eprintln!("[lpipm] after mu={mu:.1e}: F = {:.6}, total_pcg_iters = {}",
+                f_total, total_pcg_iters);
         }
     }
 
@@ -538,6 +841,9 @@ fn main() {
     let g = gen_graph(n, m_target, k, 0xDEAD_BEEF_C0DE_F00D ^ seed);
     println!("# n={n}, m={}, K={k}, inner={inner}, eta={eta}, seed={seed}", g.edges.len());
 
+    // Deep μ schedule for tight LP-vertex convergence; early-termination
+    // per μ level skips already-converged levels so we don't pay full
+    // inner_iters everywhere.
     let mu_schedule = vec![
         1.0, 0.3, 0.1, 0.03, 0.01, 0.003, 0.001,
         3e-4, 1e-4, 3e-5, 1e-5, 3e-6, 1e-6, 3e-7, 1e-7, 1e-8,
