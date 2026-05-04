@@ -141,10 +141,13 @@ fn apply_l_block(
 /// edge weight = S_e[k, k] = d_inv[k] − r[k]² for axis k. Each n×n
 /// Cholesky-factored once per Newton step (parallelised across axes).
 ///
-/// Tried and failed: SHARED preconditioner (single Laplacian using mean
-/// of S_e[k,k] across axes). Per-axis edge weights vary too much for the
-/// average to be a good preconditioner — PCG iter count blew up by ~100×
-/// at K ≥ 10. The K-factor cost is the right tradeoff.
+/// Two preconditioner variants tried and rejected:
+///   - SHARED Laplacian (mean S_e[k,k] across axes): blew PCG iters by
+///     100× at K ≥ 10 — per-axis weights vary too much to average.
+///   - SMW low-rank correction (top-r edges by ‖r_e‖): made convergence
+///     WORSE by ~2× because using `d_inv` (without r²) as the base
+///     produces a too-stiff preconditioner that the truncated rank-r
+///     correction can't fully soften.
 struct AxisLaplaciansPrec {
     factors: Vec<nalgebra::Cholesky<f64, nalgebra::Dyn>>,
 }
@@ -155,10 +158,8 @@ fn build_axis_laplacians_prec(
     n: usize, k: usize,
     pinned: &[bool],
 ) -> AxisLaplaciansPrec {
-    // Per-axis Cholesky (parallelised across K when worthwhile).
-    // Shared/averaged Laplacian was tried — caused PCG iter blowup at
-    // K≥10 because per-axis edge weights vary too much for averaging
-    // to give a tight preconditioner. Per-axis is the right call.
+    // Per-axis Cholesky (parallelised across K). Edge weight =
+    // S_e[k, k] = d_inv[k] − r[k]² is the actual diagonal entry of S_e.
     let factors: Vec<nalgebra::Cholesky<f64, nalgebra::Dyn>> = (0..k).into_par_iter().map(|ki| {
         let mut a = DMatrix::<f64>::zeros(n, n);
         for (e, &(u, v, _)) in edges.iter().enumerate() {
@@ -177,6 +178,7 @@ fn build_axis_laplacians_prec(
         for v in 0..n { a[(v, v)] += 1e-12; }
         nalgebra::Cholesky::new(a).expect("axis-Laplacian preconditioner factor")
     }).collect();
+
     AxisLaplaciansPrec { factors }
 }
 
@@ -187,6 +189,7 @@ fn apply_axis_laplacians_prec(
     v: &DVector<f64>,
     z: &mut DVector<f64>,
 ) {
+    // Step 1: z_base = L_diag^{-1} v  (K back-solves).
     if k >= 8 && n * n >= 4096 {
         let sols: Vec<DVector<f64>> = (0..k).into_par_iter().map(|ki| {
             let mut rhs_axis = DVector::<f64>::zeros(n);
@@ -206,6 +209,7 @@ fn apply_axis_laplacians_prec(
             for vert in 0..n { z[vert * k + ki] = sol[vert]; }
         }
     }
+    // Pinned: identity (input pass-through).
     for i in 0..(n * k) {
         if pinned[i] { z[i] = v[i]; }
     }
