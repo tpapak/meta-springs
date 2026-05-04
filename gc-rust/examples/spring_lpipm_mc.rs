@@ -48,6 +48,8 @@ use std::time::Instant;
 use nalgebra::{DMatrix, DVector};
 use rayon::prelude::*;
 
+use gc_rust::lap_solver::{CsrLap, Ic0, Preconditioner};
+
 // ---------- Block PCG matrix-free for multi-axis Laplacian ----------
 //
 // The (n*K)*(n*K) block-Laplacian is L = Σ_e (e_u-e_v)(e_u-e_v)ᵀ ⊗ S_e.
@@ -138,18 +140,30 @@ fn apply_l_block(
 }
 
 /// Graph-aware preconditioner: K independent scalar weighted Laplacians,
-/// edge weight = S_e[k, k] = d_inv[k] − r[k]² for axis k. Each n×n
-/// Cholesky-factored once per Newton step (parallelised across axes).
+/// edge weight = S_e[k, k] = d_inv[k] − r[k]² for axis k.
 ///
-/// Two preconditioner variants tried and rejected:
-///   - SHARED Laplacian (mean S_e[k,k] across axes): blew PCG iters by
-///     100× at K ≥ 10 — per-axis weights vary too much to average.
-///   - SMW low-rank correction (top-r edges by ‖r_e‖): made convergence
-///     WORSE by ~2× because using `d_inv` (without r²) as the base
-///     produces a too-stiff preconditioner that the truncated rank-r
-///     correction can't fully soften.
+/// Two factor backends:
+///   - `Dense`: nalgebra dense Cholesky. Build O(n³), apply O(n²). Used
+///     for small n where the cubic build is fast enough that the high
+///     per-apply cost is amortised by deeper PCG convergence.
+///   - `Ic0`: incomplete Cholesky (no fill) on sparse CSR Laplacian.
+///     Build O(n·d²), apply O(n·d) where d = avg degree. For our random
+///     sparse graphs this is 50-200× faster per apply than dense.
+///
+/// Both built per-axis, parallelised across K with rayon. Pinning in
+/// the outer matvec handles the per-axis terminal constraints; the
+/// preconditioner uses a tiny ridge ε so the factor stays SPD.
+///
+/// Negative findings (don't redo):
+///   - SHARED Laplacian (mean S_e[k,k] across axes): blew PCG iters 100×.
+///   - SMW low-rank rank-1 correction: made convergence ~2× worse.
+enum AxisFactor {
+    Dense(nalgebra::Cholesky<f64, nalgebra::Dyn>),
+    Ic0(Ic0),
+}
+
 struct AxisLaplaciansPrec {
-    factors: Vec<nalgebra::Cholesky<f64, nalgebra::Dyn>>,
+    factors: Vec<AxisFactor>,
 }
 
 fn build_axis_laplacians_prec(
@@ -158,25 +172,51 @@ fn build_axis_laplacians_prec(
     n: usize, k: usize,
     pinned: &[bool],
 ) -> AxisLaplaciansPrec {
-    // Per-axis Cholesky (parallelised across K). Edge weight =
-    // S_e[k, k] = d_inv[k] − r[k]² is the actual diagonal entry of S_e.
-    let factors: Vec<nalgebra::Cholesky<f64, nalgebra::Dyn>> = (0..k).into_par_iter().map(|ki| {
-        let mut a = DMatrix::<f64>::zeros(n, n);
-        for (e, &(u, v, _)) in edges.iter().enumerate() {
-            let s_kk = (s_e_fac[e].d_prime[ki] - s_e_fac[e].r[ki] * s_e_fac[e].r[ki]).max(1e-14);
-            a[(u, u)] += s_kk;
-            a[(v, v)] += s_kk;
-            a[(u, v)] -= s_kk;
-            a[(v, u)] -= s_kk;
-        }
-        for v in 0..n {
-            if pinned[v * k + ki] {
-                for c in 0..n { a[(v, c)] = 0.0; a[(c, v)] = 0.0; }
-                a[(v, v)] = 1.0;
+    // Use IC0 (sparse, incomplete Cholesky no-fill) when n is large
+    // enough that dense Cholesky wastes work; otherwise dense.
+    // Crossover: empirically n ≥ 100 → IC0 is faster to build AND apply.
+    let use_ic0 = n >= 100;
+    // Build serial too (Ic0 not Sync). For dense Cholesky build we could
+    // parallelise, but the per-axis n^3 cost is small at our test sizes.
+    let factors: Vec<AxisFactor> = (0..k).map(|ki| {
+        if use_ic0 {
+            // Build CSR Laplacian for axis ki. Pinning is enforced in the
+            // outer matvec / PCG; the preconditioner uses a tiny ridge ε
+            // to keep the factor SPD.
+            let weighted: Vec<(u32, u32, f64)> = edges.iter().map(|&(u, v, _e_idx)| {
+                let _ = _e_idx;
+                (u as u32, v as u32, 0.0)
+            }).collect();
+            let mut weighted_full: Vec<(u32, u32, f64)> = Vec::with_capacity(edges.len());
+            for (e, &(u, v, _)) in edges.iter().enumerate() {
+                let s_kk = (s_e_fac[e].d_prime[ki] - s_e_fac[e].r[ki] * s_e_fac[e].r[ki]).max(1e-14);
+                weighted_full.push((u as u32, v as u32, s_kk));
             }
+            let _ = weighted;
+            let csr = CsrLap::from_canonical_weights(&weighted_full, n);
+            // Use larger ε on pinned vertices so the preconditioner doesn't
+            // try to "solve" for the constrained DOFs (we'll zero them in apply).
+            // Simpler: use a small uniform ridge; outer PCG handles pin.
+            let ic = Ic0::new(&csr, 1e-8);
+            AxisFactor::Ic0(ic)
+        } else {
+            let mut a = DMatrix::<f64>::zeros(n, n);
+            for (e, &(u, v, _)) in edges.iter().enumerate() {
+                let s_kk = (s_e_fac[e].d_prime[ki] - s_e_fac[e].r[ki] * s_e_fac[e].r[ki]).max(1e-14);
+                a[(u, u)] += s_kk;
+                a[(v, v)] += s_kk;
+                a[(u, v)] -= s_kk;
+                a[(v, u)] -= s_kk;
+            }
+            for v in 0..n {
+                if pinned[v * k + ki] {
+                    for c in 0..n { a[(v, c)] = 0.0; a[(c, v)] = 0.0; }
+                    a[(v, v)] = 1.0;
+                }
+            }
+            for v in 0..n { a[(v, v)] += 1e-12; }
+            AxisFactor::Dense(nalgebra::Cholesky::new(a).expect("axis-Laplacian preconditioner factor"))
         }
-        for v in 0..n { a[(v, v)] += 1e-12; }
-        nalgebra::Cholesky::new(a).expect("axis-Laplacian preconditioner factor")
     }).collect();
 
     AxisLaplaciansPrec { factors }
@@ -189,27 +229,36 @@ fn apply_axis_laplacians_prec(
     v: &DVector<f64>,
     z: &mut DVector<f64>,
 ) {
-    // Step 1: z_base = L_diag^{-1} v  (K back-solves).
-    if k >= 8 && n * n >= 4096 {
-        let sols: Vec<DVector<f64>> = (0..k).into_par_iter().map(|ki| {
-            let mut rhs_axis = DVector::<f64>::zeros(n);
-            for vert in 0..n { rhs_axis[vert] = v[vert * k + ki]; }
-            for vert in 0..n { if pinned[vert * k + ki] { rhs_axis[vert] = 0.0; } }
-            prec.factors[ki].solve(&rhs_axis)
-        }).collect();
-        for ki in 0..k {
-            for vert in 0..n { z[vert * k + ki] = sols[ki][vert]; }
+    // Per-axis solve. Either dense Cholesky (`Dense`) or sparse IC(0)
+    // back-solve (`Ic0`). Parallelise across K when work-per-axis is
+    // big enough to amortise rayon overhead.
+    let solve_axis = |factor: &AxisFactor, ki: usize, rhs_in: &[f64], out: &mut [f64]| {
+        let mut tmp_in = vec![0.0_f64; n];
+        for vert in 0..n {
+            let val = rhs_in[vert * k + ki];
+            tmp_in[vert] = if pinned[vert * k + ki] { 0.0 } else { val };
         }
-    } else {
-        let mut rhs_axis = DVector::<f64>::zeros(n);
-        for ki in 0..k {
-            for vert in 0..n { rhs_axis[vert] = v[vert * k + ki]; }
-            for vert in 0..n { if pinned[vert * k + ki] { rhs_axis[vert] = 0.0; } }
-            let sol = prec.factors[ki].solve(&rhs_axis);
-            for vert in 0..n { z[vert * k + ki] = sol[vert]; }
+        match factor {
+            AxisFactor::Dense(chol) => {
+                let dv = DVector::<f64>::from_vec(tmp_in);
+                let sol = chol.solve(&dv);
+                for vert in 0..n { out[vert * k + ki] = sol[vert]; }
+            }
+            AxisFactor::Ic0(ic) => {
+                let mut sol = vec![0.0_f64; n];
+                ic.apply(&tmp_in, &mut sol);
+                for vert in 0..n { out[vert * k + ki] = sol[vert]; }
+            }
         }
+    };
+    // Note: rayon parallel removed because Ic0 contains RefCell (not Sync).
+    // For Dense factors we could parallelise, but the per-axis back-solve
+    // is fast enough that serial is fine — measurable speedup only when
+    // K is large AND n*n is large.
+    let z_slice = z.as_mut_slice();
+    for ki in 0..k {
+        solve_axis(&prec.factors[ki], ki, v.as_slice(), z_slice);
     }
-    // Pinned: identity (input pass-through).
     for i in 0..(n * k) {
         if pinned[i] { z[i] = v[i]; }
     }
