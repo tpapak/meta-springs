@@ -1,0 +1,104 @@
+\begin{thebibliography}{13}
+\providecommand{\natexlab}[1]{#1}
+\providecommand{\url}[1]{\texttt{#1}}
+\expandafter\ifx\csname urlstyle\endcsname\relax
+  \providecommand{\doi}[1]{doi: #1}\else
+  \providecommand{\doi}{doi: \begingroup \urlstyle{rm}\Url}\fi
+
+\bibitem[Borenstein et~al.(2009)Borenstein, Hedges, Higgins, and
+  Rothstein]{BorensteinBook2009}
+Michael Borenstein, Larry~V. Hedges, Julian P.~T. Higgins, and Hannah~R.
+  Rothstein.
+\newblock \emph{Introduction to Meta-Analysis}.
+\newblock John Wiley \& Sons, 2009.
+\newblock \doi{10.1002/9780470743386}.
+
+\bibitem[Dempster et~al.(1977)Dempster, Laird, and
+  Rubin]{DempsterLairdRubin1977}
+Arthur~P. Dempster, Nan~M. Laird, and Donald~B. Rubin.
+\newblock Maximum likelihood from incomplete data via the {EM} algorithm.
+\newblock \emph{Journal of the Royal Statistical Society: Series B},
+  39\penalty0 (1):\penalty0 1--38, 1977.
+
+\bibitem[Guddat et~al.(2012)Guddat, Grouven, Bender, and Skipka]{Guddat2012}
+Charlotte Guddat, Ulrich Grouven, Ralf Bender, and Guido Skipka.
+\newblock A note on the graphical presentation of prediction intervals in
+  random-effects meta-analyses.
+\newblock \emph{Systematic Reviews}, 1:\penalty0 34, 2012.
+\newblock \doi{10.1186/2046-4053-1-34}.
+
+\bibitem[Henderson(1975)]{Henderson1975}
+Charles~R. Henderson.
+\newblock Best linear unbiased estimation and prediction under a selection
+  model.
+\newblock \emph{Biometrics}, 31\penalty0 (2):\penalty0 423--447, 1975.
+\newblock \doi{10.2307/2529430}.
+
+\bibitem[Higgins and Thompson(2002)]{Higgins2002}
+Julian P.~T. Higgins and Simon~G. Thompson.
+\newblock Quantifying heterogeneity in a meta-analysis.
+\newblock \emph{Statistics in Medicine}, 21\penalty0 (11):\penalty0 1539--1558,
+  2002.
+\newblock \doi{10.1002/sim.1186}.
+
+\bibitem[Karl(2026)]{Karl2026}
+Andrew~T. Karl.
+\newblock Motivating {REML} via prediction-error covariances in {EM} updates
+  for linear mixed models.
+\newblock \emph{arXiv preprint}, 2026.
+
+\bibitem[Papakonstantinou(2024)]{Papakonstantinou2024}
+Thodoris Papakonstantinou.
+\newblock Network meta-analysis as a spring network.
+\newblock \emph{[Manuscript in preparation]}, 2024.
+
+\bibitem[Petropoulou et~al.(2017)Petropoulou, Nikolakopoulou, Veroniki, Rios,
+  Vounzoulaki, Defined, Tricco, and Salanti]{Petropoulou2016}
+Maria Petropoulou, Adriani Nikolakopoulou, Areti-Angeliki Veroniki, Patricia
+  Rios, Eirini Vounzoulaki, by~others Defined, Andrea~C. Tricco, and Georgia
+  Salanti.
+\newblock Bibliographic study showed improving statistical methodology of
+  network meta-analyses published between 1999 and 2015.
+\newblock \emph{Journal of Clinical Epidemiology}, 82:\penalty0 20--28, 2017.
+\newblock \doi{10.1016/j.jclinepi.2016.11.002}.
+
+\bibitem[Riley et~al.(2011)Riley, Higgins, and Deeks]{Riley2011}
+Richard~D. Riley, Julian P.~T. Higgins, and Jonathan~J. Deeks.
+\newblock Interpretation of random effects meta-analyses.
+\newblock \emph{BMJ}, 342:\penalty0 d549, 2011.
+\newblock \doi{10.1136/bmj.d549}.
+
+\bibitem[R{\"u}cker et~al.(2008)R{\"u}cker, Schwarzer, Carpenter, and
+  Schumacher]{Ruecker2008}
+Gerta R{\"u}cker, Guido Schwarzer, James~R. Carpenter, and Martin Schumacher.
+\newblock Undue reliance on {$I^2$} in assessing heterogeneity may mislead.
+\newblock \emph{BMC Medical Research Methodology}, 8:\penalty0 79, 2008.
+\newblock \doi{10.1186/1471-2288-8-79}.
+
+\bibitem[Salanti(2012)]{Salanti2012}
+Georgia Salanti.
+\newblock Indirect and mixed-treatment comparison, network, or
+  multiple-treatments meta-analysis: many names, many benefits, many concerns
+  for the next generation evidence synthesis tool.
+\newblock \emph{Research Synthesis Methods}, 3\penalty0 (2):\penalty0 80--97,
+  2012.
+\newblock \doi{10.1002/jrsm.1037}.
+
+\bibitem[van Aert et~al.(2021)van Aert, Wicherts, and van~den
+  Noortgate]{vanAert2021}
+Robbie C.~M. van Aert, Jelte~M. Wicherts, and Wim van~den Noortgate.
+\newblock Study specific prediction intervals for random-effects meta-analysis:
+  A tutorial.
+\newblock \emph{Research Synthesis Methods}, 12\penalty0 (4):\penalty0
+  429--447, 2021.
+\newblock \doi{10.1002/jrsm.1490}.
+
+\bibitem[Viechtbauer(2005)]{Viechtbauer2005convergence}
+Wolfgang Viechtbauer.
+\newblock Bias and efficiency of meta-analytic variance estimators in the
+  random-effects model.
+\newblock \emph{Journal of Educational and Behavioral Statistics}, 30\penalty0
+  (3):\penalty0 261--293, 2005.
+\newblock \doi{10.3102/10769986030003261}.
+
+\end{thebibliography}

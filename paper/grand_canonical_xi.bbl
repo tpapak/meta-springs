@@ -1,0 +1,35 @@
+\begin{thebibliography}{4}
+\providecommand{\natexlab}[1]{#1}
+\providecommand{\url}[1]{\texttt{#1}}
+\expandafter\ifx\csname urlstyle\endcsname\relax
+  \providecommand{\doi}[1]{doi: #1}\else
+  \providecommand{\doi}{doi: \begingroup \urlstyle{rm}\Url}\fi
+
+\bibitem[Dias et~al.(2013)Dias, Sutton, Ades, and Welton]{dias2013tsd2}
+Sofia Dias, Alex~J. Sutton, AE~Ades, and Nicky~J. Welton.
+\newblock {NICE DSU Technical Support Document 2}: A generalised linear
+  modelling framework for pairwise and network meta-analysis of randomised
+  controlled trials.
+\newblock Technical report, National Institute for Health and Care Excellence
+  Decision Support Unit, 2013.
+
+\bibitem[Papakonstantinou(2025)]{papakonstantinou2025spring}
+Thodoris Papakonstantinou.
+\newblock Spring-{REML}: heterogeneity estimation and study-specific prediction
+  intervals for network meta-analysis via the spring network framework, 2025.
+\newblock Companion manuscript, this repository.
+
+\bibitem[Phillippo(2023)]{phillippo2023multinma}
+David~M. Phillippo.
+\newblock \emph{multinma: Bayesian Network Meta-Analysis of Individual and
+  Aggregate Data}, 2023.
+\newblock R package version 0.5.1.
+
+\bibitem[R{\"o}ver(2020)]{rover2020bayesmeta}
+Christian R{\"o}ver.
+\newblock {Bayesian} random-effects meta-analysis using the {bayesmeta} {R}
+  package.
+\newblock \emph{Journal of Statistical Software}, 93\penalty0 (6):\penalty0
+  1--51, 2020.
+
+\end{thebibliography}

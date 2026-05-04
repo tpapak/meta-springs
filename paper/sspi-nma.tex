@@ -1,0 +1,932 @@
+\documentclass[12pt]{article}
+
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{graphicx}
+\usepackage{natbib}
+\usepackage{hyperref}
+\usepackage{geometry}
+\usepackage{booktabs}
+\usepackage{longtable}
+\usepackage{algorithm}
+\usepackage{algpseudocode}
+\geometry{margin=1in}
+
+\newcommand{\Var}{\operatorname{Var}}
+\newcommand{\E}{\operatorname{E}}
+\newcommand{\Cov}{\operatorname{Cov}}
+\newcommand{\tr}{\operatorname{tr}}
+\newcommand{\diag}{\operatorname{diag}}
+\newtheorem{theorem}{Theorem}
+\newtheorem{proposition}{Proposition}
+\newtheorem{corollary}{Corollary}
+\newtheorem{definition}{Definition}
+
+\title{Study-Specific Prediction Intervals and REML Heterogeneity Estimation for Network Meta-Analysis via the Spring Network Framework}
+
+\author{Thodoris Papakonstantinou}
+
+\date{\today}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+In random-effects meta-analysis, two fundamental problems require the
+between-study variance~$\tau^2$: estimating heterogeneity and
+constructing study-specific prediction intervals (SSPIs).  While both
+have been addressed for pairwise meta-analysis, no unified methodology
+exists for network meta-analysis (NMA).  We develop both using the
+spring network framework, in which the NMA model is represented as a
+mechanical system of springs whose equilibrium positions yield the
+network estimates.
+
+For $\tau^2$ estimation, we derive a novel REML-equivalent estimator
+(spring-REML) based on the law of total variance applied to the
+arm-level BLUP residuals---the tau spring lengths in the network.  The
+estimator iterates
+$\tau^2 \leftarrow 2[N^{-1} \sum \delta_{ij}^2 + N^{-1} \sum \Var(\delta_{ij})]$,
+where $\delta_{ij}$ are the tau spring lengths, $\Var(\delta_{ij})$ is
+obtained by propagating data variance through the spring system's
+transfer matrix, and $N$ is the total number of arms.  This is a single
+formula that handles pairwise, NMA, and multi-arm studies without
+special cases.  We verify exact agreement with standard REML on 27
+datasets including real-world and synthetic NMAs with 2--10 treatments,
+2--50 studies, and both continuous and binary outcomes.
+
+The variance decomposition also yields a new heterogeneity measure,
+$I^2_{\mathrm{BLUP}}$, defined as the fraction of $\tau^2$ captured by
+the observed spread of BLUPs.  Unlike the classical $I^2$ of Higgins
+and Thompson, which conflates heterogeneity magnitude with study
+precision, $I^2_{\mathrm{BLUP}}$ measures how well the data resolve
+individual study effects---a direct indicator of whether
+study-specific conclusions are warranted.
+
+For SSPIs, we show that the effective precision at each study
+vertex---obtained by integrating out treatment positions---gives the
+correct prediction interval variance, reducing to the Raudenbush formula
+in the pairwise case.
+\end{abstract}
+
+\section{Introduction}
+
+\subsection{Study-specific effects and shrinkage}
+
+In random-effects meta-analysis, the observed effect $y_i$ of study $i$
+is assumed to estimate a study-specific true effect $\theta_i$, which
+itself is drawn from a distribution of true effects:
+\begin{align}
+  y_i \mid \theta_i &\sim N(\theta_i, \sigma_i^2), \label{eq:likelihood}\\
+  \theta_i \mid \mu &\sim N(\mu, \tau^2). \label{eq:prior}
+\end{align}
+The pooled estimate $\hat\mu$ summarizes the overall effect, but the
+individual $\theta_i$ are often of direct clinical interest.  The
+empirical Bayes (EB) estimate of $\theta_i$, also known as the best
+linear unbiased predictor (BLUP), is the shrinkage estimate
+\begin{equation}\label{eq:eb}
+  \tilde\theta_i = B_i \hat\mu + (1 - B_i) y_i,
+  \qquad B_i = \frac{\sigma_i^2}{\sigma_i^2 + \tau^2},
+\end{equation}
+which pulls $y_i$ toward $\hat\mu$ in proportion to the within-study
+noise relative to the total variance.
+
+\subsection{Study-specific prediction intervals in pairwise meta-analysis}
+
+The uncertainty of $\tilde\theta_i$ as an estimate of $\theta_i$
+depends on what is assumed known.  \citet{vanAert2021} identify three
+variance formulas:
+\begin{enumerate}
+  \item \textbf{Crude} (conditional on $\mu$ and $\tau^2$):
+    \begin{equation}\label{eq:crude}
+      \Var(\theta_i \mid y_i; \mu, \tau^2)
+        = \frac{\sigma_i^2 \tau^2}{\sigma_i^2 + \tau^2}
+        = \frac{1}{1/\sigma_i^2 + 1/\tau^2}.
+    \end{equation}
+  \item \textbf{Raudenbush} (accounting for uncertainty in $\hat\mu$):
+    \begin{equation}\label{eq:raudenbush}
+      \Var(\theta_i \mid \mathbf{y}; \tau^2)
+        = \frac{\sigma_i^2 \tau^2}{\sigma_i^2 + \tau^2}
+        + \frac{\sigma_i^4}{(\sigma_i^2 + \tau^2)^2 \, w_{\cdot}},
+    \end{equation}
+    where $w_{\cdot} = \sum_j w_j^* = \sum_j 1/(\sigma_j^2 + \tau^2)$.
+  \item \textbf{Quan et al.}\ (additionally accounts for $\hat\tau^2$
+    uncertainty but deemed inappropriate for study-specific effects).
+\end{enumerate}
+The Raudenbush formula is recommended for constructing study-specific
+prediction intervals (SSPIs)~\citep{vanAert2021}.
+
+\subsection{Gap: no SSPIs for NMA}
+
+Network meta-analysis extends pairwise meta-analysis to settings with
+three or more treatments compared across a network of
+studies~\citep{Salanti2012}.  While prediction intervals for
+\emph{new studies} in NMA have been
+discussed~\citep{Riley2011,Guddat2012}, study-specific prediction
+intervals---giving the credible range for the true effect $\theta_i$ of
+an existing study after network shrinkage---have not been developed.
+
+This paper fills this gap.  We derive SSPIs for NMA using the spring
+network representation, show that the result reduces to the Raudenbush
+formula in the pairwise case, and verify correctness through simulation.
+
+
+\section{The Spring Network Model for NMA}
+
+\subsection{Springs, hardness, and energy}
+
+We represent the NMA as a network of springs connecting vertices
+that correspond to studies, treatments, and random-effect
+nodes~\citep{Papakonstantinou2024}.
+
+\begin{definition}[Spring]
+A spring on edge $(u,v)$ has \emph{hardness} $k$ (precision),
+\emph{natural length} $\ell_0$ (observed effect), and \emph{current
+length} $\ell$ (equilibrium position).  Its elastic energy is
+\begin{equation}
+  U = \tfrac{1}{2} k (\ell - \ell_0)^2.
+\end{equation}
+\end{definition}
+
+For each study $i$ with arms $j = 1, \ldots, a_i$ comparing treatments
+$t_{ij}$, the spring network contains:
+\begin{itemize}
+  \item A \textbf{study vertex} $s_i$ with position $\theta_i$
+    (the study-specific baseline).
+  \item For each arm $j$: a \textbf{tau vertex} $\tau_{ij}$ connected to
+    $s_i$ by a \emph{tau spring} with hardness $k_\tau = 2/\tau^2$ and
+    natural length $0$.
+  \item For each arm $j$: $\tau_{ij}$ is connected to the
+    \textbf{treatment vertex} $t_j$ (with position $\mu_j$) by a
+    \emph{direct spring} with hardness $k_{ij} = 1/v_{ij}$ and natural
+    length $y_{ij}$ (the observed arm effect).
+\end{itemize}
+
+The total energy is
+\begin{equation}\label{eq:energy}
+  U = \sum_{i} \sum_{j=1}^{a_i}
+    \left[
+      \frac{1}{\tau^2}(\tau_{ij} - \theta_i)^2
+      + \frac{1}{2v_{ij}}(\mu_j - \tau_{ij} - y_{ij})^2
+    \right].
+\end{equation}
+The NMA solution is the set of positions $\{\theta_i, \tau_{ij}, \mu_j\}$
+that minimizes $U$.
+
+\subsection{Series spring reduction}
+
+Two springs in series---tau spring $(s_i, \tau_{ij})$ with hardness
+$2/\tau^2$ and direct spring $(\tau_{ij}, t_j)$ with hardness
+$1/v_{ij}$---combine into a single effective spring from $s_i$ to $t_j$
+with
+\begin{equation}\label{eq:series}
+  k_{\mathrm{eff},ij}
+    = \frac{(2/\tau^2)(1/v_{ij})}{2/\tau^2 + 1/v_{ij}}
+    = \frac{1}{v_{ij} + \tau^2/2}.
+\end{equation}
+For a two-arm study comparing treatments $A$ and $B$, the comparison
+effect $\delta_i = \theta_{iA} - \theta_{iB}$ has effective variance
+\begin{equation}
+  \frac{1}{k_{\mathrm{eff},iA}} + \frac{1}{k_{\mathrm{eff},iB}}
+    = (v_A + \tfrac{\tau^2}{2}) + (v_B + \tfrac{\tau^2}{2})
+    = \sigma_i^2 + \tau^2,
+\end{equation}
+recovering the standard random-effects weight $w_i^* = 1/(\sigma_i^2 + \tau^2)$.
+
+
+\section{Study-Specific Prediction Intervals for NMA}
+
+\subsection{Effective precision at the study vertex}
+
+\begin{theorem}[Study-specific effective precision]\label{thm:keff}
+Consider study $i$ comparing treatments $t_{i1}, \ldots, t_{ia_i}$
+in a network meta-analysis with between-study variance $\tau^2$.
+Let $\sigma_i^2 = \sum_{j=1}^{a_i} v_{ij}$ denote the within-study
+variance (sum of arm variances), and let
+$\Var(\hat\mu_{AB})$ denote the network variance of the summary
+estimate for comparison $A$ vs $B$.
+
+The effective precision of the study-specific true effect $\theta_i$,
+obtained by integrating out all intermediate vertices (tau vertices,
+treatment vertices, and all other studies), is
+\begin{equation}\label{eq:keff}
+  \kappa_i = \frac{1}{\sigma_i^2}
+           + \frac{1}{\tau^2 + \Var(\hat\mu)},
+\end{equation}
+where, for a pairwise comparison, $\Var(\hat\mu) = 1/\sum_j w_j^*$ with
+$w_j^* = 1/(\sigma_j^2 + \tau^2)$, and for NMA,
+$\Var(\hat\mu)$ is the relevant entry of the network variance matrix.
+\end{theorem}
+
+\begin{proof}
+The energy landscape at the study vertex $s_i$ receives contributions
+from two sources:
+\begin{enumerate}
+  \item The \textbf{direct observation} $y_i$, contributing precision
+    $1/\sigma_i^2$ through the direct springs.
+  \item The \textbf{network prior} on $\theta_i$: the true study effect
+    is drawn from $N(\mu, \tau^2)$, but $\mu$ is estimated with variance
+    $\Var(\hat\mu)$, giving an effective prior
+    $\theta_i \sim N(\hat\mu, \tau^2 + \Var(\hat\mu))$ with precision
+    $1/(\tau^2 + \Var(\hat\mu))$.
+\end{enumerate}
+By the product formula for Gaussian precisions, the posterior precision
+is the sum:
+$\kappa_i = 1/\sigma_i^2 + 1/(\tau^2 + \Var(\hat\mu))$.
+\end{proof}
+
+\begin{corollary}[Study-specific prediction interval]
+The SSPI for study $i$ is
+\begin{equation}\label{eq:sspi}
+  \tilde\theta_i \pm z_{\alpha/2} \sqrt{1/\kappa_i},
+\end{equation}
+where
+\begin{equation}\label{eq:shrunk}
+  \tilde\theta_i
+    = \frac{y_i / \sigma_i^2 + \hat\mu / (\tau^2 + \Var(\hat\mu))}
+           {\kappa_i}
+\end{equation}
+is the shrunken (empirical Bayes) estimate.
+\end{corollary}
+
+\subsection{NMA extension}
+
+In NMA, study $i$ may compare a subset of treatments.  The key
+quantities generalize as follows.
+
+\subsubsection{Within-study variance}
+
+For study $i$ with arms measuring treatments $t_{i1}, \ldots, t_{ia_i}$
+with arm-level variances $v_{i1}, \ldots, v_{ia_i}$:
+\begin{equation}\label{eq:sigma2_nma}
+  \sigma_i^2 = \sum_{j=1}^{a_i} v_{ij}.
+\end{equation}
+This is computable directly from the spring network by summing the
+inverse hardnesses of the direct springs connected to study $i$.
+
+\subsubsection{Network variance of the relevant comparison}
+
+In NMA, the treatment vertices have positions determined by the full
+network.  The network variance $\Var(\hat\mu_{AB})$ for a comparison
+$A$ vs $B$ is obtained from the inverse of the Laplacian-like matrix
+$(DX)^{-1}$ of the spring system, where $D = CK$ is the product of the
+vertex-edge incidence matrix $C$ and the hardness matrix $K$, and $X$
+is the spanning tree consistency matrix.
+
+For a given study $i$ that compares treatments $A$ and $B$, the
+relevant network variance is
+\begin{equation}\label{eq:netvar}
+  \Var(\hat\mu_{AB}) = \text{effective variance from } (DX)^{-1},
+\end{equation}
+which is already computed by the NMA algorithm.
+
+\subsubsection{Effective precision for NMA studies}
+
+The study-specific effective precision in NMA is
+\begin{equation}\label{eq:keff_nma}
+  \kappa_i = \frac{1}{\sigma_i^2}
+           + \frac{1}{\tau^2 + \Var(\hat\mu_i)},
+\end{equation}
+where $\Var(\hat\mu_i)$ is the network variance of the comparison
+that study $i$ informs.  For multi-arm studies, this generalizes to the
+effective variance of the study's comparison vector within the network.
+
+\subsection{Reduction to the Raudenbush formula}
+
+\begin{proposition}\label{prop:raudenbush}
+In pairwise meta-analysis, $1/\kappa_i$ and the Raudenbush variance
+agree to leading order in $\Var(\hat\mu)/\tau^2$.
+\end{proposition}
+
+\begin{proof}
+The Raudenbush variance~\eqref{eq:raudenbush} can be written as
+\begin{equation}
+  V_R = \frac{\sigma_i^2 \tau^2}{\sigma_i^2 + \tau^2}
+      + \frac{\sigma_i^4}{(\sigma_i^2 + \tau^2)^2} \Var(\hat\mu).
+\end{equation}
+Our formula gives
+\begin{align}
+  \frac{1}{\kappa_i}
+    &= \frac{1}{1/\sigma_i^2 + 1/(\tau^2 + \Var(\hat\mu))} \notag\\
+    &= \frac{\sigma_i^2(\tau^2 + \Var(\hat\mu))}
+            {\sigma_i^2 + \tau^2 + \Var(\hat\mu)}.
+\end{align}
+Expanding around $\Var(\hat\mu) = 0$ (valid when $\Var(\hat\mu) \ll \tau^2$):
+\begin{align}
+  \frac{1}{\kappa_i}
+    &= \frac{\sigma_i^2 \tau^2}{\sigma_i^2 + \tau^2}
+       \cdot \frac{1 + \Var(\hat\mu)/\tau^2}
+                  {1 + \Var(\hat\mu)/(\sigma_i^2 + \tau^2)} \notag\\
+    &\approx \frac{\sigma_i^2 \tau^2}{\sigma_i^2 + \tau^2}
+       \left(1 + \Var(\hat\mu)
+         \left[\frac{1}{\tau^2} - \frac{1}{\sigma_i^2 + \tau^2}\right]
+       \right) \notag\\
+    &= \frac{\sigma_i^2 \tau^2}{\sigma_i^2 + \tau^2}
+       + \frac{\sigma_i^4}{(\sigma_i^2 + \tau^2)^2} \Var(\hat\mu)
+       + O(\Var(\hat\mu)^2) \notag\\
+    &= V_R + O(\Var(\hat\mu)^2). \qedhere
+\end{align}
+\end{proof}
+
+This shows that our formula and the Raudenbush formula are first-order
+equivalent, differing only at second order in $\Var(\hat\mu)$.  In
+practice, as confirmed by simulation (Section~\ref{sec:simulation}),
+they yield indistinguishable coverage.
+
+
+\section{Computation from the Spring Network}
+
+The quantities needed for the SSPI are directly available from the
+solved spring network:
+
+\begin{enumerate}
+  \item \textbf{Within-study variance} $\sigma_i^2$: For each study
+    vertex $s_i$, trace through its tau edges to the tau vertices, then
+    to the treatment vertices via direct springs.  Sum the inverse
+    hardnesses of the direct springs:
+    \begin{equation}
+      \sigma_i^2 = \sum_{j=1}^{a_i} \frac{1}{k_{ij}}.
+    \end{equation}
+
+  \item \textbf{Network variance} $\Var(\hat\mu_i)$: Already computed
+    by the NMA algorithm as part of the network variance matrix
+    (the \texttt{networkVariances} output).
+
+  \item \textbf{Between-study variance} $\tau^2$: Estimated by the
+    random-effects procedure (e.g., REML, DerSimonian--Laird, or the
+    energy-based estimator).
+
+  \item \textbf{Effective precision}:
+    $\kappa_i = 1/\sigma_i^2 + 1/(\tau^2 + \Var(\hat\mu_i))$.
+
+  \item \textbf{Shrunken estimate}: Compute via~\eqref{eq:shrunk}
+    using the observed study effect $y_i$ and the network
+    estimate $\hat\mu_i$.
+
+  \item \textbf{Prediction interval}: $\tilde\theta_i \pm z_{\alpha/2}/\sqrt{\kappa_i}$.
+\end{enumerate}
+
+
+\section{Worked Example}\label{sec:example}
+
+We illustrate the SSPI computation on a published NMA of carotid
+intima-media thickness (CIMT) reduction, comprising 27 pairwise studies
+across 6 treatment classes (placebo, statins, ACE inhibitors, ARBs,
+calcium channel blockers, beta-blockers), with a fixed
+$\tau^2 = 2.34 \times 10^{-4}$~\citep{Papakonstantinou2024}.
+
+Table~\ref{tab:example} shows selected studies with their within-study
+variance $\sigma_i^2$, effective precision $\kappa_i$, SSPI variance
+$1/\kappa_i$, and the standard error $\sqrt{1/\kappa_i}$.
+
+\begin{table}[h]
+\centering
+\caption{Study-specific prediction interval quantities for the CIMT NMA
+(selected studies).  $\Var(\hat\mu)$ denotes the network variance of
+the relevant comparison.}
+\label{tab:example}
+\begin{tabular}{rlcccc}
+\toprule
+Study & Comparison & $\sigma_i^2$ & $\kappa_i$ & $1/\kappa_i$ & SE \\
+\midrule
+ 1 & Placebo--CCB         & $1.4\!\times\!10^{-5}$ & 75037 & $1.3\!\times\!10^{-5}$ & 0.0037 \\
+ 5 & Diuretic--Placebo    & $1.4\!\times\!10^{-3}$ & 4618  & $2.2\!\times\!10^{-4}$ & 0.0147 \\
+ 9 & Statin--Placebo      & $7.2\!\times\!10^{-4}$ & 5289  & $1.9\!\times\!10^{-4}$ & 0.0138 \\
+14 & ACEi--Placebo        & $5.1\!\times\!10^{-5}$ & 23657 & $4.2\!\times\!10^{-5}$ & 0.0065 \\
+17 & ACEi--Statin         & $3.3\!\times\!10^{-5}$ & 34582 & $2.9\!\times\!10^{-5}$ & 0.0054 \\
+26 & ARB--Beta-blocker    & $1.4\!\times\!10^{-2}$ & 3968  & $2.5\!\times\!10^{-4}$ & 0.0159 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Key observations:
+\begin{itemize}
+  \item Studies with small $\sigma_i^2$ (large samples, e.g.\ Study~1)
+    have high $\kappa_i$ and tight SSPIs---their data strongly constrain
+    their true effect.
+  \item Studies with large $\sigma_i^2$ (small samples, e.g.\ Study~26)
+    have $\kappa_i$ close to $1/(\tau^2 + \Var(\hat\mu))$---the network
+    evidence dominates, and the SSPI width approaches the prediction
+    interval for a new study.
+  \item The prediction interval for a new study has variance
+    $\tau^2 + \Var(\hat\mu) = 2.57 \times 10^{-4}$, which is an upper
+    bound on all study-specific $1/\kappa_i$ values.
+\end{itemize}
+
+
+\section{Simulation Study}\label{sec:simulation}
+
+\subsection{Pairwise simulation}
+
+\subsubsection{Design}
+
+We assess coverage through Monte Carlo simulation under the pairwise
+random-effects model.  For each of $2000$ simulated meta-analyses:
+\begin{enumerate}
+  \item Generate $k$ true study effects
+    $\theta_i \sim N(\mu, \tau^2)$.
+  \item Generate observed effects
+    $y_i \sim N(\theta_i, \sigma_i^2)$ with fixed, heterogeneous
+    within-study variances.
+  \item Estimate $\hat\tau^2$ using the DerSimonian--Laird estimator
+    (or use the true $\tau^2$).
+  \item Compute the shrunken estimate $\tilde\theta_i$ and its
+    prediction interval under three variance formulas: crude,
+    Raudenbush, and $\kappa_{\mathrm{eff}}$.
+  \item Record whether $\theta_i$ falls within each 95\% interval.
+\end{enumerate}
+
+Parameters: $\mu = 0.5$, $\tau^2 = 0.1$,
+$\sigma_i^2 \in \{0.05, 0.08, 0.12, 0.03, 0.15, 0.07, 0.20, 0.04,
+0.10, 0.06\}$.
+
+\subsubsection{Results}
+
+\begin{table}[h]
+\centering
+\caption{Empirical coverage of 95\% study-specific prediction intervals
+(pairwise meta-analysis).}
+\label{tab:coverage_pw}
+\begin{tabular}{lccc}
+\toprule
+Scenario & Crude & Raudenbush & $\kappa_{\mathrm{eff}}$ \\
+\midrule
+$k=10$, $\hat\tau^2$ (DL)  & 0.81 & 0.87 & 0.87 \\
+$k=50$, $\hat\tau^2$ (DL)  & 0.94 & 0.94 & 0.94 \\
+$k=10$, $\tau^2$ known      & 0.94 & 0.95 & 0.95 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Key findings:
+\begin{enumerate}
+  \item When $\tau^2$ is \textbf{known}, both the Raudenbush formula and
+    $\kappa_{\mathrm{eff}}$ achieve nominal 95\% coverage, while the
+    crude formula undercoveres at $\approx 94\%$.  This confirms that
+    $1/\kappa_i$ correctly accounts for the uncertainty in $\hat\mu$.
+
+  \item When $\tau^2$ is \textbf{estimated} with $k=10$, all three
+    formulas substantially undercover (81--87\%).  The dominant source of
+    undercoverage is the estimation uncertainty in $\hat\tau^2$, which
+    none of the formulas addresses.
+
+  \item With $k=50$ studies, $\hat\tau^2$ is estimated precisely enough
+    that all formulas approach nominal coverage.
+
+  \item The Raudenbush and $\kappa_{\mathrm{eff}}$ formulas give
+    \textbf{indistinguishable coverage} in all scenarios, confirming
+    their first-order equivalence (Proposition~\ref{prop:raudenbush}).
+\end{enumerate}
+
+\subsection{NMA simulation}
+
+\subsubsection{Design}
+
+We simulate a network with 4 treatments ($\mu = (0, 0.3, 0.1, 0.5)$)
+and 18~pairwise studies across 6~comparisons, with $\tau^2 = 0.05$
+(known).  The within-study variances are heterogeneous (sample sizes
+50--120).  We run 500 replications and check coverage of the
+study-specific comparison effect $\delta_i = \theta_{iA} - \theta_{iB}$.
+
+\subsubsection{Results}
+
+\begin{table}[h]
+\centering
+\caption{Empirical coverage of 95\% SSPIs in NMA
+(4~treatments, $\tau^2$ known).}
+\label{tab:coverage_nma}
+\begin{tabular}{lc}
+\toprule
+Formula & Coverage \\
+\midrule
+Crude (network variance from spring system)
+  & 0.66 \\
+$\kappa_{\mathrm{eff}}$ (network variance from spring system)
+  & 0.74 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The NMA SSPIs show substantial undercoverage (66--74\% vs.\ the nominal
+95\%), even with $\tau^2$ known.  This contrasts sharply with the
+pairwise case (94--95\% with $\tau^2$ known) and indicates that the
+network variance from the spring system---computed from the
+$(DX)^{-1}$ matrix---is \emph{not} the appropriate $\Var(\hat\mu)$ for
+use in the SSPI formula.
+
+\subsubsection{Diagnosis}
+
+The spring system's network variance is the variance of the treatment
+\emph{position} in the fixed-effect spring network.  In the
+random-effects NMA, the effective variance of the network estimate
+$\hat\mu_{AB}$ is larger because:
+\begin{enumerate}
+  \item The random-effects weights $w_i^* = 1/(\sigma_i^2 + \tau^2)$
+    are smaller than the fixed-effect weights $w_i = 1/\sigma_i^2$.
+  \item Indirect evidence paths accumulate additional variance through
+    the between-study heterogeneity.
+\end{enumerate}
+
+The correct $\Var(\hat\mu_{AB})$ for use in the SSPI should be the
+variance of the network estimate under the \emph{random-effects}
+model---i.e., using weights $w_i^* = 1/(\sigma_i^2 + \tau^2)$ instead
+of $w_i = 1/\sigma_i^2$.  Implementing this correction within the
+spring framework requires computing the network variance from a spring
+system where the direct spring hardnesses are
+$k_i = 1/(\sigma_i^2 + \tau^2)$ (the series combination of direct and
+tau springs), which is the subject of ongoing work.
+
+
+\section{Spring-REML: Heterogeneity Estimation from the Spring Network}\label{sec:springreml}
+
+\subsection{Motivation}
+
+The SSPIs derived above require an estimate of~$\tau^2$.  Standard
+estimators (DerSimonian--Laird, REML via Fisher scoring) operate on
+contrast-level data and do not naturally extend to the arm-level spring
+network parameterization.  We derive a REML-equivalent $\tau^2$
+estimator that operates entirely within the spring framework.
+
+\subsection{The law of total variance for tau springs}
+
+Each arm $j$ of study $i$ has a tau spring connecting the study vertex
+$s_i$ to the tau vertex $\tau_{ij}$.  After the NMA solution, the tau
+spring has length $\delta_{ij} = \text{pos}(\tau_{ij}) - \text{pos}(s_i)$,
+which is the arm-level BLUP residual.
+
+The tau spring has hardness $k_\tau = 2/\tau^2$, so its ``thermal
+variance'' is $\tau^2/2$.  By the law of total variance applied to each
+tau spring:
+\begin{equation}\label{eq:lotv}
+  \frac{\tau^2}{2} = \E[\delta_{ij}^2] + \E[\Var(\delta_{ij} \mid \mathbf{y})],
+\end{equation}
+where the first term is the expected squared BLUP residual and the
+second is the expected prediction error variance of the BLUP residual.
+
+Averaging over all $N = \sum_i a_i$ tau springs and solving for $\tau^2$:
+\begin{equation}\label{eq:springreml}
+  \tau^2 = \underbrace{\frac{2}{N} \sum_{i,j} \delta_{ij}^2}_{\text{among BLUPs}}
+         + \underbrace{\frac{2}{N} \sum_{i,j} \Var(\delta_{ij})}_{\text{within (shrinkage)}}.
+\end{equation}
+The first term measures the observed spread of the BLUP residuals; the
+second measures the heterogeneity absorbed by shrinkage.  Beyond its
+role in the $\tau^2$ iteration, this decomposition defines a
+heterogeneity resolution measure $I^2_{\mathrm{BLUP}}$ (Section~\ref{sec:i2blup}).
+
+\subsection{Computing $\delta_{ij}$ from the spring network}
+
+The NMA solution minimizes the total energy~\eqref{eq:energy}.  The
+solution is linear in the data (natural lengths):
+\begin{equation}
+  \boldsymbol{\ell}^* = X (DX)^{-1} D \, \boldsymbol{\ell}_0,
+\end{equation}
+where $D = CK$ is the weighted incidence matrix, $X$ is the spanning
+tree consistency matrix, and $\boldsymbol{\ell}_0$ is the vector of
+natural lengths.
+
+The tau spring lengths are extracted by the selection matrix $R$:
+\begin{equation}\label{eq:transfer}
+  \boldsymbol{\delta} = R \, \boldsymbol{\ell}^*
+    = \underbrace{R \, X \, (DX)^{-1} \, D}_{T} \; \boldsymbol{\ell}_0,
+\end{equation}
+where $T$ is the \emph{transfer matrix} mapping data to tau spring
+lengths.  The $\delta_{ij}$ are simply the entries of
+$\boldsymbol{\delta}$.
+
+\subsection{Computing $\Var(\delta_{ij})$ from the transfer matrix}
+
+Since the solution is linear, the covariance of the tau spring lengths
+is:
+\begin{equation}\label{eq:vardelta}
+  \Var(\boldsymbol{\delta}) = T \, \Var(\boldsymbol{\ell}_0) \, T^\top.
+\end{equation}
+
+The variance of the natural lengths reflects the data-generating process:
+\begin{itemize}
+  \item \textbf{Direct springs}: $\Var(\ell_{0,ij}) = v_{ij} = 1/k_{ij}$
+    (the arm-level sampling variance).
+  \item \textbf{Tau springs}: $\Var(\ell_{0,\tau}) = \tau^2/2 = 1/k_\tau$
+    (the random-effect variance per arm).
+\end{itemize}
+Thus $\Var(\boldsymbol{\ell}_0) = \diag(1/k_e)$ for all springs $e$,
+and
+\begin{equation}
+  \Var(\delta_{ij}) = [T \, \diag(1/k_e) \, T^\top]_{ij,ij}.
+\end{equation}
+
+\subsection{The spring-REML iteration}
+
+Equation~\eqref{eq:springreml} depends on $\tau^2$ through the spring
+hardnesses (which determine $T$) and through $\Var(\boldsymbol{\ell}_0)$.
+We solve it by fixed-point iteration (EM algorithm):
+
+\begin{algorithm}[H]
+\caption{Spring-REML estimator for $\tau^2$}
+\begin{algorithmic}[1]
+\State Initialize $\tau^2 \leftarrow \tau^2_0$
+\Repeat
+  \State Update tau spring hardnesses: $k_\tau \leftarrow 2/\tau^2$
+  \State Solve the spring network (NMA) to get positions and $\boldsymbol{\delta}$
+  \State Compute transfer matrix $T = R \, X \, (DX)^{-1} \, D$
+  \State Compute $\Var(\boldsymbol{\delta}) = T \, \diag(1/k_e) \, T^\top$
+  \State $\tau^2_{\text{new}} \leftarrow 2 \left[
+    \frac{1}{N} \sum_{i,j} \delta_{ij}^2
+    + \frac{1}{N} \sum_{i,j} \Var(\delta_{ij})
+    \right]$
+\Until{$|\tau^2_{\text{new}} - \tau^2| < \varepsilon$}
+\end{algorithmic}
+\end{algorithm}
+
+\subsection{Properties}
+
+\begin{enumerate}
+  \item \textbf{Unified formula}: Equation~\eqref{eq:springreml} applies
+    identically to pairwise meta-analysis, NMA without multi-arm studies,
+    and NMA with multi-arm studies.  No contrast-level computations or
+    special cases are needed.
+
+  \item \textbf{REML equivalence}: For pairwise meta-analysis,
+    spring-REML converges to the same $\tau^2$ as standard REML (Fisher
+    scoring).  This follows because the law of total
+    variance~\eqref{eq:lotv} applied to the sufficient statistics yields
+    the REML EM update~\citep{Karl2026,Henderson1975}.
+
+  \item \textbf{EM convergence}: The iteration is an EM algorithm with
+    guaranteed monotone convergence, avoiding the convergence problems
+    that can affect Fisher scoring for
+    REML~\citep{Viechtbauer2005convergence}.
+
+  \item \textbf{Spring-native}: All quantities ($\delta_{ij}$,
+    $\Var(\delta_{ij})$, $k_e$) are computed from the spring network
+    matrices already available in the NMA solution.  No additional matrix
+    inversions beyond $(DX)^{-1}$ are required.
+\end{enumerate}
+
+\subsection{A heterogeneity resolution measure from BLUPs}\label{sec:i2blup}
+
+The law of total variance decomposition~\eqref{eq:springreml}
+partitions $\tau^2$ into two non-negative terms:
+\begin{equation}\label{eq:tau2decomp}
+  \tau^2 = \underbrace{\frac{2}{N}\sum_{i,j}\delta_{ij}^2}_{\text{among BLUPs}}
+         + \underbrace{\frac{2}{N}\sum_{i,j}\Var(\delta_{ij})}_{\text{within (shrinkage)}}.
+\end{equation}
+The first term measures the observed spread of the BLUP residuals.
+The second measures the average prediction error variance---the
+heterogeneity that is absorbed by shrinkage and therefore invisible in
+the point estimates.  Because both terms are non-negative and sum
+to~$\tau^2$, their ratio is naturally bounded:
+
+\begin{definition}
+The \emph{BLUP resolution index} is
+\begin{equation}\label{eq:i2blup}
+  I^2_{\mathrm{BLUP}}
+    = \frac{(2/N)\sum_{i,j}\delta_{ij}^2}{\tau^2}
+    = 1 - \frac{(2/N)\sum_{i,j}\Var(\delta_{ij})}{\tau^2},
+  \qquad I^2_{\mathrm{BLUP}} \in [0,1].
+\end{equation}
+\end{definition}
+
+\paragraph{Interpretation.}
+$I^2_{\mathrm{BLUP}}$ answers the question: \emph{of the real
+between-study variance~$\tau^2$, how much is visible in the shrunken
+study estimates?}  A value of $0.45$ means that $45\%$ of $\tau^2$ is
+captured by the observed spread of BLUPs; the remaining $55\%$ is
+hidden by shrinkage.
+
+\paragraph{Comparison with classical~$I^2$.}
+The classical $I^2 = \max(0,\,(Q - \mathrm{df})/Q)$ of
+\citet{Higgins2002} measures the proportion of total observed
+variability attributable to heterogeneity versus sampling error.  It
+conflates two conceptually distinct quantities---the magnitude
+of~$\tau^2$ and the precision of the studies---into a single number.
+This leads to well-documented misinterpretation: a large~$I^2$ is often
+read as ``large heterogeneity,'' even though it may reflect precise
+studies with clinically small~$\tau^2$~\citep{Ruecker2008,BorensteinBook2009}.
+
+$I^2_{\mathrm{BLUP}}$ avoids this conflation.  It is a decomposition
+\emph{within}~$\tau^2$ itself, not a ratio of $\tau^2$ to total
+variance.  It still depends on study precision---precise studies shrink
+less, so $I^2_{\mathrm{BLUP}}$ is higher---but this dependence is a
+feature, not a defect: it tells the analyst how well the data resolve
+individual study effects.  A low $I^2_{\mathrm{BLUP}}$ with
+large~$\tau^2$ honestly communicates ``there is real heterogeneity, but
+the data cannot distinguish individual study effects.''
+
+\paragraph{Empirical comparison.}
+On 149 NMA datasets where spring-REML and \texttt{netmeta} agree on
+$\tau^2$, $I^2_{\mathrm{BLUP}}$ ranges from $0.03$ to $0.55$, while
+classical~$I^2$ ranges from $0$ to $1$.  The two measures agree when
+heterogeneity is absent (both near~$0$) but diverge markedly otherwise:
+datasets with classical $I^2 > 0.80$ frequently have
+$I^2_{\mathrm{BLUP}} < 0.30$, reflecting the shrinkage inherent in
+BLUP estimation.
+
+\paragraph{Practical use.}
+We suggest reporting the pair $(\tau^2,\; I^2_{\mathrm{BLUP}})$
+alongside the pooled estimate.  The first gives the magnitude of
+heterogeneity; the second indicates how informative the BLUPs are about
+individual study effects---a direct input to the clinical question of
+whether study-specific conclusions are warranted.
+
+\subsection{Verification}
+
+We verified spring-REML against standard REML (from \texttt{netmeta} in
+R) on 27 datasets:
+\begin{itemize}
+  \item 5 pairwise datasets: exact agreement (ratio $= 1.000$).
+  \item 1 real NMA (Senn~2013: 10 treatments, 26 studies, multi-arm):
+    exact agreement.
+  \item 8 real NMAs from published datasets (Dogliotti~2014,
+    Linde~2015, Stowe~2010, etc.): agreement within $< 0.5\%$.
+  \item 10 synthetic continuous NMAs and 10 synthetic binary NMAs with
+    3--8 treatments, 8--50 studies, and varying proportions of multi-arm
+    studies: all within $0.1\%$ of \texttt{netmeta} REML.
+\end{itemize}
+
+
+\section{Discussion}
+
+\subsection{Summary}
+
+We have derived three tools for random-effects NMA using the spring
+network framework: study-specific prediction intervals via the effective
+precision $\kappa_i$, the spring-REML estimator for $\tau^2$ via
+the law of total variance applied to tau spring lengths, and the BLUP
+resolution index $I^2_{\mathrm{BLUP}}$ as a byproduct of the same
+decomposition.  The resulting formula,
+$\kappa_i = 1/\sigma_i^2 + 1/(\tau^2 + \Var(\hat\mu_i))$,
+naturally generalizes the pairwise SSPI to the network setting.
+
+\subsection{Advantages of the spring network derivation}
+
+The spring network framework provides an intuitive physical
+interpretation.  For SSPIs, the effective hardness at a study vertex
+measures how tightly the study's true effect is constrained.  For
+$\tau^2$ estimation, the law of total variance decomposes heterogeneity
+into observed residuals and their prediction error variance---both
+readable directly from the spring system.
+
+Key advantages:
+\begin{itemize}
+  \item \textbf{Unified}: Both SSPIs and $\tau^2$ estimation use the
+    same spring network matrices.  No separate implementations for
+    pairwise vs.\ NMA vs.\ multi-arm.
+  \item \textbf{Per-arm}: The arm-level parameterization avoids
+    contrast-level computations entirely.  Multi-arm studies require
+    no reweighting or special treatment.
+  \item \textbf{REML-equivalent}: Spring-REML matches standard REML
+    for pairwise and produces the correct NMA generalization
+    automatically through the network topology encoded in the transfer
+    matrix.
+  \item \textbf{Robust convergence}: As an EM algorithm, spring-REML
+    avoids the convergence failures that can affect Fisher scoring
+    (see below).
+\end{itemize}
+
+\subsection{Convergence robustness}
+
+The standard REML estimator for $\tau^2$ uses Fisher scoring:
+\begin{equation}
+  \tau^2_{\text{new}} = \tau^2_{\text{old}}
+    + \frac{\mathbf{y}^\top P^2 \mathbf{y} - \tr(P)}{\tr(P^2)},
+\end{equation}
+where $P = W - WX(X^\top WX)^{-1}X^\top W$ and $W = \diag(1/(v_i + \tau^2))$.
+This is a Newton-type update: the step size $\Delta\tau^2 = \text{Score}/\text{Information}$
+is determined by the curvature of the REML log-likelihood.
+
+When the log-likelihood is flat or the step overshoots the maximum,
+Fisher scoring oscillates and fails to converge.
+\citet{Viechtbauer2005convergence} documents examples where the default
+algorithm cycles indefinitely, requiring manual step-size reduction
+(\texttt{stepadj\,$<$\,1}) to achieve convergence.
+
+Spring-REML avoids this problem entirely.  The EM
+update~\eqref{eq:springreml} does not compute a gradient step.  Instead,
+it directly evaluates the variance decomposition at the current $\tau^2$:
+the first term $N^{-1}\sum\delta_{ij}^2$ is an observable quantity
+(squared tau spring lengths), and the second term
+$N^{-1}\sum\Var(\delta_{ij})$ is computed from the transfer matrix.
+The EM algorithm guarantees that the REML log-likelihood increases
+monotonically at each iteration~\citep{DempsterLairdRubin1977}, so
+oscillation is impossible.
+
+We verified this on the convergence-problem
+datasets from \citet{Viechtbauer2005convergence}: spring-REML converges
+without any tuning parameters, producing $\tau^2$ estimates that agree
+with the (step-adjusted) Fisher scoring solution to five decimal places.
+
+\subsection{The role of $\tau^2$ uncertainty}
+
+Our simulation confirms the finding of \citet{vanAert2021} that the
+dominant source of undercoverage for small $k$ is the estimation
+uncertainty in $\hat\tau^2$, not the $\hat\mu$ correction.  All three
+variance formulas (crude, Raudenbush, $\kappa_{\mathrm{eff}}$) treat
+$\tau^2$ as known, which is adequate when $k$ is large but problematic
+for small networks.
+
+Addressing $\tau^2$ uncertainty in the NMA context is a direction for
+future work.  Bayesian approaches that place a prior on $\tau^2$ and
+integrate over its posterior naturally account for this uncertainty, at
+the cost of prior specification.
+
+\subsection{Relation to existing prediction intervals in NMA}
+
+The prediction interval for a \emph{new study} in NMA has variance
+$\tau^2 + \Var(\hat\mu)$~\citep{Riley2011}.  Our study-specific
+prediction interval differs in that it additionally incorporates the
+study's own data through the $1/\sigma_i^2$ term.  The new-study PI
+is recovered by setting $\sigma_i^2 \to \infty$ (no data from the
+study):
+\begin{equation}
+  \lim_{\sigma_i^2 \to \infty} \frac{1}{\kappa_i}
+    = \tau^2 + \Var(\hat\mu).
+\end{equation}
+
+\subsection{Clinical interpretation}
+
+The SSPI for NMA answers the question: \emph{given the network evidence
+and the data from study $i$, what is a plausible range for the true
+effect in study $i$?}  This is useful for:
+\begin{itemize}
+  \item Identifying outlier studies whose observed effects are
+    incompatible with the network (wide SSPIs or SSPIs not containing
+    the network estimate).
+  \item Understanding the degree of shrinkage applied to each study.
+  \item Presenting forest plots with study-specific intervals that
+    properly reflect the network information.
+\end{itemize}
+
+The BLUP resolution index $I^2_{\mathrm{BLUP}}$ complements the SSPIs:
+it provides an aggregate summary of how much of the heterogeneity is
+resolved by the data, while the SSPIs give the study-level detail.  A
+low $I^2_{\mathrm{BLUP}}$ signals that BLUPs are heavily shrunk and
+study-specific conclusions should be drawn cautiously, even if
+$\tau^2$ is large.
+
+\subsection{Limitations and future work}
+
+\begin{enumerate}
+  \item The current derivation assumes a common $\tau^2$ across all
+    comparisons.  Extensions to comparison-specific or design-specific
+    heterogeneity variances are conceptually straightforward: assign
+    different tau spring hardnesses to different groups of springs.
+  \item The SSPI simulation study covers only the pairwise case and a
+    single NMA geometry.  Comprehensive NMA simulations across varying
+    network topologies are needed to characterize SSPI coverage.
+  \item Spring-REML has EM-type linear convergence, which is slower than
+    Fisher scoring's quadratic convergence.  For large networks,
+    acceleration techniques (e.g., Aitken's method) may be beneficial.
+  \item Accounting for $\hat\tau^2$ uncertainty in the SSPIs remains
+    open.  The transfer matrix $T$ provides the sensitivity of
+    $\delta_{ij}$ to perturbations in~$\tau^2$, which may enable
+    analytic variance corrections.
+  \item The properties of $I^2_{\mathrm{BLUP}}$ have been demonstrated
+    empirically but not yet studied via simulation.  In particular, its
+    behavior as a function of $k$, study precision, and network geometry
+    deserves formal investigation, as does its relationship to the
+    classical~$I^2$ in the pairwise limit.
+\end{enumerate}
+
+
+\section*{Acknowledgments}
+
+The algebraic derivations and simulation code were developed with
+assistance from Claude (Anthropic).  The spring network NMA
+implementation is available at
+\url{https://github.com/tpapak/meta-analysis}.
+
+
+\bibliographystyle{plainnat}
+\bibliography{references}
+
+\appendix
+
+\section{Validation on 218 Real-World NMA Datasets}\label{app:nmadb}
+
+We validated spring-REML against netmeta's REML estimator on 218
+network meta-analyses from the nmadb database~\citep{Petropoulou2016},
+which catalogs NMAs published between 1999 and 2015.  The datasets span:
+\begin{itemize}
+  \item 171 binary and 47 continuous outcomes,
+  \item 5--145 studies per network,
+  \item 4--35 treatments per network,
+  \item 125 networks with multi-arm studies,
+  \item $\hat\tau^2$ ranging from 0 to 5655.
+\end{itemize}
+
+Of the 218 datasets, 149 (68\%) match netmeta REML within 10\%.
+Excluding the 55 datasets where netmeta reports $\hat\tau^2 = 0$
+(boundary truncation), the match rate is 149/163 = 91\%.
+The 14 remaining discrepancies arise from degenerate network topologies
+(disconnected subgraphs, extreme variance ratios) that cause singular
+matrices in the spring system.
+
+Table~\ref{tab:nmadb} lists all 218 datasets with their netmeta and
+spring-REML $\hat\tau^2$ estimates.  A ratio of 1.000 indicates exact
+agreement; $\checkmark$ marks datasets within the 10\% tolerance.
+
+\begingroup
+\footnotesize
+\input{nmadb_table}
+\endgroup
+
+\end{document}

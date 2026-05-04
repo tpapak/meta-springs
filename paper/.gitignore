@@ -1,0 +1,17 @@
+# LaTeX build artifacts
+*.aux
+*.log
+*.out
+*.lg
+*.blg
+*.dvi
+*.idv
+*.xref
+*.dlog
+*.4ct
+*.4tc
+*.tmp
+*.fls
+*.fdb_latexmk
+*.synctex.gz
+*.toc

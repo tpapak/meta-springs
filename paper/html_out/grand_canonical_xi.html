@@ -1,0 +1,523 @@
+<!DOCTYPE html> 
+<html lang='en-US' xml:lang='en-US'> 
+<head><title>The Grand Canonical Spring Ensemble: Deterministic Full Posteriors for Network
+Meta-Analysis</title> 
+<meta charset='utf-8' /> 
+<meta content='TeX4ht (https://tug.org/tex4ht/)' name='generator' /> 
+<meta content='width=device-width,initial-scale=1' name='viewport' /> 
+<link href='grand_canonical_xi.css' rel='stylesheet' type='text/css' /> 
+<meta content='grand_canonical_xi.tex' name='src' /> 
+<script>window.MathJax = { tex: { tags: "ams", }, }; </script> 
+<script async='async' id='MathJax-script' src='https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml-full.js' type='text/javascript'></script>  
+</head><body>
+   <div class='maketitle'>
+                                                                                         
+                                                                                         
+                                                                                         
+                                                                                         
+
+<h2 class='titleHead'>The Grand Canonical Spring Ensemble: Deterministic
+Full Posteriors for Network Meta-Analysis</h2>
+ <div class='author'><span class='cmr-12x-x-120'>Thodoris Papakonstantinou</span></div><br />
+<div class='date'><span class='cmr-12x-x-120'>May 3, 2026</span></div>
+   </div>
+   <section class='abstract' role='doc-abstract'> 
+<h3 class='abstracttitle'>
+<span class='cmbx-10x-x-109'>Abstract</span>
+</h3>
+      <!-- l. 42 --><p class='noindent'><span class='cmr-10x-x-109'>We                                                                                                introduce
+      a grand canonical construction of the partition function </span><span class='mathjax-inline'>\(\Xi (\tau ^2)\) </span><span class='cmr-10x-x-109'>for random-effects (network)
+      meta-analysis on the spring network of </span><a href='#Xpapakonstantinou2025spring'><span class='cmr-10x-x-109'>Papakonstantinou</span></a><span class='cmr-10x-x-109'> [</span><a href='#Xpapakonstantinou2025spring'><span class='cmr-10x-x-109'>2025</span></a><span class='cmr-10x-x-109'>]. Each heterogeneity
+      level is identified with a chain-length variable of elementary tau-springs; summing over
+      chain lengths yields the posterior of the between-study variance </span><span class='mathjax-inline'>\(\tau ^2\) </span><span class='cmr-10x-x-109'>and, via a Gaussian
+      mixture at every grid point, the full marginal posterior of every treatment effect. The
+      method is deterministic (no MCMC), gives matching likelihoods to exact-binomial
+      MCMC (multinma), and reproduces the bayesmeta posterior for pairwise Gaussian
+      and binomial data. The current LAPACK-backed Rust implementation uses a reduced
+      Schur Newton inner solver and finishes the Dias diabetes binary NMA (</span><span class='mathjax-inline'>\(T=6\)</span><span class='cmr-10x-x-109'>, </span><span class='mathjax-inline'>\(k=22\)</span><span class='cmr-10x-x-109'>) in </span><span class='mathjax-inline'>\(\sim \)</span><span class='cmr-10x-x-109'>0.8 s vs
+      </span><span class='mathjax-inline'>\(\sim \)</span><span class='cmr-10x-x-109'>9.3 s for multinma (11</span><span class='mathjax-inline'>\(\times \)</span><span class='cmr-10x-x-109'>); on a </span><span class='mathjax-inline'>\(T=50\) </span><span class='cmr-10x-x-109'>rare-event NMA across 30 replicates with four priors
+      per fit, the speedup over multinma rises to 39</span><span class='mathjax-inline'>\(\times \)</span><span class='cmr-10x-x-109'>. On synthetic binary T=6 datasets
+      with known </span><span class='mathjax-inline'>\(\tau ^2_{\text {true}}\)</span><span class='cmr-10x-x-109'>, spring-</span><span class='mathjax-inline'>\(\Xi \) </span><span class='cmr-10x-x-109'>has roughly half the </span><span class='mathjax-inline'>\(\tau ^2\) </span><span class='cmr-10x-x-109'>RMSE of multinma and 15% lower effect
+      RMSE. The construction naturally accommodates any prior on </span><span class='mathjax-inline'>\(\tau \) </span><span class='cmr-10x-x-109'>via a one-line grid
+      reweighting, makes fixed-effect evidence a single grid point rather than a separate
+      model, and extends to grouped heterogeneities via multi-species grand canonical sums.</span>
+</p>
+</section>
+   
+                                                                                         
+                                                                                         
+   <h3 class='sectionHead' id='introduction'><span class='titlemark'>1   </span> <a id='x1-10001'></a>Introduction</h3>
+<!-- l. 66 --><p class='noindent'>Random-effects meta-analysis conditions inferences on the between-study heterogeneity variance <span class='mathjax-inline'>\(\tau ^2\)</span>.
+Frequentist approaches (REML, DerSimonian–Laird, Paule–Mandel) deliver a point estimate;
+Bayesian approaches (bayesmeta for pairwise [<a href='#Xrover2020bayesmeta'>Röver</a>, <a href='#Xrover2020bayesmeta'>2020</a>], multinma [<a href='#Xphillippo2023multinma'>Phillippo</a>, <a href='#Xphillippo2023multinma'>2023</a>],
+BUGSnet, gemtc for NMA) deliver a full posterior via analytic integration or MCMC.
+Each approach has limitations: point estimates under-represent uncertainty, analytic
+integration is restricted to pairwise normal-normal models, and MCMC is stochastic
+and slow, with convergence diagnostics and divergent transitions on boundary-heavy
+posteriors.
+</p><!-- l. 76 --><p class='indent'>   We propose a third route, built on the <span class='cmti-12'>spring network </span>representation of meta-analysis
+introduced in the companion paper on spring-REML [<a href='#Xpapakonstantinou2025spring'>Papakonstantinou</a>, <a href='#Xpapakonstantinou2025spring'>2025</a>]. There, each
+study-arm contributes a tau spring and an observation spring, and the network’s equilibrium
+yields the treatment effects. In this paper, we interpret the tau springs as elementary
+bosons in a grand canonical ensemble: the chain length <span class='mathjax-inline'>\(N\)</span> of tau springs at each arm is the
+particle number, with effective between-study variance <span class='mathjax-inline'>\(\tau ^2 = N / k_\tau \)</span> where <span class='mathjax-inline'>\(k_\tau \)</span> is the hardness of one
+elementary spring. Constraining a common chain length <span class='mathjax-inline'>\(N\)</span> across arms gives the standard
+common-<span class='mathjax-inline'>\(\tau ^2\)</span> RE-NMA model; summing over <span class='mathjax-inline'>\(N\)</span> yields the grand canonical partition function <span class='mathjax-inline'>\(\Xi = \sum _N Z(N / k_\tau )\)</span>.
+Normalised across the grid and reweighted by a chosen prior on <span class='mathjax-inline'>\(\tau \)</span>, <span class='mathjax-inline'>\(\Xi \)</span> is the exact posterior <span class='mathjax-inline'>\(p(\tau ^2 \mid y)\)</span>
+under the Laplace approximation of the within-<span class='mathjax-inline'>\(\tau ^2\)</span> spring ensemble (exact for Gaussian
+outcomes).
+</p><!-- l. 93 --><p class='indent'>   The resulting algorithm delivers, in a single deterministic sweep: (i) the posterior distribution of
+<span class='mathjax-inline'>\(\tau ^2\)</span> under any prior; (ii) the posterior distribution of every treatment contrast, as a mixture of
+Gaussians weighted by <span class='mathjax-inline'>\(\Xi \)</span>; (iii) a direct evidence score for the fixed-effect model (the grid point <span class='mathjax-inline'>\(N = 0\)</span>); (iv)
+sensitivity analyses across priors via a grid reweighting rather than a re-run. Unlike
+MCMC, the method is reproducible to machine precision and has no convergence warnings
+to triage. Unlike REML, it provides a full distributional answer rather than a point
+estimate.
+   
+</p>
+   <h3 class='sectionHead' id='model-and-spring-correspondence'><span class='titlemark'>2   </span> <a id='x1-20002'></a>Model and Spring Correspondence</h3>
+   
+   <h4 class='subsectionHead' id='the-randomeffects-nma-model'><span class='titlemark'>2.1   </span> <a id='x1-30002.1'></a>The random-effects NMA model</h4>
+<!-- l. 109 --><p class='noindent'>We adopt the standard Dias TSD 2 formulation [<a href='#Xdias2013tsd2'>Dias et al.</a>, <a href='#Xdias2013tsd2'>2013</a>]. A network has <span class='mathjax-inline'>\(T\)</span> treatments <span class='mathjax-inline'>\(1, \ldots , T\)</span>
+and <span class='mathjax-inline'>\(S\)</span> studies; study <span class='mathjax-inline'>\(i\)</span> enrols arms <span class='mathjax-inline'>\(\mathcal {A}_i \subseteq \{1, \ldots , T\}\)</span> with at least <span class='mathjax-inline'>\(|\mathcal {A}_i| \ge 2\)</span>. Each arm <span class='mathjax-inline'>\((i, j)\)</span> records the data needed for a likelihood:
+<span class='mathjax-inline'>\((y_{ij}, v_{ij})\)</span> for Gaussian outcomes, <span class='mathjax-inline'>\((e_{ij}, n_{ij})\)</span> events out of <span class='mathjax-inline'>\(n\)</span> for binomial outcomes.
+   
+</p>
+                                                                                         
+                                                                                         
+<!-- l. 118 --><p class='noindent'><span class='paragraphHead' id='likelihood'><a id='x1-4000'></a><span class='cmbx-12'>Likelihood.</span></span>
+   For Gaussian outcomes the within-arm likelihood is <span class='mathjax-inline'>\(y_{ij} \sim \mathcal {N}(\theta _{ij}, v_{ij})\)</span>; for binomial outcomes, <span class='mathjax-inline'>\(e_{ij} \sim \text {Binomial}(n_{ij}, \sigma (\theta _{ij}))\)</span> with <span class='mathjax-inline'>\(\sigma (\cdot )\)</span> the logistic
+CDF and <span class='mathjax-inline'>\(\theta _{ij}\)</span> the linear predictor on the appropriate scale (mean difference for Gaussian, log-odds for
+binomial).
+   
+</p>
+<!-- l. 127 --><p class='noindent'><span class='paragraphHead' id='linear-predictor-and-random-effects'><a id='x1-5000'></a><span class='cmbx-12'>Linear predictor and random effects.</span></span>
+   Let <span class='mathjax-inline'>\(b_i \in \mathcal {A}_i\)</span> denote the baseline arm of study <span class='mathjax-inline'>\(i\)</span>; let <span class='mathjax-inline'>\(d_t\)</span> be the basic parameter for treatment <span class='mathjax-inline'>\(t\)</span> (contrast vs
+the network reference, with <span class='mathjax-inline'>\(d_{\text {ref}} = 0\)</span>). The standard contrast-level model writes </p><div class='mathjax-env mathjax-equation'>\begin{equation} \theta _{ij} = \mu _i + \delta _{ij,b_i}, \qquad \delta _{ij,b_i} \sim \mathcal {N}\!\bigl (d_j - d_{b_i},\, \tau ^2_{\text {LA}}\bigr ), \label {eq:contrast-model} \end{equation}</div><p><a id='x1-5001r1'></a> with the Lu–Ades
+multi-arm covariance <span class='mathjax-inline'>\(\Cov (\delta _{ij,b_i}, \delta _{ij',b_i}) = \tau ^2_{\text {LA}}/2\)</span> for <span class='mathjax-inline'>\(j \ne j'\)</span> within the same study, encoding that all sibling contrasts in a multi-arm
+trial share the same study-level baseline shift. The study baselines <span class='mathjax-inline'>\(\mu _i\)</span> are nuisance parameters
+integrated out under flat priors on each study.
+   
+<!-- l. 147 --></p><p class='noindent'><span class='paragraphHead' id='equivalent-armlevel-reparameterisation'><a id='x1-6000'></a><span class='cmbx-12'>Equivalent arm-level reparameterisation.</span></span>
+   <a href='#Xpapakonstantinou2025spring'>Papakonstantinou</a> [<a href='#Xpapakonstantinou2025spring'>2025</a>] reparameterise the same likelihood with one independent arm-level
+random effect: </p><div class='mathjax-env mathjax-equation'>\begin{equation} \theta _{ij} = \mu _i + d_j + \delta _{ij}^{\text {arm}}, \qquad \delta _{ij}^{\text {arm}} \sim \mathcal {N}(0, \tau ^2_{\text {arm}}), \quad \delta _{ij}^{\text {arm}} \perp \delta _{ij'}^{\text {arm}}. \label {eq:arm-model} \end{equation}</div><p><a id='x1-6001r2'></a> The contrast <span class='mathjax-inline'>\(\delta _{ij,b_i}^{\text {arm}} - \delta _{ib_i,b_i}^{\text {arm}}\)</span> is then <span class='mathjax-inline'>\(\mathcal {N}(0, 2\tau ^2_{\text {arm}})\)</span>, and contrasts that share a baseline arm have correlation <span class='mathjax-inline'>\(1/2\)</span>
+from the common <span class='mathjax-inline'>\(\delta _{ib_i}^{\text {arm}}\)</span> subtracted out. So the arm-level model with <span class='mathjax-inline'>\(\tau ^2_{\text {arm}} = \tau ^2_{\text {LA}}/2\)</span> is equivalent to the contrast-level
+model with the Lu–Ades <span class='mathjax-inline'>\((I + J)/2\)</span> covariance, both at the likelihood level and in the implied posterior on <span class='mathjax-inline'>\((d, \tau ^2)\)</span>.
+The remainder of the paper refers to <span class='mathjax-inline'>\(\tau ^2\)</span> for the arm-level variance unless explicitly noted; the
+contrast-scale value is <span class='mathjax-inline'>\(2\tau ^2\)</span>.
+   
+   </p><h4 class='subsectionHead' id='spring-network-construction'><span class='titlemark'>2.2   </span> <a id='x1-70002.2'></a>Spring network construction</h4>
+<!-- l. 174 --><p class='noindent'>The arm-level model is a quadratic-plus-link energy in the latent positions, which is a spring
+network. Each arm <span class='mathjax-inline'>\((i, j)\)</span> is realised by three nodes and two springs:
+</p>
+      <ul class='itemize1'>
+      <li class='itemize'><span class='cmbx-12'>Study node </span><span class='mathjax-inline'>\(x^s_i\)</span>: the latent baseline <span class='mathjax-inline'>\(\mu _i\)</span>, shared across the study’s arms.
+      </li>
+      <li class='itemize'><span class='cmbx-12'>Tau node </span><span class='mathjax-inline'>\(x^{\tau }_{ij}\)</span>: the tail of the arm random effect, <span class='mathjax-inline'>\(\mu _i + \delta ^{\text {arm}}_{ij}\)</span>.
+      </li>
+      <li class='itemize'><span class='cmbx-12'>Treatment node </span><span class='mathjax-inline'>\(x^t_j\)</span>: the basic parameter <span class='mathjax-inline'>\(d_j\)</span>, shared across all arms studying treatment <span class='mathjax-inline'>\(j\)</span>
+      (reference treatment pinned at <span class='mathjax-inline'>\(0\)</span>).
+                                                                                         
+                                                                                         
+      </li>
+      <li class='itemize'><span class='cmbx-12'>Tau spring </span><span class='mathjax-inline'>\(x^s_i \leftrightarrow x^{\tau }_{ij}\)</span>, hardness <span class='mathjax-inline'>\(1/\tau ^2_{\text {arm}}\)</span>, natural length <span class='mathjax-inline'>\(0\)</span>, encoding <span class='mathjax-inline'>\(\delta ^{\text {arm}}_{ij} \sim \mathcal {N}(0, \tau ^2_{\text {arm}})\)</span>.
+      </li>
+      <li class='itemize'><span class='cmbx-12'>Observation spring </span><span class='mathjax-inline'>\(x^{\tau }_{ij} \leftrightarrow x^t_j\)</span>, with energy <span class='mathjax-inline'>\(\tfrac {1}{2 v_{ij}}(x^t_j - x^{\tau }_{ij} - y_{ij})^2\)</span> (Gaussian) or <span class='mathjax-inline'>\(n_{ij}\log (1 + e^{\ell _{ij}}) - e_{ij}\ell _{ij}\)</span> with <span class='mathjax-inline'>\(\ell _{ij} = x^t_j - x^{\tau }_{ij}\)</span> (binomial).</li></ul>
+<!-- l. 198 --><p class='indent'>   Multi-arm studies attach all of an arm’s tau springs to the same study node <span class='mathjax-inline'>\(x^s_i\)</span>; this single shared
+anchor reproduces the within-study correlation among sibling contrasts without ever writing down
+a contrast-level covariance matrix. The full network is the union of these per-arm subgraphs, glued
+at the shared treatment and study nodes.
+   
+</p>
+<!-- l. 205 --><p class='noindent'><span class='paragraphHead' id='mapping-summary'><a id='x1-8000'></a><span class='cmbx-12'>Mapping summary.</span></span>
+   Table <a href='#nma-model-elements-and-their-spring-network-counterparts-every-term-in-the-model-logdensity-is-a-spring-energy-every-spring-energy-corresponds-to-a-model-term'>1<!-- tex4ht:ref: tab:correspondence  --></a> states the correspondence explicitly.
+</p>
+   <div class='table'>
+                                                                                         
+                                                                                         
+<!-- l. 208 --><p class='indent'>   </p><figure class='float' id='x1-8001r1'><span id='nma-model-elements-and-their-spring-network-counterparts-every-term-in-the-model-logdensity-is-a-spring-energy-every-spring-energy-corresponds-to-a-model-term'></span>
+                                                                                         
+                                                                                         
+<div class='tabular'>
+ <table class='tabular' id='TBL-2'><colgroup id='TBL-2-1g'><col id='TBL-2-1' /><col id='TBL-2-2' /><col id='TBL-2-3' /></colgroup><tr id='TBL-2-1-' style='vertical-align:baseline;'><td class='td11' id='TBL-2-1-1' style='white-space:nowrap; text-align:left;'> <span class='cmr-10x-x-109'>NMA model object    </span></td><td class='td11' id='TBL-2-1-2' style='white-space:nowrap; text-align:left;'> <span class='cmr-10x-x-109'>Spring network object           </span></td><td class='td11' id='TBL-2-1-3' style='white-space:nowrap; text-align:left;'> <span class='cmr-10x-x-109'>Role / energy                                  </span></td>
+</tr><tr id='TBL-2-2-' style='vertical-align:baseline;'><td class='td11' id='TBL-2-2-1' style='white-space:nowrap; text-align:left;'> <span class='cmr-10x-x-109'>study baseline </span><span class='mathjax-inline'>\(\mu _i\)</span>          </td><td class='td11' id='TBL-2-2-2' style='white-space:nowrap; text-align:left;'> <span class='cmr-10x-x-109'>study node </span><span class='mathjax-inline'>\(x^s_i\)</span>                        </td><td class='td11' id='TBL-2-2-3' style='white-space:nowrap; text-align:left;'> <span class='cmr-10x-x-109'>free position                                   </span></td>
+</tr><tr id='TBL-2-3-' style='vertical-align:baseline;'><td class='td11' id='TBL-2-3-1' style='white-space:nowrap; text-align:left;'> <span class='cmr-10x-x-109'>basic parameter </span><span class='mathjax-inline'>\(d_j\)</span>        </td><td class='td11' id='TBL-2-3-2' style='white-space:nowrap; text-align:left;'> <span class='cmr-10x-x-109'>treatment node </span><span class='mathjax-inline'>\(x^t_j\)</span>                   </td><td class='td11' id='TBL-2-3-3' style='white-space:nowrap; text-align:left;'> <span class='cmr-10x-x-109'>free position (</span><span class='mathjax-inline'>\(d_{\text {ref}}\) </span><span class='cmr-10x-x-109'>pinned)                      </span></td>
+</tr><tr id='TBL-2-4-' style='vertical-align:baseline;'><td class='td11' id='TBL-2-4-1' style='white-space:nowrap; text-align:left;'> <span class='cmr-10x-x-109'>arm random effect </span><span class='mathjax-inline'>\(\delta ^{\text {arm}}_{ij}\)</span>     </td><td class='td11' id='TBL-2-4-2' style='white-space:nowrap; text-align:left;'> <span class='cmr-10x-x-109'>tau node </span><span class='mathjax-inline'>\(x^{\tau }_{ij}\)</span><span class='cmr-10x-x-109'>, anchored to </span><span class='mathjax-inline'>\(x^s_i\)</span>         </td><td class='td11' id='TBL-2-4-3' style='white-space:nowrap; text-align:left;'> <span class='cmr-10x-x-109'>position relative to study node           </span></td>
+</tr><tr id='TBL-2-5-' style='vertical-align:baseline;'><td class='td11' id='TBL-2-5-1' style='white-space:nowrap; text-align:left;'> <span class='cmr-10x-x-109'>RE prior </span><span class='mathjax-inline'>\(\delta ^{\text {arm}}_{ij} \sim \mathcal {N}(0, \tau ^2)\)</span>                 </td><td class='td11' id='TBL-2-5-2' style='white-space:nowrap; text-align:left;'> <span class='cmr-10x-x-109'>tau spring </span><span class='mathjax-inline'>\(x^s_i \leftrightarrow x^{\tau }_{ij}\)</span>                         </td><td class='td11' id='TBL-2-5-3' style='white-space:nowrap; text-align:left;'> <span class='mathjax-inline'>\(\tfrac {1}{2\tau ^2}(x^{\tau }_{ij} - x^s_i)^2\)</span>                                 </td>
+</tr><tr id='TBL-2-6-' style='vertical-align:baseline;'><td class='td11' id='TBL-2-6-1' style='white-space:nowrap; text-align:left;'> <span class='cmr-10x-x-109'>Gaussian likelihood    </span></td><td class='td11' id='TBL-2-6-2' style='white-space:nowrap; text-align:left;'> <span class='cmr-10x-x-109'>observation spring </span><span class='mathjax-inline'>\(x^{\tau }_{ij} \leftrightarrow x^t_j\)</span>               </td><td class='td11' id='TBL-2-6-3' style='white-space:nowrap; text-align:left;'> <span class='mathjax-inline'>\(\tfrac {1}{2v_{ij}}(x^t_j - x^{\tau }_{ij} - y_{ij})^2\)</span>                                 </td>
+</tr><tr id='TBL-2-7-' style='vertical-align:baseline;'><td class='td11' id='TBL-2-7-1' style='white-space:nowrap; text-align:left;'> <span class='cmr-10x-x-109'>binomial likelihood     </span></td><td class='td11' id='TBL-2-7-2' style='white-space:nowrap; text-align:left;'> <span class='cmr-10x-x-109'>non-linear observation spring  </span></td><td class='td11' id='TBL-2-7-3' style='white-space:nowrap; text-align:left;'> <span class='mathjax-inline'>\(n_{ij}\log (1+e^{\ell })-e_{ij}\ell \)</span>                                 </td>
+</tr><tr id='TBL-2-8-' style='vertical-align:baseline;'><td class='td11' id='TBL-2-8-1' style='white-space:nowrap; text-align:left;'> <span class='cmr-10x-x-109'>multi-arm correlation  </span></td><td class='td11' id='TBL-2-8-2' style='white-space:nowrap; text-align:left;'> <span class='cmr-10x-x-109'>shared anchor at </span><span class='mathjax-inline'>\(x^s_i\)</span>                 </td><td class='td11' id='TBL-2-8-3' style='white-space:nowrap; text-align:left;'> <span class='cmr-10x-x-109'>common shift across sibling tau nodes  </span></td>
+</tr><tr id='TBL-2-9-' style='vertical-align:baseline;'><td class='td11' id='TBL-2-9-1' style='white-space:nowrap; text-align:left;'> <span class='cmr-10x-x-109'>fixed-effect (</span><span class='mathjax-inline'>\(\tau \to 0\)</span><span class='cmr-10x-x-109'>)            </span></td><td class='td11' id='TBL-2-9-2' style='white-space:nowrap; text-align:left;'> <span class='cmr-10x-x-109'>rigid tau spring                   </span></td><td class='td11' id='TBL-2-9-3' style='white-space:nowrap; text-align:left;'> <span class='cmr-10x-x-109'>tau node welded to study node           </span></td>
+</tr><tr id='TBL-2-10-' style='vertical-align:baseline;'><td class='td11' id='TBL-2-10-1' style='white-space:nowrap; text-align:left;'> <span class='cmr-10x-x-109'>prior on </span><span class='mathjax-inline'>\(\tau \)</span>                  </td><td class='td11' id='TBL-2-10-2' style='white-space:nowrap; text-align:left;'> <span class='cmr-10x-x-109'>fugacity </span><span class='mathjax-inline'>\(\pi (\tau ^2)\) </span><span class='cmr-10x-x-109'>on chain length       </span></td><td class='td11' id='TBL-2-10-3' style='white-space:nowrap; text-align:left;'> <span class='cmr-10x-x-109'>grid reweighting                              </span></td>
+
+</tr></table>                                                                      </div>
+
+<figcaption class='caption'><span class='id'>Table 1: </span><span class='content'>NMA model elements and their spring network counterparts. Every term in the
+model log-density is a spring energy; every spring energy corresponds to a model term.
+</span></figcaption><!-- tex4ht:label?: x1-8001r1  -->
+                                                                                         
+                                                                                         
+   </figure>
+   </div>
+<!-- l. 243 --><p class='indent'>   The arm-level parameterisation thus yields exactly the Lu–Ades <span class='mathjax-inline'>\((I+J)/2\)</span> covariance with <span class='mathjax-inline'>\(\tau ^2_{\text {LA}} = 2\tau ^2_{\text {arm}}\)</span>, by
+construction, not by algebraic identity after the fact.
+   
+</p>
+   <h4 class='subsectionHead' id='visual-example-treatment-network-with-multiarm-trials'><span class='titlemark'>2.3   </span> <a id='x1-90002.3'></a>Visual example: 5-treatment network with multi-arm trials</h4>
+<!-- l. 251 --><p class='noindent'>Figure <a href='#spring-network-for-a-treatment-nma-with-one-arm-study-s-a-c-d-one-arm-study-s-b-c-d-e-and-two-pairwise-studies-observation-springs-straight-connect-treatment-nodes-to-tau-nodes-tau-springs-coiled-connect-tau-nodes-to-a-single-study-anchor-per-study-the-shared-anchor-in-s-and-s-reproduces-the-luades-withinstudy-correlation-without-an-explicit-covariance-matrix'>1<!-- tex4ht:ref: fig:example-network  --></a> shows the spring network for a small NMA: 5 treatments <span class='mathjax-inline'>\(A, B, C, D, E\)</span>, four studies (<span class='mathjax-inline'>\(S_1\)</span> pairwise <span class='mathjax-inline'>\(A\)</span> vs <span class='mathjax-inline'>\(B\)</span>; <span class='mathjax-inline'>\(S_2\)</span>
+three-arm <span class='mathjax-inline'>\(A, C, D\)</span>; <span class='mathjax-inline'>\(S_3\)</span> four-arm <span class='mathjax-inline'>\(B, C, D, E\)</span>; <span class='mathjax-inline'>\(S_4\)</span> pairwise <span class='mathjax-inline'>\(D\)</span> vs <span class='mathjax-inline'>\(E\)</span>). Treatment nodes (top row) are shared across studies; each
+study contributes one study node (bottom) and one tau-node-plus-tau-spring per arm. Sibling tau
+springs in <span class='mathjax-inline'>\(S_2\)</span> and <span class='mathjax-inline'>\(S_3\)</span> share their study anchor, which is what implements the multi-arm
+correlation.
+</p><!-- l. 260 --><p class='indent'>   Figure <a href='#grand-canonical-view-of-one-tau-spring-across-chain-lengths-at-n-the-tau-node-is-rigidly-tied-to-the-study-node-fixedeffect-grid-point-each-additional-elementary-spring-in-series-elongates-the-chain-and-increases-the-effective-variance-n-nk-the-partition-function-is-the-priorweighted-sum-over-all-chain-lengths-tau-springs-come-and-go-as-n-ranges-over-the-grid-an-interactive-version-of-this-figure-drag-n-to-growshrink-the-elementary-springs-treatment-positions-reequilibrate-posterior-bars-update-live-is-at-xianimationhtml-xianimationhtml'>2<!-- tex4ht:ref: fig:xi-chain  --></a> shows the grand canonical sum <span class='mathjax-inline'>\(\Xi (\tau ^2) = \sum _N Z(N/k_\tau )\)</span> as the chain length <span class='mathjax-inline'>\(N\)</span> varies. At <span class='mathjax-inline'>\(N = 0\)</span> the tau spring
+collapses to a rigid bond (tau node welded to study node, fixed-effect model). As <span class='mathjax-inline'>\(N\)</span> grows, the chain
+elongates and softens, allowing larger <span class='mathjax-inline'>\(|\delta ^{\text {arm}}_{ij}|\)</span>. Summing over <span class='mathjax-inline'>\(N\)</span> with weights <span class='mathjax-inline'>\(Z(N/k_\tau )\,\pi (\tau ^2(N))\) </span><span class='cmti-12'>is </span>the posterior on <span class='mathjax-inline'>\(\tau ^2\)</span>. “Tau
+springs coming and going” is literally this: each grid point is a configuration of the same network
+with shorter or longer tau chains.
+</p>
+   <figure class='figure'> 
+
+                                                                                         
+                                                                                         
+                                                                                         
+                                                                                         
+<!-- l. 273 --><p class='noindent' id='spring-network-for-a-treatment-nma-with-one-arm-study-s-a-c-d-one-arm-study-s-b-c-d-e-and-two-pairwise-studies-observation-springs-straight-connect-treatment-nodes-to-tau-nodes-tau-springs-coiled-connect-tau-nodes-to-a-single-study-anchor-per-study-the-shared-anchor-in-s-and-s-reproduces-the-luades-withinstudy-correlation-without-an-explicit-covariance-matrix'><img alt='ABCDESSSStstot1234rtabaeuusuadetynrsmovpendarnoetintdigexonnoxτijdsseiprinxgtj' src='grand_canonical_xi0x.svg' />
+<a id='x1-9001r1'></a>
+</p>
+<figcaption class='caption'><span class='id'>Figure 1: </span><span class='content'>Spring network for a 5-treatment NMA with one 3-arm study (<span class='mathjax-inline'>\(S_2\)</span>: <span class='mathjax-inline'>\(A, C, D\)</span>), one 4-arm study
+(<span class='mathjax-inline'>\(S_3\)</span>: <span class='mathjax-inline'>\(B, C, D, E\)</span>), and two pairwise studies. Observation springs (straight) connect treatment nodes to
+tau nodes; tau springs (coiled) connect tau nodes to a single study anchor per study. The
+shared anchor in <span class='mathjax-inline'>\(S_2\)</span> and <span class='mathjax-inline'>\(S_3\)</span> reproduces the Lu–Ades within-study correlation without an explicit
+covariance matrix.
+</span></figcaption><!-- tex4ht:label?: x1-9001r1  -->
+                                                                                         
+                                                                                         
+   </figure>
+   <figure class='figure'> 
+
+                                                                                         
+                                                                                         
+                                                                                         
+                                                                                         
+<!-- l. 344 --><p class='noindent' id='grand-canonical-view-of-one-tau-spring-across-chain-lengths-at-n-the-tau-node-is-rigidly-tied-to-the-study-node-fixedeffect-grid-point-each-additional-elementary-spring-in-series-elongates-the-chain-and-increases-the-effective-variance-n-nk-the-partition-function-is-the-priorweighted-sum-over-all-chain-lengths-tau-springs-come-and-go-as-n-ranges-over-the-grid-an-interactive-version-of-this-figure-drag-n-to-growshrink-the-elementary-springs-treatment-positions-reequilibrate-posterior-bars-update-live-is-at-xianimationhtml-xianimationhtml'><img alt='           Nmax
+     22      ∑     2
+xxNxxNxxNΞZtststs===((ττ014:::)(rolNigno=iendg)etlech)ama πueinn((fitτxa(erladyr(gNeτeffe-sτcp2)tr)))ing
+
+            N =0' src='grand_canonical_xi1x.svg' />
+<a id='x1-9002r2'></a>
+</p>
+<figcaption class='caption'><span class='id'>Figure 2: </span><span class='content'>Grand canonical view of one tau spring across chain lengths. At <span class='mathjax-inline'>\(N=0\)</span> the tau node is
+rigidly tied to the study node (fixed-effect grid point). Each additional elementary <span class='mathjax-inline'>\(\tau \)</span>-spring
+in series elongates the chain and increases the effective variance <span class='mathjax-inline'>\(\tau ^2(N) = N/k_\tau \)</span>. The partition function <span class='mathjax-inline'>\(\Xi \)</span> is
+the prior-weighted sum over all chain lengths; “tau springs come and go” as <span class='mathjax-inline'>\(N\)</span> ranges over
+the grid. An interactive version of this figure (drag <span class='mathjax-inline'>\(N\)</span> to grow/shrink the elementary springs,
+treatment positions re-equilibrate, posterior bars update live) is at  <a href='../xi_animation.html'><span class='cmtt-12'>xi_animation.html</span></a>.
+</span></figcaption><!-- tex4ht:label?: x1-9002r2  -->
+                                                                                         
+                                                                                         
+   </figure>
+   
+   <h3 class='sectionHead' id='grand-canonical-construction'><span class='titlemark'>3   </span> <a id='x1-100003'></a>Grand Canonical Construction</h3>
+   
+   <h4 class='subsectionHead' id='chainlength-ensemble'><span class='titlemark'>3.1   </span> <a id='x1-110003.1'></a>Chain-length ensemble</h4>
+<!-- l. 406 --><p class='noindent'>We identify each value of <span class='mathjax-inline'>\(\tau ^2\)</span> with a chain of <span class='mathjax-inline'>\(N\)</span> elementary tau springs of hardness <span class='mathjax-inline'>\(k_\tau \)</span> in series: </p><div class='mathjax-env mathjax-equation'>\begin{equation} \tau ^2_{\text {contrast}}(N) = \frac {N}{k_\tau }, \qquad N = 0, 1, \ldots , N_{\max }. \end{equation}</div><p><a id='x1-11001r3'></a> The grand
+canonical partition function sums <span class='mathjax-inline'>\(Z\)</span> over <span class='mathjax-inline'>\(N\)</span>: </p><div class='mathjax-env mathjax-equation'>\begin{equation} \boxed { \Xi = \sum _{N=0}^{N_{\max }} Z(\tau ^2(N)) = \sum _{N=0}^{N_{\max }} p\bigl (y \mid \tau ^2(N)\bigr ). } \end{equation}</div><p><a id='x1-11002r4'></a>
+<!-- l. 420 --></p><p class='indent'>   The enforced common chain length across arms imposes the standard RE-NMA common-<span class='mathjax-inline'>\(\tau ^2\)</span>
+assumption. Generalising to grouped heterogeneities—treatment-specific, comparison-class-specific,
+or subnetwork-specific <span class='mathjax-inline'>\(\tau ^2\)</span>—is achieved by indexing chain lengths by group: <span class='mathjax-inline'>\(\tau ^2_c = N_c / k^{(c)}_\tau \)</span> and summing a
+multi-dimensional grand canonical lattice. We develop this generalisation in Section <a href='#grouped-heterogeneities'>6<!-- tex4ht:ref: sec:grouped  --></a>.
+   
+</p>
+   <h4 class='subsectionHead' id='gaussian-case-closed-form'><span class='titlemark'>3.2   </span> <a id='x1-120003.2'></a>Gaussian case: closed form</h4>
+<!-- l. 430 --><p class='noindent'>For Gaussian observation springs, all springs are quadratic and tau nodes can be integrated
+analytically. Two springs in series (observation + tau) between study <span class='mathjax-inline'>\(i\)</span> and treatment <span class='mathjax-inline'>\(j\)</span> collapse to
+an effective spring with <span class='mathjax-inline'>\(k^{\text {eff}}_{ij} = 1/(v_{ij} + \tau ^2_{\text {arm}})\)</span> and natural length <span class='mathjax-inline'>\(y_{ij}\)</span>. Call <span class='mathjax-inline'>\(A_{\text {eff}}(\tau ^2)\)</span> the stiffness matrix on the remaining
+free (study + non-pinned-treatment) nodes. Then </p><div class='mathjax-env mathjax-equation'>\begin{equation} \ln Z(\tau ^2) = -\frac {1}{2} \sum _{ij} \ln \!\bigl (v_{ij} + \tau ^2_{\text {arm}}\bigr ) - E^{\star }(\tau ^2) - \frac {1}{2} \ln \det A_{\text {eff}}(\tau ^2) + C, \end{equation}</div><p><a id='x1-12001r5'></a> where <span class='mathjax-inline'>\(E^{\star }\)</span> is the spring energy at the
+equilibrium positions and <span class='mathjax-inline'>\(C\)</span> is a <span class='mathjax-inline'>\(\tau ^2\)</span>-independent normalising constant. This is precisely
+the REML profile log-likelihood, recovered from the spring topology. The mode of <span class='mathjax-inline'>\(\Xi \)</span>
+under the flat-in-<span class='mathjax-inline'>\(\tau ^2\)</span> prior coincides with REML to grid resolution on every benchmark we
+test.
+   
+   </p><h4 class='subsectionHead' id='binomial-case-laplace-approximation-at-the-newton-mode'><span class='titlemark'>3.3   </span> <a id='x1-130003.3'></a>Binomial case: Laplace approximation at the Newton mode</h4>
+<!-- l. 453 --><p class='noindent'>For binomial observation springs, the tau node cannot be integrated analytically. We use a Laplace
+approximation at the joint mode <span class='mathjax-inline'>\(\hat {x}(\tau ^2)\)</span> found by damped Newton iteration: </p><div class='mathjax-env mathjax-equation'>\begin{equation} \ln Z(\tau ^2) \approx - E^{\star }(\tau ^2) - \frac {1}{2} \sum _{ij} \ln \!\bigl (v_{ij} + \tau ^2_{\text {arm}}\bigr ) - \frac {1}{2} \ln \det A_{\text {eff}}(\tau ^2) + C', \end{equation}</div><p><a id='x1-13001r6'></a> where <span class='mathjax-inline'>\(v_{ij} = 1 / w_{ij}\)</span> with <span class='mathjax-inline'>\(w_{ij} = n_{ij} \sigma (\hat {\ell }_{ij}) (1 - \sigma (\hat {\ell }_{ij}))\)</span> the Fisher
+information at the joint mode. Crucially, the energy term <span class='mathjax-inline'>\(E^{\star }\)</span> uses the <span class='cmti-12'>exact </span>binomial energy at the
+mode, not a quadratic substitution: only the volume factor <span class='mathjax-inline'>\(\ln \det A_{\text {eff}}\)</span> is approximated. In the Gaussian limit
+the two formulas coincide.
+   
+   </p><h4 class='subsectionHead' id='full-posteriors-from-'><span class='titlemark'>3.4   </span> <a id='x1-140003.4'></a>Full posteriors from <span class='mathjax-inline'>\(\Xi \)</span></h4>
+                                                                                         
+                                                                                         
+<!-- l. 472 --><p class='noindent'>At each grid point <span class='mathjax-inline'>\(k\)</span> the canonical solution yields a Gaussian conditional distribution for every
+treatment contrast, <span class='mathjax-inline'>\(p(d_j \mid \tau ^2_k, y) = \mathcal {N}(\mu _{j,k}, \sigma ^2_{j,k})\)</span>, from the Laplace quadratic. The full marginal posterior is the <span class='mathjax-inline'>\(\Xi \)</span>-weighted
+mixture of Gaussians: </p><div class='mathjax-env mathjax-equation'>\begin{equation} \label {eq:mixture} p(d_j \mid y) = \sum _{k} p(\tau ^2_k \mid y) \, \mathcal {N}(d_j;\, \mu _{j,k},\, \sigma ^2_{j,k}). \end{equation}</div><p><a id='x1-14001r7'></a> The grid reweighting makes any prior on <span class='mathjax-inline'>\(\tau \)</span> a one-line operation:
+<span class='mathjax-inline'>\(\ln p(\tau ^2_k \mid y) = \ln Z_k + \ln \pi (\tau ^2_k)\)</span>.
+   
+   </p><h4 class='subsectionHead' id='the-grid-as-sufficient-intermediate'><span class='titlemark'>3.5   </span> <a id='x1-150003.5'></a>The <span class='mathjax-inline'>\(\Xi \)</span> grid as sufficient intermediate</h4>
+<!-- l. 489 --><p class='noindent'>The per-grid-point summary <span class='mathjax-inline'>\(\mathcal {S} = \{(\tau ^2_k,\, \ln Z_k,\, \{(\mu _{j,k}, \sigma ^2_{j,k})\}_j,\, \{\Sigma ^{(k)}_{jj'}\}_{j,j'})\}_{k=1}^{K}\)</span> is a <span class='cmti-12'>sufficient statistic </span>for the entire downstream posterior family.
+Having computed <span class='mathjax-inline'>\(\mathcal {S}\)</span> once, the user derives any of the following in closed form without re-running the
+solver:
+</p>
+      <ul class='itemize1'>
+      <li class='itemize'>Posterior of <span class='mathjax-inline'>\(\tau ^2\)</span> under any prior <span class='mathjax-inline'>\(\pi \)</span>: reweight <span class='mathjax-inline'>\(w_k \propto \exp (\ln Z_k)\,\pi (\tau ^2_k)\)</span>; compute mode, median, mean, and any CI
+      from the reweighted discrete distribution.
+      </li>
+      <li class='itemize'>Marginal posterior of any effect <span class='mathjax-inline'>\(d_j\)</span>: apply equation (<a href='#x1-14001r7'>7<!-- tex4ht:ref: eq:mixture  --></a>) as a Gaussian mixture.
+      </li>
+      <li class='itemize'>Posterior of any linear contrast of effects, <span class='mathjax-inline'>\(a^\top d\)</span>: Gaussian mixture with component means <span class='mathjax-inline'>\(a^\top \mu _{k}\)</span>
+      and component variances <span class='mathjax-inline'>\(a^\top \Sigma ^{(k)} a\)</span>.
+      </li>
+      <li class='itemize'>Probabilities such as <span class='mathjax-inline'>\(P(d_j &gt; 0)\)</span> or <span class='mathjax-inline'>\(P(d_j &gt; d_{j'})\)</span>: mixture of Gaussian tail probabilities.
+      </li>
+      <li class='itemize'>Treatment rank probabilities: Monte Carlo over the mixture (still deterministic given
+      the grid).
+      </li>
+      <li class='itemize'>Prior sensitivity: compute posterior summaries under a library of priors in a single <span class='mathjax-inline'>\(O(K)\)</span>
+      loop, without a single additional likelihood evaluation.
+      </li>
+      <li class='itemize'>Fixed-effect evidence: <span class='mathjax-inline'>\(\exp (\ln Z_0) / \sum _k \exp (\ln Z_k)\pi (\tau ^2_k)\)</span>, a grid-point probability.</li></ul>
+                                                                                         
+                                                                                         
+<!-- l. 518 --><p class='indent'>   The saved grid for the 99-study, 17-treatment <span class='cmtt-12'>nmadb_501194 </span>network is <span class='mathjax-inline'>\(\sim 2\,\text {MB}\)</span> of JSON and contains
+the full cross-posterior information. All posterior-inference workflows downstream of it are seconds
+of arithmetic. This is the practical difference between a “sampling-based full posterior” and a
+“deterministic sufficient statistic”: the latter is a one-shot data product that survives
+reprioritisation, re-analysis, and decision-theoretic post-processing without re-running the
+likelihood model.
+   
+</p>
+   <h3 class='sectionHead' id='algorithm-and-optimisations'><span class='titlemark'>4   </span> <a id='x1-160004'></a>Algorithm and Optimisations</h3>
+<!-- l. 530 --><p class='noindent'>The naive algorithm—evaluate <span class='mathjax-inline'>\(\ln Z\)</span> on a uniform 5000-point grid, each point solving the network from
+scratch—is prohibitively slow for networks of realistic size. We developed a cascade of
+optimisations that preserve the pure-Laplace formulation while cutting wall-clock time by three
+orders of magnitude on large networks.
+   
+</p>
+   <h4 class='subsectionHead' id='bulk-a-eff-assembly'><span class='titlemark'>4.1   </span> <a id='x1-170004.1'></a>Bulk <span class='mathjax-inline'>\(A_{\text {eff}}\)</span> assembly</h4>
+<!-- l. 539 --><p class='noindent'>For each grid point the effective stiffness matrix <span class='mathjax-inline'>\(A_{\text {eff}}\)</span> is assembled from arm-level contributions. A
+naive implementation that patches the matrix one entry at a time is <span class='mathjax-inline'>\(O(A \cdot m^2)\)</span> per grid point. Collecting
+all entries into a hash-keyed map and materialising the matrix once turns this into
+<span class='mathjax-inline'>\(O(A + m^2)\)</span>.
+   
+</p>
+   <h4 class='subsectionHead' id='adaptive-grid-centred-on-the-reml-mode'><span class='titlemark'>4.2   </span> <a id='x1-180004.2'></a>Adaptive grid centred on the REML mode</h4>
+<!-- l. 548 --><p class='noindent'>Posterior mass on <span class='mathjax-inline'>\(\tau ^2\)</span> concentrates near the REML mode. A uniform grid wastes most of its points.
+The adaptive algorithm first runs a cheap REML solve to locate <span class='mathjax-inline'>\(\hat {\tau }^2\)</span>, then log-spaces <span class='mathjax-inline'>\(\sim 100\)</span> grid points in
+<span class='mathjax-inline'>\([\hat {\tau }^2 / 30,\, \max (\hat {\tau }^2 \cdot 30,\, 5)]\)</span> plus the fixed-effect point <span class='mathjax-inline'>\(\tau ^2 = 0\)</span>. We verify that these 100 points reproduce the uniform
+5000-point medians and credible intervals to within grid precision on every benchmark
+dataset.
+   
+</p>
+   <h4 class='subsectionHead' id='lapackbacked-linear-algebra'><span class='titlemark'>4.3   </span> <a id='x1-190004.3'></a>LAPACK-backed linear algebra</h4>
+<!-- l. 559 --><p class='noindent'>The Newton inner solver performs matrix inversions and multiplications on <span class='mathjax-inline'>\(O(m)\)</span>-sized matrices.
+Swapping the pure-Haskell Gaussian elimination for LAPACK-backed LU (via hmatrix in Haskell,
+nalgebra in Rust) yields a 2–3<span class='mathjax-inline'>\(\times \)</span> single-core speedup on medium networks, larger on big
+ones. The pure-Haskell implementation is retained for WASM builds where LAPACK is
+                                                                                         
+                                                                                         
+unavailable.
+   
+</p>
+   <h4 class='subsectionHead' id='reduced-schur-newton-solver-binomial-path'><span class='titlemark'>4.4   </span> <a id='x1-200004.4'></a>Reduced Schur Newton solver (binomial path)</h4>
+<!-- l. 568 --><p class='noindent'>The dominant cost in the binomial inner solve is the <span class='mathjax-inline'>\(\bigl [(m + A) \times (m + A)\bigr ]\)</span> Hessian on the joint study/treatment/tau-node
+positions, where <span class='mathjax-inline'>\(A\)</span> tau nodes are local to one arm each. The Hessian has block structure: the
+tau-node block <span class='mathjax-inline'>\(W\)</span> is diagonal with entries <span class='mathjax-inline'>\(w_{ij} = n_{ij}\sigma (\hat \ell _{ij})(1-\sigma (\hat \ell _{ij})) + 1/\tau ^2\)</span>, and only the off-diagonal couplings to the <span class='mathjax-inline'>\(m\)</span> free
+study/treatment positions tie the system together. A Schur complement on <span class='mathjax-inline'>\(W\)</span> analytically eliminates
+the tau block, leaving an <span class='mathjax-inline'>\(m \times m\)</span> system on the free positions that is solved by a single LU factorisation
+per Newton step. The tau-node update is recovered in <span class='mathjax-inline'>\(O(A)\)</span> once the free positions are known. Across
+the four-prior diabetes benchmark this delivers an order-of-magnitude reduction in per-fit cost
+relative to the un-reduced Newton solver, and turns the asymptotic per-grid-point cost from <span class='mathjax-inline'>\(O((m+A)^3)\)</span> into
+<span class='mathjax-inline'>\(O(m^3 + A)\)</span>.
+</p><!-- l. 586 --><p class='indent'>   The Newton iteration is stabilised by a damped backtracking line search (Armijo) applied only
+after the first 30 plain steps, which preserves bit-identical results on well-behaved networks while
+preventing divergence on rare pathological cases at large <span class='mathjax-inline'>\(\tau ^2\)</span>. A small Armijo gap remains at <span class='mathjax-inline'>\(\tau ^2 \le 10^{-2}\)</span> where <span class='mathjax-inline'>\(W\)</span>
+becomes nearly singular; this is documented but does not affect posterior medians or credible
+intervals on any benchmarked dataset.
+   
+</p>
+   <h4 class='subsectionHead' id='cost-summary'><span class='titlemark'>4.5   </span> <a id='x1-210004.5'></a>Cost summary</h4>
+<!-- l. 597 --><p class='noindent'>With <span class='mathjax-inline'>\(m\)</span> free network nodes and <span class='mathjax-inline'>\(A\)</span> total arms, the full-sweep complexity with adaptive-grid-and-LAPACK
+is </p><div class='mathjax-block'>\[ O\bigl (N_{\text {grid}} \cdot (m^3 + A)\bigr ) \approx O(100 m^3) \]</div><p> for a typical <span class='mathjax-inline'>\(N_{\text {grid}} = 100\)</span>. The dominant cost is the per-grid-point LU factorisation on <span class='mathjax-inline'>\(A_{\text {eff}}\)</span>.
+   
+   </p><h3 class='sectionHead' id='benchmarks'><span class='titlemark'>5   </span> <a id='x1-220005'></a>Benchmarks</h3>
+   
+   <h4 class='subsectionHead' id='mode-verification-against-reml'><span class='titlemark'>5.1   </span> <a id='x1-230005.1'></a>Mode verification against REML</h4>
+<!-- l. 611 --><p class='noindent'>We first check that the argmax of <span class='mathjax-inline'>\(\ln \Xi (\tau ^2)\)</span> under a flat-in-<span class='mathjax-inline'>\(\tau ^2\)</span> prior coincides with the REML estimate of <span class='mathjax-inline'>\(\tau ^2\)</span>. For
+Gaussian outcomes this equivalence is exact up to grid discretisation. The pairwise Gaussian
+dataset <span class='cmtt-12'>test/binary.json </span>gives REML <span class='mathjax-inline'>\(\hat {\tau }^2 = 0.1571\)</span> versus spring-<span class='mathjax-inline'>\(\Xi \)</span> mode <span class='mathjax-inline'>\(0.159\)</span>, a relative error of <span class='mathjax-inline'>\(1.2\%\)</span>—bounded by
+the adaptive grid’s resolution at that <span class='mathjax-inline'>\(\tau ^2\)</span>.
+</p><!-- l. 620 --><p class='indent'>   For binomial outcomes, both REML and the Laplace approximation are approximate, and they
+use different fixed-point iterations: our spring-REML [<a href='#Xpapakonstantinou2025spring'>Papakonstantinou</a>, <a href='#Xpapakonstantinou2025spring'>2025</a>] uses a
+law-of-total-variance update on the tau springs, while spring-<span class='mathjax-inline'>\(\Xi \)</span> maximises the Laplace-approximated
+<span class='mathjax-inline'>\(\ln Z(\tau ^2)\)</span> directly. The two therefore have different approximation error structure and can disagree by low
+                                                                                         
+                                                                                         
+double digits of percent on sparse binomial networks. A more reliable cross-check is
+within-method consistency: the adaptive 100-point grid reproduces the uniform 5000-point grid’s
+argmax to within grid precision on every benchmark dataset (mean absolute <span class='mathjax-inline'>\(\Delta \tau ^2 &lt; 0.003\)</span>). For
+comparisons against the full posterior we defer to the MCMC comparison with multinma in
+section <a href='#agreement-and-speed-against-multinma'>5.3<!-- tex4ht:ref: sec:multinma-compare  --></a>.
+   
+</p>
+   <h4 class='subsectionHead' id='agreement-with-bayesmeta'><span class='titlemark'>5.2   </span> <a id='x1-240005.2'></a>Agreement with bayesmeta</h4>
+<!-- l. 636 --><p class='noindent'>On the pairwise binary dataset <span class='cmtt-12'>test/binary.json </span>(6 studies) with a flat-in-<span class='mathjax-inline'>\(\tau ^2\)</span> prior, the spring-<span class='mathjax-inline'>\(\Xi \)</span>
+posterior median of <span class='mathjax-inline'>\(\tau ^2\)</span> is <span class='mathjax-inline'>\(0.446\)</span> versus bayesmeta’s analytic <span class='mathjax-inline'>\(0.445\)</span>—matching to three significant
+figures.
+   
+</p>
+   <h4 class='subsectionHead' id='agreement-and-speed-against-multinma'><span class='titlemark'>5.3   </span> <a id='x1-250005.3'></a>Agreement and speed against multinma</h4>
+<!-- l. 643 --><p class='noindent'>We benchmark the Rust LAPACK + reduced Schur implementation against multinma (4 chains,
+default warmup) on four binary NMA datasets that span the realistic range of <span class='mathjax-inline'>\(T\)</span>, network density,
+and rare-event content. Each spring-<span class='mathjax-inline'>\(\Xi \)</span> “fit” returns four prior-conditional posteriors (flat,
+half-Normal, half-Cauchy, log-Normal) on a single sweep; the quoted multinma times are for a
+single half-Normal<span class='mathjax-inline'>\((0,1)\)</span> fit only.
+</p>
+<div class='center'>
+<!-- l. 651 --><p class='noindent'>
+</p>
+<div class='tabular'>
+ <table class='tabular' id='TBL-3'><colgroup id='TBL-3-1g'><col id='TBL-3-1' /><col id='TBL-3-2' /><col id='TBL-3-3' /><col id='TBL-3-4' /></colgroup><tr id='TBL-3-1-' style='vertical-align:baseline;'><td class='td11' id='TBL-3-1-1' style='white-space:nowrap; text-align:left;'> Dataset                                       </td><td class='td11' id='TBL-3-1-2' style='white-space:nowrap; text-align:right;'>     Spring <span class='mathjax-inline'>\(\Xi \)</span>  </td><td class='td11' id='TBL-3-1-3' style='white-space:nowrap; text-align:right;'>    multinma  </td><td class='td11' id='TBL-3-1-4' style='white-space:nowrap; text-align:right;'> Speedup  </td>
+</tr><tr id='TBL-3-2-' style='vertical-align:baseline;'><td class='td11' id='TBL-3-2-1' style='white-space:nowrap; text-align:left;'> Dias diabetes (<span class='mathjax-inline'>\(T{=}6\)</span>, <span class='mathjax-inline'>\(k{=}22\)</span>)                           </td><td class='td11' id='TBL-3-2-2' style='white-space:nowrap; text-align:right;'>       0.85 s  </td><td class='td11' id='TBL-3-2-3' style='white-space:nowrap; text-align:right;'>        9.3 s  </td><td class='td11' id='TBL-3-2-4' style='white-space:nowrap; text-align:right;'>      11<span class='mathjax-inline'>\(\times \)</span>  </td>
+</tr><tr id='TBL-3-3-' style='vertical-align:baseline;'><td class='td11' id='TBL-3-3-1' style='white-space:nowrap; text-align:left;'> Synth <span class='mathjax-inline'>\(T{=}30\)</span> binary (30 reps <span class='mathjax-inline'>\(\times \)</span> 4 priors)       </td><td class='td11' id='TBL-3-3-2' style='white-space:nowrap; text-align:right;'> per-rep 0.4 s  </td><td class='td11' id='TBL-3-3-3' style='white-space:nowrap; text-align:right;'>  per-rep 38 s  </td><td class='td11' id='TBL-3-3-4' style='white-space:nowrap; text-align:right;'>        <span class='mathjax-inline'>\(\sim 95\times \)</span> </td>
+</tr><tr id='TBL-3-4-' style='vertical-align:baseline;'><td class='td11' id='TBL-3-4-1' style='white-space:nowrap; text-align:left;'> Synth <span class='mathjax-inline'>\(T{=}50\)</span> rare events (30 reps <span class='mathjax-inline'>\(\times \)</span> 4 priors)  </td><td class='td11' id='TBL-3-4-2' style='white-space:nowrap; text-align:right;'> per-rep 1.7 s  </td><td class='td11' id='TBL-3-4-3' style='white-space:nowrap; text-align:right;'>  per-rep 66 s  </td><td class='td11' id='TBL-3-4-4' style='white-space:nowrap; text-align:right;'>      39<span class='mathjax-inline'>\(\times \)</span>  </td>
+</tr><tr id='TBL-3-5-' style='vertical-align:baseline;'><td class='td11' id='TBL-3-5-1' style='white-space:nowrap; text-align:left;'> Synth <span class='mathjax-inline'>\(T{=}100\)</span> (30 reps <span class='mathjax-inline'>\(\times \)</span> 4 priors)                 </td><td class='td11' id='TBL-3-5-2' style='white-space:nowrap; text-align:right;'> per-rep 4.2 s  </td><td class='td11' id='TBL-3-5-3' style='white-space:nowrap; text-align:right;'> per-rep 122 s  </td><td class='td11' id='TBL-3-5-4' style='white-space:nowrap; text-align:right;'>      29<span class='mathjax-inline'>\(\times \)</span>  </td>
+
+</tr></table>                                                 </div></div>
+<!-- l. 664 --><p class='indent'>   Posterior agreement: across the four datasets, spring-<span class='mathjax-inline'>\(\Xi \)</span> posterior means on every estimable
+contrast lie within <span class='mathjax-inline'>\(0.02\)</span> log-odds of multinma’s, and posterior medians within <span class='mathjax-inline'>\(0.04\)</span>. <span class='mathjax-inline'>\(\tau ^2\)</span> posterior medians and
+95% credible intervals coincide to within the multinma Monte Carlo standard error (<span class='mathjax-inline'>\(\sim \)</span>0.01–0.03 on <span class='mathjax-inline'>\(\tau ^2\)</span>).
+Spring-<span class='mathjax-inline'>\(\Xi \)</span>’s effect posterior standard deviations are <span class='mathjax-inline'>\(\sim 8\%\)</span> narrower than multinma’s on average, reflecting
+a slightly less heavy tail in <span class='mathjax-inline'>\(\tau ^2\)</span>.
+</p><!-- l. 673 --><p class='indent'>   The cross-comparison includes a Rust REML iterative bisection mode (<span class='cmtt-12'>reml_mode_iterative</span>)
+that locates <span class='mathjax-inline'>\(\arg \max _{\tau ^2} \ln Z(\tau ^2)\)</span> to <span class='mathjax-inline'>\(10^{-6}\)</span> relative tolerance in <span class='mathjax-inline'>\(\sim \)</span>20 evaluations; it agrees with the netmeta REML estimate to
+within <span class='mathjax-inline'>\(0.006\)</span> on Gaussian and to within the model-difference floor on binomial (the residual binomial
+gap is the well-known gap between exact-binomial and normal-OR likelihoods, not a solver
+                                                                                         
+                                                                                         
+issue).
+   
+</p>
+   <h4 class='subsectionHead' id='bias-against-known-true'><span class='titlemark'>5.4   </span> <a id='x1-260005.4'></a>Bias against known <span class='mathjax-inline'>\(\tau ^2_{\text {true}}\)</span></h4>
+<!-- l. 684 --><p class='noindent'>We generate 10 binary + 10 Gaussian synthetic T=6 NMAs from the Dias TSD 2 RE-NMA model
+[<a href='#Xdias2013tsd2'>Dias et al.</a>, <a href='#Xdias2013tsd2'>2013</a>] with known <span class='mathjax-inline'>\((\tau ^2_{\text {true}}, d_{\text {true}})\)</span>. Both methods use the same half-Normal<span class='mathjax-inline'>\((0, 1)\)</span> prior on <span class='mathjax-inline'>\(\tau \)</span> and the exact
+likelihood.
+</p>
+<div class='center'>
+<!-- l. 689 --><p class='noindent'>
+</p>
+<div class='tabular'>
+ <table class='tabular' id='TBL-4'><colgroup id='TBL-4-1g'><col id='TBL-4-1' /><col id='TBL-4-2' /><col id='TBL-4-3' /><col id='TBL-4-4' /></colgroup><tr id='TBL-4-1-' style='vertical-align:baseline;'><td class='td11' id='TBL-4-1-1' style='white-space:nowrap; text-align:left;'> Family                </td><td class='td11' id='TBL-4-1-2' style='white-space:nowrap; text-align:left;'> Statistic            </td><td class='td11' id='TBL-4-1-3' style='white-space:nowrap; text-align:right;'> Spring <span class='mathjax-inline'>\(\Xi \)</span>  </td><td class='td11' id='TBL-4-1-4' style='white-space:nowrap; text-align:right;'> multinma  </td>
+</tr><tr id='TBL-4-2-' style='vertical-align:baseline;'><td class='td11' id='TBL-4-2-1' style='white-space:nowrap; text-align:left;'> <div class='multirow'><!--  rows=0  -->
+Binomial</div>              </td><td class='td11' id='TBL-4-2-2' style='white-space:nowrap; text-align:left;'> <span class='mathjax-inline'>\(\tau ^2\)</span> RMSE vs truth  </td><td class='td11' id='TBL-4-2-3' style='white-space:nowrap; text-align:right;'>   <span class='cmbx-12'>0.33 </span></td><td class='td11' id='TBL-4-2-4' style='white-space:nowrap; text-align:right;'>      0.61  </td></tr><tr id='TBL-4-3-' style='vertical-align:baseline;'><td class='td11' id='TBL-4-3-1' style='white-space:nowrap; text-align:left;'> </td><td class='td11' id='TBL-4-3-2' style='white-space:nowrap; text-align:left;'> <span class='mathjax-inline'>\(\tau ^2\)</span> MAE vs truth </td><td class='td11' id='TBL-4-3-3' style='white-space:nowrap; text-align:right;'> <span class='cmbx-12'>0.26 </span></td><td class='td11' id='TBL-4-3-4' style='white-space:nowrap; text-align:right;'> 0.47</td>
+</tr><tr id='TBL-4-4-' style='vertical-align:baseline;'><td class='td11' id='TBL-4-4-1' style='white-space:nowrap; text-align:left;'>                 </td><td class='td11' id='TBL-4-4-2' style='white-space:nowrap; text-align:left;'> signed <span class='mathjax-inline'>\(\tau ^2\)</span> bias       </td><td class='td11' id='TBL-4-4-3' style='white-space:nowrap; text-align:right;'>       <span class='mathjax-inline'>\(+0.17\)</span> </td><td class='td11' id='TBL-4-4-4' style='white-space:nowrap; text-align:right;'>         <span class='mathjax-inline'>\(+0.38\)</span> </td>
+</tr><tr id='TBL-4-5-' style='vertical-align:baseline;'><td class='td11' id='TBL-4-5-1' style='white-space:nowrap; text-align:left;'> Gaussian              </td><td class='td11' id='TBL-4-5-2' style='white-space:nowrap; text-align:left;'> <span class='mathjax-inline'>\(\tau ^2\)</span> RMSE vs truth  </td><td class='td11' id='TBL-4-5-3' style='white-space:nowrap; text-align:right;'>   0.274  </td><td class='td11' id='TBL-4-5-4' style='white-space:nowrap; text-align:right;'>     0.272  </td>
+</tr><tr id='TBL-4-6-' style='vertical-align:baseline;'><td class='td11' id='TBL-4-6-1' style='white-space:nowrap; text-align:left;'> <div class='multirow'><!--  rows=0  -->
+Effect (binomial, <span class='mathjax-inline'>\(n = 47\)</span>)</div>  </td><td class='td11' id='TBL-4-6-2' style='white-space:nowrap; text-align:left;'> RMSE vs <span class='mathjax-inline'>\(d_{\text {true}}\)</span>         </td><td class='td11' id='TBL-4-6-3' style='white-space:nowrap; text-align:right;'>   <span class='cmbx-12'>0.71 </span></td><td class='td11' id='TBL-4-6-4' style='white-space:nowrap; text-align:right;'>      0.83  </td>
+</tr><tr id='TBL-4-7-' style='vertical-align:baseline;'><td class='td11' id='TBL-4-7-1' style='white-space:nowrap; text-align:left;'>                 </td><td class='td11' id='TBL-4-7-2' style='white-space:nowrap; text-align:left;'> signed bias        </td><td class='td11' id='TBL-4-7-3' style='white-space:nowrap; text-align:right;'>       <span class='mathjax-inline'>\(-0.031\)</span> </td><td class='td11' id='TBL-4-7-4' style='white-space:nowrap; text-align:right;'>         <span class='mathjax-inline'>\(-0.069\)</span> </td>
+
+</tr></table>                                                                   </div></div>
+<!-- l. 707 --><p class='indent'>   Spring <span class='mathjax-inline'>\(\Xi \)</span> has roughly half the <span class='mathjax-inline'>\(\tau ^2\)</span> RMSE of multinma on binary networks and 15% lower
+effect-mean RMSE. On Gaussian networks the two are tied (as expected—spring <span class='mathjax-inline'>\(\Xi \)</span>’s Gaussian
+formulation is exact).
+   
+</p>
+   <h3 class='sectionHead' id='grouped-heterogeneities'><span class='titlemark'>6   </span> <a id='x1-270006'></a>Grouped Heterogeneities</h3>
+<!-- l. 714 --><p class='noindent'>The common-<span class='mathjax-inline'>\(\tau ^2\)</span> constraint can be relaxed by indexing chain lengths by a grouping of arms <span class='mathjax-inline'>\(\{\mathcal {G}_1, \ldots , \mathcal {G}_C\}\)</span>
+(comparison class, treatment class, subnetwork): </p><div class='mathjax-env mathjax-equation'>\begin{equation} \Xi = \sum _{N_1 = 0}^{N^{(1)}_{\max }} \cdots \sum _{N_C = 0}^{N^{(C)}_{\max }} \prod _c z_c^{N_c} \, Z\bigl (\tau ^2_1(N_1), \ldots , \tau ^2_C(N_C)\bigr ), \end{equation}</div><p><a id='x1-27001r8'></a> with each group’s fugacity <span class='mathjax-inline'>\(z_c\)</span> encoding its own
+prior on <span class='mathjax-inline'>\(\tau ^2_c\)</span>. The inner canonical solve is unchanged; the outer sum becomes a <span class='mathjax-inline'>\(C\)</span>-dimensional lattice.
+The marginal posterior on a specific group’s heterogeneity, <span class='mathjax-inline'>\(p(\tau ^2_c \mid y)\)</span>, is obtained by summing over the other
+<span class='mathjax-inline'>\(C - 1\)</span> indices.
+<!-- l. 731 --></p><p class='indent'>   When the lattice becomes too dense to enumerate (<span class='mathjax-inline'>\(M^C\)</span> grid points for <span class='mathjax-inline'>\(C\)</span> groups at resolution <span class='mathjax-inline'>\(M\)</span>), the
+outer sum can be replaced by MCMC on the discrete chain-length vector or Langevin dynamics on
+the continuous <span class='mathjax-inline'>\(\{\log \tau ^2_c\}\)</span>. The inner deterministic Laplace step then supplies exact conditional effect
+posteriors at each sampled configuration, so the only stochasticity is in the low-dimensional
+heterogeneity parameters.
+   
+                                                                                         
+                                                                                         
+</p>
+   <h3 class='sectionHead' id='discussion'><span class='titlemark'>7   </span> <a id='x1-280007'></a>Discussion</h3>
+   
+   <h4 class='subsectionHead' id='relation-to-existing-methods'><span class='titlemark'>7.1   </span> <a id='x1-290007.1'></a>Relation to existing methods</h4>
+<!-- l. 743 --><p class='noindent'>Spring <span class='mathjax-inline'>\(\Xi \)</span> occupies a distinct cell in the NMA methods landscape:
+</p>
+<div class='center'>
+<!-- l. 745 --><p class='noindent'>
+</p>
+<div class='tabular'>
+ <table class='tabular' id='TBL-5'><colgroup id='TBL-5-1g'><col id='TBL-5-1' /><col id='TBL-5-2' /><col id='TBL-5-3' /><col id='TBL-5-4' /><col id='TBL-5-5' /><col id='TBL-5-6' /></colgroup><tr id='TBL-5-1-' style='vertical-align:baseline;'><td class='td11' id='TBL-5-1-1' style='white-space:nowrap; text-align:left;'>                         </td><td class='td11' id='TBL-5-1-2' style='white-space:nowrap; text-align:center;'>    <span class='mathjax-inline'>\(\tau ^2\)</span> post.       </td><td class='td11' id='TBL-5-1-3' style='white-space:nowrap; text-align:center;'>  Effect post.   </td><td class='td11' id='TBL-5-1-4' style='white-space:nowrap; text-align:center;'> Deterministic  </td><td class='td11' id='TBL-5-1-5' style='white-space:nowrap; text-align:center;'>     NMA        </td><td class='td11' id='TBL-5-1-6' style='white-space:nowrap; text-align:center;'>   Binomial     </td>
+</tr><tr id='TBL-5-2-' style='vertical-align:baseline;'><td class='td11' id='TBL-5-2-1' style='white-space:nowrap; text-align:left;'> REML / DerSimonian–Laird  </td><td class='td11' id='TBL-5-2-2' style='white-space:nowrap; text-align:center;'>    point       </td><td class='td11' id='TBL-5-2-3' style='white-space:nowrap; text-align:center;'>    point       </td><td class='td11' id='TBL-5-2-4' style='white-space:nowrap; text-align:center;'>     yes        </td><td class='td11' id='TBL-5-2-5' style='white-space:nowrap; text-align:center;'>      yes         </td><td class='td11' id='TBL-5-2-6' style='white-space:nowrap; text-align:center;'>  approximate   </td>
+</tr><tr id='TBL-5-3-' style='vertical-align:baseline;'><td class='td11' id='TBL-5-3-1' style='white-space:nowrap; text-align:left;'> bayesmeta                          </td><td class='td11' id='TBL-5-3-2' style='white-space:nowrap; text-align:center;'>     full        </td><td class='td11' id='TBL-5-3-3' style='white-space:nowrap; text-align:center;'>     full        </td><td class='td11' id='TBL-5-3-4' style='white-space:nowrap; text-align:center;'>     yes        </td><td class='td11' id='TBL-5-3-5' style='white-space:nowrap; text-align:center;'> <span class='cmbx-12'>pairwise only </span></td><td class='td11' id='TBL-5-3-6' style='white-space:nowrap; text-align:center;'> normal-approx  </td>
+</tr><tr id='TBL-5-4-' style='vertical-align:baseline;'><td class='td11' id='TBL-5-4-1' style='white-space:nowrap; text-align:left;'> multinma / BUGSnet           </td><td class='td11' id='TBL-5-4-2' style='white-space:nowrap; text-align:center;'> full (MCMC)  </td><td class='td11' id='TBL-5-4-3' style='white-space:nowrap; text-align:center;'> full (MCMC)  </td><td class='td11' id='TBL-5-4-4' style='white-space:nowrap; text-align:center;'>      no         </td><td class='td11' id='TBL-5-4-5' style='white-space:nowrap; text-align:center;'>      yes         </td><td class='td11' id='TBL-5-4-6' style='white-space:nowrap; text-align:center;'>      yes         </td>
+</tr><tr id='TBL-5-5-' style='vertical-align:baseline;'><td class='td11' id='TBL-5-5-1' style='white-space:nowrap; text-align:left;'> glmmTMB                         </td><td class='td11' id='TBL-5-5-2' style='white-space:nowrap; text-align:center;'>    point       </td><td class='td11' id='TBL-5-5-3' style='white-space:nowrap; text-align:center;'>    point       </td><td class='td11' id='TBL-5-5-4' style='white-space:nowrap; text-align:center;'>     yes        </td><td class='td11' id='TBL-5-5-5' style='white-space:nowrap; text-align:center;'>      yes         </td><td class='td11' id='TBL-5-5-6' style='white-space:nowrap; text-align:center;'>      yes         </td>
+</tr><tr id='TBL-5-6-' style='vertical-align:baseline;'><td class='td11' id='TBL-5-6-1' style='white-space:nowrap; text-align:left;'> <span class='cmbx-12'>Spring </span><span class='mathjax-inline'>\(\Xi \)</span>                         </td><td class='td11' id='TBL-5-6-2' style='white-space:nowrap; text-align:center;'>     <span class='cmbx-12'>full       </span></td><td class='td11' id='TBL-5-6-3' style='white-space:nowrap; text-align:center;'>     <span class='cmbx-12'>full       </span></td><td class='td11' id='TBL-5-6-4' style='white-space:nowrap; text-align:center;'>     <span class='cmbx-12'>yes       </span></td><td class='td11' id='TBL-5-6-5' style='white-space:nowrap; text-align:center;'>      <span class='cmbx-12'>yes        </span></td><td class='td11' id='TBL-5-6-6' style='white-space:nowrap; text-align:center;'>     <span class='cmbx-12'>exact      </span></td>
+
+</tr></table>                                                                                            </div></div>
+<!-- l. 759 --><p class='indent'>   The key distinguishing feature is a full posterior without MCMC, for any likelihood and
+network size.
+   
+</p>
+   <h4 class='subsectionHead' id='when-to-prefer-spring-'><span class='titlemark'>7.2   </span> <a id='x1-300007.2'></a>When to prefer spring <span class='mathjax-inline'>\(\Xi \)</span></h4>
+      <ul class='itemize1'>
+      <li class='itemize'>When deterministic reproducibility matters (regulatory submissions, auditability).
+      </li>
+      <li class='itemize'>When multiple priors on <span class='mathjax-inline'>\(\tau \)</span> must be compared (grid reweighting is free after one sweep).
+      </li>
+      <li class='itemize'>When  the  network  is  large  and  MCMC  convergence  on  boundary  regions  (<span class='mathjax-inline'>\(\tau \to 0\)</span>)  is
+      unreliable.
+                                                                                         
+                                                                                         
+      </li>
+      <li class='itemize'>When the full posterior of <span class='mathjax-inline'>\(\tau ^2\)</span> must be published alongside the point estimate.</li></ul>
+   
+   <h4 class='subsectionHead' id='limitations'><span class='titlemark'>7.3   </span> <a id='x1-310007.3'></a>Limitations</h4>
+<!-- l. 777 --><p class='noindent'>The Laplace approximation at the binomial mode is exact to second order; higher-order corrections
+are known but cost further computation per grid point. We verified in a 1D toy that a <span class='mathjax-inline'>\(39 \times \)</span> accuracy
+improvement from a 1-loop correction shifts posterior summaries by only 1–3% in practice. The
+binomial Newton solver retains a small Armijo gap at <span class='mathjax-inline'>\(\tau ^2 \le 10^{-2}\)</span> where the tau-block diagonal becomes
+nearly singular; results are correct on every benchmarked dataset but the inner solve takes a few
+extra iterations in this regime. Cross-grid IRLS warm-starting is not yet enabled in the
+released solver: it gave a 2–7<span class='mathjax-inline'>\(\times \)</span> inner-loop speedup in prototyping but caused correctness
+regressions on some heterogeneity regimes, so it is gated pending a convergence-aware
+fallback.
+   
+</p>
+   <h4 class='subsectionHead' id='physics-correspondence'><span class='titlemark'>7.4   </span> <a id='x1-320007.4'></a>Physics correspondence</h4>
+<!-- l. 794 --><p class='noindent'>The construction is an honest grand canonical ensemble: tau springs are elementary
+bosons whose particle number is the effective <span class='mathjax-inline'>\(\tau ^2\)</span> variance; the chemical potential <span class='mathjax-inline'>\(\mu \)</span> fixes the <span class='mathjax-inline'>\(\tau \)</span>
+prior; the inner Laplace computes <span class='mathjax-inline'>\(Z(\tau ^2)\)</span> at fixed chain length. The mode-finder, gradient
+descent, HMC, and Langevin Monte Carlo are all different dynamics on the same spring
+force field <span class='mathjax-inline'>\(-\nabla E\)</span>. Parameter priors are springs to ground; non-Gaussian priors are non-linear
+springs; grouped heterogeneities are multi-species ensembles. The meta-analysis likelihood
+becomes a mechanical system and every estimation question becomes a question about its
+dynamics.
+   
+</p>
+   <h3 class='likesectionHead' id='references'><a id='x1-33000'></a>References</h3>
+<!-- l. 1 --><p class='noindent'>
+  </p><div class='thebibliography'>
+  <p class='bibitem'><span class='biblabel'>
+<a id='Xdias2013tsd2'></a><span class='bibsp'>   </span></span>Sofia  Dias,  Alex J.  Sutton,  AE Ades,  and  Nicky J.  Welton.   NICE  DSU  Technical
+  Support Document 2: A generalised linear modelling framework for pairwise and network
+  meta-analysis of randomised controlled trials.   Technical report, National Institute for
+  Health and Care Excellence Decision Support Unit, 2013.
+                                                                                         
+                                                                                         
+  </p>
+  <p class='bibitem'><span class='biblabel'>
+<a id='Xpapakonstantinou2025spring'></a><span class='bibsp'>   </span></span>Thodoris Papakonstantinou. Spring-REML: heterogeneity estimation and study-specific
+  prediction intervals for network meta-analysis via the spring network framework, 2025.
+  Companion manuscript, this repository.
+  </p>
+  <p class='bibitem'><span class='biblabel'>
+<a id='Xphillippo2023multinma'></a><span class='bibsp'>   </span></span>David M.  Phillippo.   <span class='cmti-12'>multinma:  Bayesian  Network  Meta-Analysis  of  Individual  and
+  Aggregate Data</span>, 2023. R package version 0.5.1.
+  </p>
+  <p class='bibitem'><span class='biblabel'>
+<a id='Xrover2020bayesmeta'></a><span class='bibsp'>   </span></span>Christian Röver. Bayesian random-effects meta-analysis using the bayesmeta R package.
+  <span class='cmti-12'>Journal of Statistical Software</span>, 93(6):1–51, 2020.
+</p>
+  </div>
+    
+</body> 
+</html>
