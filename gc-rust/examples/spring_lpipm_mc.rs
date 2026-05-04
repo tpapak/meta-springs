@@ -137,11 +137,14 @@ fn apply_l_block(
     }
 }
 
-/// Build a graph-aware preconditioner: K independent scalar weighted
-/// Laplacians, one per commodity axis, using diagonal entry S_e[k, k] as
-/// the edge weight. These capture the graph topology (block-Jacobi only
-/// captures per-vertex coupling, not edge coupling). Each n*n scalar
-/// Laplacian is factored once per Newton step via dense Cholesky.
+/// Graph-aware preconditioner: K independent scalar weighted Laplacians,
+/// edge weight = S_e[k, k] = d_inv[k] − r[k]² for axis k. Each n×n
+/// Cholesky-factored once per Newton step (parallelised across axes).
+///
+/// Tried and failed: SHARED preconditioner (single Laplacian using mean
+/// of S_e[k,k] across axes). Per-axis edge weights vary too much for the
+/// average to be a good preconditioner — PCG iter count blew up by ~100×
+/// at K ≥ 10. The K-factor cost is the right tradeoff.
 struct AxisLaplaciansPrec {
     factors: Vec<nalgebra::Cholesky<f64, nalgebra::Dyn>>,
 }
@@ -152,7 +155,10 @@ fn build_axis_laplacians_prec(
     n: usize, k: usize,
     pinned: &[bool],
 ) -> AxisLaplaciansPrec {
-    // K independent factorisations → parallelise across axes.
+    // Per-axis Cholesky (parallelised across K when worthwhile).
+    // Shared/averaged Laplacian was tried — caused PCG iter blowup at
+    // K≥10 because per-axis edge weights vary too much for averaging
+    // to give a tight preconditioner. Per-axis is the right call.
     let factors: Vec<nalgebra::Cholesky<f64, nalgebra::Dyn>> = (0..k).into_par_iter().map(|ki| {
         let mut a = DMatrix::<f64>::zeros(n, n);
         for (e, &(u, v, _)) in edges.iter().enumerate() {
@@ -181,11 +187,7 @@ fn apply_axis_laplacians_prec(
     v: &DVector<f64>,
     z: &mut DVector<f64>,
 ) {
-    // K back-solves are independent. Parallelise only when work per axis
-    // is large enough to amortise rayon overhead — empirically n*K > ~5000
-    // and K ≥ 8 is the sweet spot. Below that, serial loop is faster.
-    let work_per_axis = n * n; // back-solve cost
-    if k >= 8 && work_per_axis >= 4096 {
+    if k >= 8 && n * n >= 4096 {
         let sols: Vec<DVector<f64>> = (0..k).into_par_iter().map(|ki| {
             let mut rhs_axis = DVector::<f64>::zeros(n);
             for vert in 0..n { rhs_axis[vert] = v[vert * k + ki]; }
