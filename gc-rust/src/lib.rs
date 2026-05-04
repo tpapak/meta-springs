@@ -10,6 +10,7 @@
 pub mod contribution;
 pub mod data;
 pub mod gc;
+pub mod lap_solver;
 pub mod nma_iv;
 pub mod output;
 pub mod solver;

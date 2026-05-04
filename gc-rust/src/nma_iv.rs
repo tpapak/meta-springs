@@ -370,6 +370,72 @@ fn student_t_quant_975(df: f64) -> f64 {
 }
 
 // ─────────────────────────────────────────────────────────────────────
+// Dual potentials and per-edge value of information
+// ─────────────────────────────────────────────────────────────────────
+//
+// For a focal contrast `c = e_j − e_i`, the spring solver's dual is the
+// node-potential vector `φ = A⁻¹ c` (with `φ[0] = 0` because treatment 0
+// is pinned). Two quantities follow with no extra compute:
+//
+//   Δφ_k = φ_{t2,k} − φ_{t1,k}        // voltage across the edge
+//   VoI_k = ∂Var(c'β̂) / ∂w_k = −(Δφ_k)²
+//
+// Identity: `Σ_k w_k · (Δφ_k)² = φ' A φ = φ_j − φ_i = Var(β_j − β_i)`.
+// The hat-matrix entry coincides up to a weight: `H[ij, k] = w_k · Δφ_k`.
+
+/// Dual potentials for the focal contrast `β_j − β_i` — the node-potential
+/// vector `φ = A⁻¹ (e_j − e_i)` over all `T` treatments. `φ[0] = 0`
+/// because treatment 0 is the pinned reference.
+pub fn dual_potentials(fit: &IvFitAt, i: usize, j: usize) -> Vec<f64> {
+    let p = fit.a_inv.nrows();
+    let t = p + 1;
+    let mut phi = vec![0.0_f64; t];
+    let col = |idx: usize| -> Option<usize> {
+        if idx == 0 { None } else { Some(idx - 1) }
+    };
+    for u in 1..t {
+        let r = u - 1;
+        let from_j = col(j).map(|cj| fit.a_inv[(r, cj)]).unwrap_or(0.0);
+        let from_i = col(i).map(|ci| fit.a_inv[(r, ci)]).unwrap_or(0.0);
+        phi[u] = from_j - from_i;
+    }
+    phi
+}
+
+/// Per-row value of information for the focal contrast `β_j − β_i`.
+#[derive(Debug, Clone, Serialize)]
+pub struct RowVoI {
+    pub id: String,
+    pub t1: String,
+    pub t2: String,
+    /// `φ_{t2} − φ_{t1}` — voltage across the row's edge.
+    pub dphi: f64,
+    /// `∂Var(β_j − β_i) / ∂w_k = −(Δφ_k)²`. Always ≤ 0.
+    pub voi: f64,
+}
+
+/// Per-row VoI for the focal contrast `β_j − β_i`. Returns one entry per
+/// row in the same order as `d.rows`.
+pub fn value_of_info_per_row(d: &IvDataset, fit: &IvFitAt, i: usize, j: usize) -> Vec<RowVoI> {
+    let phi = dual_potentials(fit, i, j);
+    d.rows
+        .iter()
+        .map(|r| {
+            let i1 = d.treat_idx[&r.t1];
+            let i2 = d.treat_idx[&r.t2];
+            let dphi = phi[i2] - phi[i1];
+            RowVoI {
+                id: r.id.clone(),
+                t1: r.t1.clone(),
+                t2: r.t2.clone(),
+                dphi,
+                voi: -(dphi * dphi),
+            }
+        })
+        .collect()
+}
+
+// ─────────────────────────────────────────────────────────────────────
 // Hat matrix (Davies long form, summed across studies per direct pair)
 // ─────────────────────────────────────────────────────────────────────
 
@@ -947,5 +1013,75 @@ mod tests {
             assert!(r.direct.is_some());
             assert!(r.indirect.is_some(), "{} indirect None", r.comparison);
         }
+    }
+
+    #[test]
+    fn dual_potentials_pinned_zero() {
+        let d = triangle();
+        let fit = fit_iv_at(&d, 0.05);
+        for j in 1..d.n_treats() {
+            for i in 0..j {
+                let phi = dual_potentials(&fit, i, j);
+                assert!(phi[0].abs() < 1e-15, "phi[0] not zero for focal ({i},{j}): {}", phi[0]);
+            }
+        }
+    }
+
+    #[test]
+    fn voi_identity() {
+        let d = triangle();
+        let fit = fit_iv_at(&d, 0.05);
+        // Focal: β_C − β_B (treatments 1, 2).
+        let i = 1;
+        let j = 2;
+        let phi = dual_potentials(&fit, i, j);
+        let var_focal = phi[j] - phi[i];
+        let aij = |a: usize, b: usize| {
+            if a == 0 || b == 0 { 0.0 } else { fit.a_inv[(a - 1, b - 1)] }
+        };
+        let var_check = aij(j, j) + aij(i, i) - 2.0 * aij(i, j);
+        assert!(
+            (var_focal - var_check).abs() < 1e-12,
+            "phi[j]-phi[i] = {var_focal}, var_diff = {var_check}"
+        );
+        let voi_rows = value_of_info_per_row(&d, &fit, i, j);
+        let lhs: f64 = fit
+            .w
+            .iter()
+            .zip(voi_rows.iter())
+            .map(|(w, r)| w * r.dphi * r.dphi)
+            .sum();
+        assert!(
+            (lhs - var_focal).abs() < 1e-10,
+            "Σ w·Δφ² = {lhs}, var_focal = {var_focal}"
+        );
+        for r in &voi_rows {
+            assert!(r.voi <= 0.0);
+            assert!((r.voi + r.dphi * r.dphi).abs() < 1e-15);
+        }
+    }
+
+    #[test]
+    fn voi_matches_hatmatrix() {
+        // For focal (A, C) the only A:C study is s3; the hat-matrix entry
+        // for row "A:C", column "A:C" coincides with w_{s3} · Δφ_{s3}
+        // — exposing the same number from the dual-potential view.
+        let d = triangle();
+        let fit = fit_iv_at(&d, 0.0);
+        let i = 0;
+        let j = 2;
+        let phi = dual_potentials(&fit, i, j);
+        let voi_rows = value_of_info_per_row(&d, &fit, i, j);
+        let hm = hatmatrix_long(&d, &fit);
+        let row_idx = hm.row_names.iter().position(|s| s == "A:C").unwrap();
+        let h_ac_ac = hm.data[row_idx].get("A:C").copied().unwrap_or(0.0);
+        let s3 = d.rows.iter().position(|r| r.id == "s3").unwrap();
+        let expected = fit.w[s3] * voi_rows[s3].dphi;
+        assert!(
+            (h_ac_ac - expected).abs() < 1e-12,
+            "hat A:C/A:C = {h_ac_ac}, expected w·Δφ = {expected}"
+        );
+        assert!(phi[0].abs() < 1e-15);
+        assert!(phi[2] > 0.0, "phi[2] = {} should be positive", phi[2]);
     }
 }

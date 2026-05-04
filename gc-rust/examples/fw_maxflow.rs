@@ -1,0 +1,297 @@
+//! Frank-Wolfe / augmenting-flow max-flow with electrical-flow oracle.
+//!
+//! Maintains an explicit flow `f_e` on each undirected edge (signed). At
+//! each iteration:
+//!
+//!   1. Compute residual capacity `g_e = c_e − |f_e|` per edge (how much
+//!      more flow this edge can carry in either direction).
+//!   2. Solve electrical flow on the residual graph: conductance = `g_e`,
+//!      pin sink, unit demand from source. Gives a direction `d_e`.
+//!   3. Find the largest `α` such that `f + α·d` stays feasible (bound
+//!      by the saturating edge along the chosen direction).
+//!   4. `f += α·d`, `F += α · div_s(d) ≈ α`.
+//!   5. Stop when `α` falls below a tolerance — means no more augmenting
+//!      flow exists in the residual graph.
+//!
+//! Unlike MWU, this is a primal method: at every iter, `f` is exactly
+//! feasible and `F` strictly increases. Termination criterion is
+//! "augmenting flow vanishes," which is the actual optimality condition.
+
+use std::io::Write;
+use std::path::Path;
+use std::process::Command;
+use std::time::Instant;
+
+use gc_rust::lap_solver::CsrLap;
+
+struct Xs256 { s: [u64; 4] }
+impl Xs256 {
+    fn new(seed: u64) -> Self {
+        let mut z = seed.wrapping_add(0x9E3779B97F4A7C15);
+        let mut sm = || {
+            z = z.wrapping_add(0x9E3779B97F4A7C15);
+            let mut x = z;
+            x = (x ^ (x >> 30)).wrapping_mul(0xBF58476D1CE4E5B9);
+            x = (x ^ (x >> 27)).wrapping_mul(0x94D049BB133111EB);
+            x ^ (x >> 31)
+        };
+        Self { s: [sm(), sm(), sm(), sm()] }
+    }
+    fn next_u64(&mut self) -> u64 {
+        let result = self.s[0].wrapping_add(self.s[3]).rotate_left(23).wrapping_add(self.s[0]);
+        let t = self.s[1] << 17;
+        self.s[2] ^= self.s[0]; self.s[3] ^= self.s[1];
+        self.s[1] ^= self.s[2]; self.s[0] ^= self.s[3];
+        self.s[2] ^= t; self.s[3] = self.s[3].rotate_left(45);
+        result
+    }
+    fn gen_range(&mut self, lo: u64, hi: u64) -> u64 { lo + self.next_u64() % (hi - lo) }
+}
+
+#[derive(Clone)]
+struct Graph {
+    n: usize,
+    edges: Vec<(usize, usize, i64)>,
+    source: usize,
+    sink: usize,
+}
+
+fn gen_graph(n: usize, target_e: usize, seed: u64) -> Graph {
+    let mut rng = Xs256::new(seed);
+    let mut edges = Vec::with_capacity(target_e);
+    let mut seen = std::collections::HashSet::with_capacity(target_e);
+    let mut perm: Vec<usize> = (0..n).collect();
+    for i in (1..n).rev() {
+        let j = rng.gen_range(0, (i as u64) + 1) as usize;
+        perm.swap(i, j);
+    }
+    for k in 1..n {
+        let u = perm[k];
+        let parent = perm[rng.gen_range(0, k as u64) as usize];
+        let cap = (rng.gen_range(1, 101)) as i64;
+        let (a, b) = if u < parent { (u, parent) } else { (parent, u) };
+        if seen.insert((a, b)) { edges.push((a, b, cap)); }
+    }
+    while edges.len() < target_e.min(n * (n - 1) / 2) {
+        let u = rng.gen_range(0, n as u64) as usize;
+        let v = rng.gen_range(0, n as u64) as usize;
+        if u == v { continue; }
+        let (a, b) = if u < v { (u, v) } else { (v, u) };
+        if seen.insert((a, b)) {
+            let cap = (rng.gen_range(1, 101)) as i64;
+            edges.push((a, b, cap));
+        }
+    }
+    Graph { n, edges, source: perm[0], sink: perm[n - 1] }
+}
+
+fn write_dimacs(g: &Graph, path: &Path) -> std::io::Result<()> {
+    let mut f = std::fs::File::create(path)?;
+    writeln!(f, "p max {} {}", g.n, g.edges.len() * 2)?;
+    writeln!(f, "n {} s", g.source + 1)?;
+    writeln!(f, "n {} t", g.sink + 1)?;
+    for &(u, v, c) in &g.edges {
+        writeln!(f, "a {} {} {}", u + 1, v + 1, c)?;
+        writeln!(f, "a {} {} {}", v + 1, u + 1, c)?;
+    }
+    Ok(())
+}
+
+fn parse_dimacs<P: AsRef<Path>>(path: P) -> Result<Graph, String> {
+    let text = std::fs::read_to_string(path.as_ref()).map_err(|e| format!("{e}"))?;
+    let mut n = 0; let mut source = 0; let mut sink = 0;
+    let mut directed: Vec<(usize, usize, i64)> = Vec::new();
+    for line in text.lines() {
+        let line = line.trim();
+        if line.is_empty() || line.starts_with('c') { continue; }
+        let mut it = line.split_whitespace();
+        match it.next().unwrap_or("") {
+            "p" => { let _ = it.next(); n = it.next().ok_or("p N")?.parse().map_err(|e| format!("{e}"))?; }
+            "n" => {
+                let id: usize = it.next().ok_or("n id")?.parse().map_err(|e| format!("{e}"))?;
+                match it.next().unwrap_or("") { "s" => source = id, "t" => sink = id, _ => {} }
+            }
+            "a" => {
+                let u: usize = it.next().ok_or("a u")?.parse().map_err(|e| format!("{e}"))?;
+                let v: usize = it.next().ok_or("a v")?.parse().map_err(|e| format!("{e}"))?;
+                let c: i64 = it.next().ok_or("a c")?.parse().map_err(|e| format!("{e}"))?;
+                directed.push((u, v, c));
+            }
+            _ => {}
+        }
+    }
+    if n == 0 || source == 0 || sink == 0 { return Err("incomplete".into()); }
+    let mut buf: Vec<(u32, u32, i64)> = directed.into_iter().filter_map(|(u, v, c)| {
+        if u == v { None } else {
+            let a0 = (u - 1) as u32; let b0 = (v - 1) as u32;
+            Some(if a0 < b0 { (a0, b0, c) } else { (b0, a0, c) })
+        }
+    }).collect();
+    buf.sort_unstable_by_key(|&(a, b, _)| (a, b));
+    let mut edges: Vec<(usize, usize, i64)> = Vec::with_capacity(buf.len());
+    for entry in buf {
+        if let Some(last) = edges.last_mut() {
+            if last.0 as u32 == entry.0 && last.1 as u32 == entry.1 {
+                last.2 = last.2.max(entry.2); continue;
+            }
+        }
+        edges.push((entry.0 as usize, entry.1 as usize, entry.2));
+    }
+    Ok(Graph { n, edges, source: source - 1, sink: sink - 1 })
+}
+
+fn run_ortools(driver: &Path, file: &Path) -> Option<(i64, u64)> {
+    let out = Command::new("python3").arg(driver).arg(file).output().ok()?;
+    if !out.status.success() { return None; }
+    let s = String::from_utf8_lossy(&out.stdout);
+    let line = s.lines().next()?;
+    let mut it = line.split(',');
+    Some((it.next()?.parse().ok()?, it.next()?.parse().ok()?))
+}
+
+fn pcg_pinned(csr: &CsrLap, b: &[f64], pin: usize, tol: f64, max_iter: usize) -> (Vec<f64>, usize) {
+    let n = csr.n();
+    let mut x = vec![0.0_f64; n];
+    let mut r = b.to_vec();
+    r[pin] = 0.0;
+    let diag = csr.diag(0.0);
+    let m_inv: Vec<f64> = (0..n).map(|i| if i != pin && diag[i] > 0.0 { 1.0 / diag[i] } else { 0.0 }).collect();
+    let mut z: Vec<f64> = r.iter().zip(m_inv.iter()).map(|(ri, mi)| ri * mi).collect();
+    let mut p = z.clone();
+    let mut ap = vec![0.0_f64; n];
+    let mut p_pin_zero = vec![0.0_f64; n];
+    let mut rz_old: f64 = r.iter().zip(z.iter()).map(|(a, b)| a * b).sum();
+    let b_norm: f64 = b.iter().map(|v| v * v).sum::<f64>().sqrt().max(1.0);
+    for it in 0..max_iter {
+        p_pin_zero.copy_from_slice(&p);
+        p_pin_zero[pin] = 0.0;
+        csr.apply(0.0, &p_pin_zero, &mut ap);
+        ap[pin] = 0.0;
+        let p_ap: f64 = p.iter().zip(ap.iter()).map(|(a, b)| a * b).sum();
+        if p_ap.abs() < 1e-30 { return (x, it); }
+        let alpha = rz_old / p_ap;
+        for i in 0..n { x[i] += alpha * p[i]; r[i] -= alpha * ap[i]; }
+        x[pin] = 0.0; r[pin] = 0.0;
+        let r_norm: f64 = r.iter().map(|v| v * v).sum::<f64>().sqrt();
+        if r_norm / b_norm < tol { return (x, it + 1); }
+        for i in 0..n { z[i] = r[i] * m_inv[i]; }
+        let rz_new: f64 = r.iter().zip(z.iter()).map(|(a, b)| a * b).sum();
+        let beta = rz_new / rz_old;
+        for i in 0..n { p[i] = z[i] + beta * p[i]; }
+        p[pin] = 0.0;
+        rz_old = rz_new;
+    }
+    (x, max_iter)
+}
+
+fn fw_maxflow(g: &Graph, t_outer: usize, conv_tol: f64) -> (f64, usize, usize, f64) {
+    let n = g.n;
+    let m = g.edges.len();
+    let caps: Vec<f64> = g.edges.iter().map(|&(_, _, c)| c as f64).collect();
+    let mut f = vec![0.0_f64; m];
+    let mut big_f = 0.0_f64;
+    let mut total_pcg = 0_usize;
+    let mut iters_run = 0_usize;
+
+    let mut b = vec![0.0_f64; n];
+    b[g.source] = 1.0;
+    let pin = g.sink;
+
+    let pcg_tol = 1e-10;
+    let max_pcg_iter = (4 * n).max(2000);
+    let t0 = Instant::now();
+
+    for k in 0..t_outer {
+        iters_run = k + 1;
+        // Conductance = residual capacity (how much more flow this edge can carry).
+        // Saturated edges have ~zero conductance, blocking flow through them.
+        let weighted: Vec<(u32, u32, f64)> = g.edges.iter().enumerate()
+            .map(|(i, &(u, v, _))| {
+                let residual = (caps[i] - f[i].abs()).max(1e-12);
+                (u as u32, v as u32, residual)
+            })
+            .collect();
+        let csr = CsrLap::from_canonical_weights(&weighted, n);
+        let (phi, pcg_it) = pcg_pinned(&csr, &b, pin, pcg_tol, max_pcg_iter);
+        total_pcg += pcg_it;
+
+        // Direction d_e = (φ_u − φ_v) · conductance_e
+        let mut d = vec![0.0_f64; m];
+        let mut div_s = 0.0_f64;
+        for (i, &(u, v, _)) in g.edges.iter().enumerate() {
+            let residual = (caps[i] - f[i].abs()).max(1e-12);
+            d[i] = (phi[u] - phi[v]) * residual;
+            if u == g.source { div_s += d[i]; }
+            if v == g.source { div_s -= d[i]; }
+        }
+        if div_s.abs() < conv_tol { break; }
+
+        // α = largest scaling that keeps f + α d feasible (|f_e + α d_e| ≤ c_e).
+        let mut alpha = f64::INFINITY;
+        for i in 0..m {
+            let d_e = d[i];
+            let f_e = f[i];
+            let c_e = caps[i];
+            if d_e.abs() < 1e-15 { continue; }
+            let bound = if d_e > 0.0 {
+                (c_e - f_e) / d_e
+            } else {
+                (-c_e - f_e) / d_e
+            };
+            if bound > 0.0 && bound < alpha { alpha = bound; }
+        }
+        if !alpha.is_finite() || alpha < conv_tol { break; }
+
+        for i in 0..m { f[i] += alpha * d[i]; }
+        big_f += alpha * div_s;
+    }
+    (big_f, iters_run, total_pcg, t0.elapsed().as_secs_f64() * 1000.0)
+}
+
+fn main() {
+    let args: Vec<String> = std::env::args().collect();
+    let driver = Path::new("/Users/tosku/Sync/Documents/tide-maxflow/solvers/drivers/ortools_maxflow.py");
+    let dimacs: Option<String> = args.iter().find_map(|a| a.strip_prefix("--dimacs=")).map(String::from);
+    let t_outer: usize = args.iter().find_map(|a| a.strip_prefix("--T=")?.parse().ok()).unwrap_or(2000);
+    let conv_tol: f64 = args.iter().find_map(|a| a.strip_prefix("--tol=")?.parse().ok()).unwrap_or(1e-9);
+
+    if let Some(path) = dimacs {
+        let pb = Path::new(&path);
+        let g = parse_dimacs(pb).expect("parse dimacs");
+        let (f_or, us_or) = run_ortools(driver, pb).expect("ortools");
+        let (f_fw, iters, pcg, fw_ms) = fw_maxflow(&g, t_outer, conv_tol);
+        let f_or = f_or as f64;
+        let abs_err = (f_fw - f_or).abs();
+        let rel_err = abs_err / f_or.max(1.0);
+        let name = pb.file_name().and_then(|s| s.to_str()).unwrap_or("").trim_end_matches(".max");
+        println!("name,V,E,F_or,F_FW,abs_err,rel_err,iters,pcg_iters,fw_ms,or_ms");
+        println!("{},{},{},{:.0},{:.2},{:.2},{:.5},{},{},{:.1},{:.2}",
+            name, g.n, g.edges.len(), f_or, f_fw, abs_err, rel_err, iters, pcg, fw_ms, us_or as f64 / 1000.0);
+        return;
+    }
+
+    let n: usize = args.iter().find_map(|a| a.strip_prefix("--n=")?.parse().ok()).unwrap_or(200);
+    let m_target: usize = args.iter().find_map(|a| a.strip_prefix("--m=")?.parse().ok()).unwrap_or(1000);
+    let n_seeds: u64 = args.iter().find_map(|a| a.strip_prefix("--seeds=")?.parse().ok()).unwrap_or(5);
+
+    println!("# FW max-flow. n={n}, m={m_target}, T_outer={t_outer}, conv_tol={conv_tol}");
+    println!("seed,V,E,F_or,F_FW,abs_err,rel_err,iters,pcg_iters,fw_ms,or_ms");
+    let mut max_rel_err = 0.0_f64;
+    for seed in 0..n_seeds {
+        let g = gen_graph(n, m_target, 0xDEAD_BEEF_C0DE_F00D ^ seed);
+        let tmp = std::env::temp_dir().join(format!("fw_{seed}.max"));
+        write_dimacs(&g, &tmp).unwrap();
+        let (f_or, us_or) = run_ortools(driver, &tmp).expect("ortools");
+        let (f_fw, iters, pcg, fw_ms) = fw_maxflow(&g, t_outer, conv_tol);
+        let f_or = f_or as f64;
+        let abs_err = (f_fw - f_or).abs();
+        let rel_err = abs_err / f_or.max(1.0);
+        if rel_err > max_rel_err { max_rel_err = rel_err; }
+        println!("{},{},{},{:.0},{:.2},{:.2},{:.5},{},{},{:.1},{:.2}",
+            seed, g.n, g.edges.len(), f_or, f_fw, abs_err, rel_err, iters, pcg, fw_ms, us_or as f64 / 1000.0);
+        let _ = std::fs::remove_file(&tmp);
+    }
+    eprintln!();
+    eprintln!("# max rel err: {:.4}%", max_rel_err * 100.0);
+    eprintln!("# pass (≤ 1%): {}", max_rel_err <= 0.01);
+}
