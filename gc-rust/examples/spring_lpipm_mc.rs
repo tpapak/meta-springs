@@ -160,6 +160,11 @@ fn apply_l_block(
 enum AxisFactor {
     Dense(nalgebra::Cholesky<f64, nalgebra::Dyn>),
     Ic0(Ic0),
+    /// Sparse direct LDLᵀ from sprs-ldl (Davis's LDL library, RCM ordering).
+    /// True direct factorization (not incomplete) with fill-reducing
+    /// permutation. Builds in O(n^1.5)-ish for sparse Laplacians, applies
+    /// in O(nnz of factor). Massive win over dense at large n.
+    Ldl(sprs_ldl::LdlNumeric<f64, usize>),
 }
 
 struct AxisLaplaciansPrec {
@@ -175,36 +180,50 @@ fn build_axis_laplacians_prec(
     // Use IC0 (sparse, incomplete Cholesky no-fill) when n is large
     // enough that dense Cholesky wastes work; otherwise dense.
     // Crossover: empirically n ≥ 100 → IC0 is faster to build AND apply.
-    // IC0 looked promising in isolation but turns out to give a slightly
-    // worse preconditioner that hits the WHOLE Newton convergence loop —
-    // the IPM line search has more rejected steps with approximate prec,
-    // so total Newton iters go up and net time is worse than dense even
-    // at n = 200. Keep dense as default; revisit IC0 only if a per-axis
-    // sparse direct factor (not incomplete) becomes available.
+    // Backend selection per axis:
+    //   - Dense Cholesky (default everywhere). Proven cubic build, BLAS
+    //     apply via nalgebra.
+    //   - LDL (sprs-ldl) — code path retained but disabled by default.
+    //     ALLOCATION-BOUND in practice: each solve() call allocates 2
+    //     vectors (perm × rhs and pinv × x). For our use case (240K solve
+    //     calls in a single Newton optimisation at K=5) the malloc
+    //     overhead dwarfs the sparse-back-solve savings → 20× slower
+    //     than dense at n=200, K=5.
+    //     Would need either a custom solve_in_place wrapper or
+    //     sprs_suitesparse_ldl bindings to make sparse competitive.
+    //   - IC0 — disabled. Incomplete → 30% more Newton iters → net loss.
+    let use_ldl = false;
     let use_ic0 = false;
-    // Build serial too (Ic0 not Sync). For dense Cholesky build we could
-    // parallelise, but the per-axis n^3 cost is small at our test sizes.
-    let factors: Vec<AxisFactor> = (0..k).map(|ki| {
-        if use_ic0 {
-            // Build CSR Laplacian for axis ki. Pinning is enforced in the
-            // outer matvec / PCG; the preconditioner uses a tiny ridge ε
-            // to keep the factor SPD.
-            let weighted: Vec<(u32, u32, f64)> = edges.iter().map(|&(u, v, _e_idx)| {
-                let _ = _e_idx;
-                (u as u32, v as u32, 0.0)
-            }).collect();
-            let mut weighted_full: Vec<(u32, u32, f64)> = Vec::with_capacity(edges.len());
+    let _ = use_ic0;
+    let _ = use_ldl;
+    // Parallel build across K (factors are independent per axis). Dense
+    // Cholesky factor (`AxisFactor::Dense`) is Send + Sync.
+    let factors: Vec<AxisFactor> = (0..k).into_par_iter().map(|ki| {
+        if false {  // LDL path: see comment above (allocation-bound).
+            let mut tri = sprs::TriMat::<f64>::new((n, n));
             for (e, &(u, v, _)) in edges.iter().enumerate() {
+                if pinned[u * k + ki] || pinned[v * k + ki] { continue; }
                 let s_kk = (s_e_fac[e].d_prime[ki] - s_e_fac[e].r[ki] * s_e_fac[e].r[ki]).max(1e-14);
-                weighted_full.push((u as u32, v as u32, s_kk));
+                tri.add_triplet(u, u, s_kk);
+                tri.add_triplet(v, v, s_kk);
+                tri.add_triplet(u, v, -s_kk);
+                tri.add_triplet(v, u, -s_kk);
             }
-            let _ = weighted;
-            let csr = CsrLap::from_canonical_weights(&weighted_full, n);
-            // Use larger ε on pinned vertices so the preconditioner doesn't
-            // try to "solve" for the constrained DOFs (we'll zero them in apply).
-            // Simpler: use a small uniform ridge; outer PCG handles pin.
-            let ic = Ic0::new(&csr, 1e-8);
-            AxisFactor::Ic0(ic)
+            for v in 0..n {
+                let pin_v = pinned[v * k + ki];
+                if pin_v {
+                    tri.add_triplet(v, v, 1.0);
+                } else {
+                    tri.add_triplet(v, v, 1e-12);
+                }
+            }
+            let csc: sprs::CsMat<f64> = tri.to_csc();
+            let ldl = sprs_ldl::Ldl::new()
+                .check_symmetry(sprs::SymmetryCheck::DontCheckSymmetry)
+                .check_perm(sprs::PermutationCheck::DontCheckPerm)
+                .numeric(csc.view())
+                .expect("sprs-ldl factorisation");
+            AxisFactor::Ldl(ldl)
         } else {
             let mut a = DMatrix::<f64>::zeros(n, n);
             for (e, &(u, v, _)) in edges.iter().enumerate() {
@@ -253,6 +272,10 @@ fn apply_axis_laplacians_prec(
             AxisFactor::Ic0(ic) => {
                 let mut sol = vec![0.0_f64; n];
                 ic.apply(&tmp_in, &mut sol);
+                for vert in 0..n { out[vert * k + ki] = sol[vert]; }
+            }
+            AxisFactor::Ldl(ldl) => {
+                let sol = ldl.solve(&tmp_in[..]);
                 for vert in 0..n { out[vert * k + ki] = sol[vert]; }
             }
         }
