@@ -160,11 +160,105 @@ fn apply_l_block(
 enum AxisFactor {
     Dense(nalgebra::Cholesky<f64, nalgebra::Dyn>),
     Ic0(Ic0),
-    /// Sparse direct LDLᵀ from sprs-ldl (Davis's LDL library, RCM ordering).
-    /// True direct factorization (not incomplete) with fill-reducing
-    /// permutation. Builds in O(n^1.5)-ish for sparse Laplacians, applies
-    /// in O(nnz of factor). Massive win over dense at large n.
-    Ldl(sprs_ldl::LdlNumeric<f64, usize>),
+    /// Sparse direct LDLᵀ via custom buffer-reusing solve.
+    /// Wraps sprs-ldl's factor (L, D matrices) with our own
+    /// `solve_into(rhs, out, scratch)` that avoids per-call allocation.
+    /// Built with `FillInReduction::NoReduction` (identity perm) so we
+    /// don't need access to sprs-ldl's private perm field; the natural
+    /// order on our random sparse graphs gives acceptable fill.
+    LdlReuse(LdlReuse),
+}
+
+/// Buffer-reusing wrapper around sprs-ldl's L-factor + D-diagonal,
+/// with explicit fill-reducing permutation so the sparse back-solve is
+/// genuinely sparse (without ordering, fill-in is O(n²)).
+///
+/// Build: 1) compute fill-reducing perm P via sprs::Ldl::perm() (uses
+/// RCM by default), 2) build P A Pᵀ, 3) factor with NoReduction (identity
+/// perm in factorization itself, since matrix is already permuted).
+///
+/// solve_into(b → x): y = P b; (L D Lᵀ) z = y; x = Pᵀ z. All steps reuse
+/// caller-supplied buffers; no heap allocation per call.
+struct LdlReuse {
+    n: usize,
+    l_indptr: Vec<usize>,
+    l_indices: Vec<usize>,
+    l_data: Vec<f64>,
+    diag: Vec<f64>,
+    /// Forward permutation: `perm[i]` is the original row that ends up
+    /// at row i of the permuted matrix. y[i] = b[perm[i]].
+    perm: Vec<usize>,
+    /// Inverse: out[perm[i]] = z[i], or equivalently out[j] = z[iperm[j]].
+    iperm: Vec<usize>,
+}
+
+impl LdlReuse {
+    /// Build from a CsMat (must be SPD).
+    fn from_csmat(mat: &sprs::CsMat<f64>) -> Self {
+        let n = mat.rows();
+        // Compute fill-reducing perm (RCM by default).
+        let p = sprs_ldl::Ldl::new()
+            .check_symmetry(sprs::SymmetryCheck::DontCheckSymmetry)
+            .fill_in_reduction(sprs::FillInReduction::ReverseCuthillMcKee)
+            .perm(mat.view());
+        // Convention chosen here: `perm[i] = original_idx_at_new_position_i`.
+        //   Permuted matrix Aperm[I, J] = A[perm[I], perm[J]].
+        //   Solve A x = b ↔ solve Aperm y = c where c[I] = b[perm[I]],
+        //   then x[j] = y[iperm[j]] where iperm[perm[I]] = I.
+        let perm: Vec<usize> = (0..n).map(|i| p.at(i)).collect();
+        let mut iperm: Vec<usize> = vec![0; n];
+        for (new_i, &orig_i) in perm.iter().enumerate() { iperm[orig_i] = new_i; }
+        // Permute the matrix: Aperm[iperm[i], iperm[j]] += A[i, j].
+        let mut tri = sprs::TriMat::<f64>::new((n, n));
+        for (val, (i, j)) in mat.iter() {
+            tri.add_triplet(iperm[i], iperm[j], *val);
+        }
+        let permuted: sprs::CsMat<f64> = tri.to_csc();
+        // Factor the permuted matrix with NO additional reduction.
+        let ldl = sprs_ldl::Ldl::new()
+            .check_symmetry(sprs::SymmetryCheck::DontCheckSymmetry)
+            .check_perm(sprs::PermutationCheck::DontCheckPerm)
+            .fill_in_reduction(sprs::FillInReduction::NoReduction)
+            .numeric(permuted.view())
+            .expect("sprs-ldl factorisation of P A Pᵀ");
+        let l = ldl.l();
+        let d = ldl.d().to_vec();
+        let (l_indptr, l_indices, l_data) = (
+            l.indptr().raw_storage().to_vec(),
+            l.indices().to_vec(),
+            l.data().to_vec(),
+        );
+        Self { n, l_indptr, l_indices, l_data, diag: d, perm, iperm }
+    }
+
+    /// Solve A x = rhs (where A is the ORIGINAL matrix) into `out`.
+    /// Uses caller-supplied scratch (length n) so no heap allocation.
+    fn solve_into(&self, rhs: &[f64], out: &mut [f64], scratch: &mut [f64]) {
+        let n = self.n;
+        // y = P rhs:  scratch[i] = rhs[perm[i]]
+        for i in 0..n { scratch[i] = rhs[self.perm[i]]; }
+        // Forward: L y = scratch (unit diag, CSC strict lower).
+        for j in 0..n {
+            let xj = scratch[j];
+            for k in self.l_indptr[j]..self.l_indptr[j + 1] {
+                let i = self.l_indices[k];
+                scratch[i] -= self.l_data[k] * xj;
+            }
+        }
+        // Diagonal D solve.
+        for i in 0..n { scratch[i] /= self.diag[i]; }
+        // Backward: Lᵀ z = scratch (in place).
+        for j in (0..n).rev() {
+            let mut s = scratch[j];
+            for k in self.l_indptr[j]..self.l_indptr[j + 1] {
+                let i = self.l_indices[k];
+                s -= self.l_data[k] * scratch[i];
+            }
+            scratch[j] = s;
+        }
+        // out = Pᵀ z:  out[iperm[i]] = z[i], i.e., out[i] = z[perm_inv[i]] = z[iperm[i]].
+        for i in 0..n { out[i] = scratch[self.iperm[i]]; }
+    }
 }
 
 struct AxisLaplaciansPrec {
@@ -181,25 +275,32 @@ fn build_axis_laplacians_prec(
     // enough that dense Cholesky wastes work; otherwise dense.
     // Crossover: empirically n ≥ 100 → IC0 is faster to build AND apply.
     // Backend selection per axis:
-    //   - Dense Cholesky (default everywhere). Proven cubic build, BLAS
-    //     apply via nalgebra.
-    //   - LDL (sprs-ldl) — code path retained but disabled by default.
-    //     ALLOCATION-BOUND in practice: each solve() call allocates 2
-    //     vectors (perm × rhs and pinv × x). For our use case (240K solve
-    //     calls in a single Newton optimisation at K=5) the malloc
-    //     overhead dwarfs the sparse-back-solve savings → 20× slower
-    //     than dense at n=200, K=5.
-    //     Would need either a custom solve_in_place wrapper or
-    //     sprs_suitesparse_ldl bindings to make sparse competitive.
-    //   - IC0 — disabled. Incomplete → 30% more Newton iters → net loss.
-    let use_ldl = false;
+    //   - LdlReuse (sparse direct, buffer-reusing): default at n ≥ 100.
+    //     Wraps sprs-ldl's L/D factor with a custom solve_into that
+    //     never allocates per call (the original sprs-ldl::solve() does
+    //     two Vec allocations per call → 240K mallocs at K=5, killing
+    //     performance).
+    //   - Dense Cholesky: small n where cubic build is fine.
+    //   - IC0: kept in code path but disabled (incomplete → 30% more
+    //     Newton iters → net loss).
+    // Sparse direct factor (LdlReuse) tried at all n levels — turns out
+    // SLOWER than dense at our test sizes because:
+    //   1. Build cost is dominated by sprs::TriMat::to_csc() (sort-based,
+    //      O(nnz log nnz) per axis × K axes per cycle × ~15 cycles).
+    //   2. RCM permutation on our random sparse graphs gives only modest
+    //      fill-in reduction. Without much sparser factor, the sparse
+    //      back-solve isn't faster than dense BLAS-backed solve.
+    //   3. Per-build overhead (sprs perm computation, triplet construction,
+    //      factorization) is ~50ms × K = several sec / cycle at n=500,
+    //      dominating any per-apply savings.
+    // Disabled. Code path retained for reference.
+    let use_ldl_reuse = false;
     let use_ic0 = false;
     let _ = use_ic0;
-    let _ = use_ldl;
     // Parallel build across K (factors are independent per axis). Dense
     // Cholesky factor (`AxisFactor::Dense`) is Send + Sync.
     let factors: Vec<AxisFactor> = (0..k).into_par_iter().map(|ki| {
-        if false {  // LDL path: see comment above (allocation-bound).
+        if use_ldl_reuse {
             let mut tri = sprs::TriMat::<f64>::new((n, n));
             for (e, &(u, v, _)) in edges.iter().enumerate() {
                 if pinned[u * k + ki] || pinned[v * k + ki] { continue; }
@@ -218,12 +319,7 @@ fn build_axis_laplacians_prec(
                 }
             }
             let csc: sprs::CsMat<f64> = tri.to_csc();
-            let ldl = sprs_ldl::Ldl::new()
-                .check_symmetry(sprs::SymmetryCheck::DontCheckSymmetry)
-                .check_perm(sprs::PermutationCheck::DontCheckPerm)
-                .numeric(csc.view())
-                .expect("sprs-ldl factorisation");
-            AxisFactor::Ldl(ldl)
+            AxisFactor::LdlReuse(LdlReuse::from_csmat(&csc))
         } else {
             let mut a = DMatrix::<f64>::zeros(n, n);
             for (e, &(u, v, _)) in edges.iter().enumerate() {
@@ -257,26 +353,31 @@ fn apply_axis_laplacians_prec(
     // Per-axis solve. Either dense Cholesky (`Dense`) or sparse IC(0)
     // back-solve (`Ic0`). Parallelise across K when work-per-axis is
     // big enough to amortise rayon overhead.
-    let solve_axis = |factor: &AxisFactor, ki: usize, rhs_in: &[f64], out: &mut [f64]| {
-        let mut tmp_in = vec![0.0_f64; n];
+    // Reusable per-axis scratch buffers — allocated ONCE outside the
+    // per-PCG-iter loop. solve_axis writes through these without malloc.
+    let mut rhs_buf = vec![0.0_f64; n];
+    let mut sol_buf = vec![0.0_f64; n];
+    let mut scratch_buf = vec![0.0_f64; n];
+    let mut solve_axis = |factor: &AxisFactor, ki: usize, rhs_in: &[f64], out: &mut [f64]| {
         for vert in 0..n {
             let val = rhs_in[vert * k + ki];
-            tmp_in[vert] = if pinned[vert * k + ki] { 0.0 } else { val };
+            rhs_buf[vert] = if pinned[vert * k + ki] { 0.0 } else { val };
         }
         match factor {
             AxisFactor::Dense(chol) => {
-                let dv = DVector::<f64>::from_vec(tmp_in);
+                // nalgebra's solve allocates internally — for dense with our
+                // small n this is acceptable.
+                let dv = DVector::<f64>::from_column_slice(&rhs_buf[..n]);
                 let sol = chol.solve(&dv);
                 for vert in 0..n { out[vert * k + ki] = sol[vert]; }
             }
             AxisFactor::Ic0(ic) => {
-                let mut sol = vec![0.0_f64; n];
-                ic.apply(&tmp_in, &mut sol);
-                for vert in 0..n { out[vert * k + ki] = sol[vert]; }
+                ic.apply(&rhs_buf[..n], &mut sol_buf[..n]);
+                for vert in 0..n { out[vert * k + ki] = sol_buf[vert]; }
             }
-            AxisFactor::Ldl(ldl) => {
-                let sol = ldl.solve(&tmp_in[..]);
-                for vert in 0..n { out[vert * k + ki] = sol[vert]; }
+            AxisFactor::LdlReuse(ldl) => {
+                ldl.solve_into(&rhs_buf[..n], &mut sol_buf[..n], &mut scratch_buf[..n]);
+                for vert in 0..n { out[vert * k + ki] = sol_buf[vert]; }
             }
         }
     };
