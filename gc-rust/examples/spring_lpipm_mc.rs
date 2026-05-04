@@ -175,7 +175,13 @@ fn build_axis_laplacians_prec(
     // Use IC0 (sparse, incomplete Cholesky no-fill) when n is large
     // enough that dense Cholesky wastes work; otherwise dense.
     // Crossover: empirically n ≥ 100 → IC0 is faster to build AND apply.
-    let use_ic0 = n >= 100;
+    // IC0 looked promising in isolation but turns out to give a slightly
+    // worse preconditioner that hits the WHOLE Newton convergence loop —
+    // the IPM line search has more rejected steps with approximate prec,
+    // so total Newton iters go up and net time is worse than dense even
+    // at n = 200. Keep dense as default; revisit IC0 only if a per-axis
+    // sparse direct factor (not incomplete) becomes available.
+    let use_ic0 = false;
     // Build serial too (Ic0 not Sync). For dense Cholesky build we could
     // parallelise, but the per-axis n^3 cost is small at our test sizes.
     let factors: Vec<AxisFactor> = (0..k).map(|ki| {
@@ -658,6 +664,11 @@ fn newton_step(
         let chol = nalgebra::Cholesky::new(a_dense)?;
         chol.solve(&rhs)
     } else {
+        // PCG must be tight enough that Schur residual doesn't break
+        // conservation. We tried loose tol (1e-8 ish, max_pcg = 4n) — it
+        // saved no measurable time AND inflated F_total by 2-3% via
+        // cons-violation accumulation across Newton steps. Stick with
+        // tight tol; the spring-projection error has to stay near machine.
         let pcg_tol = 1e-12_f64;
         let max_pcg = (40 * n).max(2000);
         let warm = lambda_warm.clone().unwrap_or_else(|| DVector::<f64>::zeros(dim));
