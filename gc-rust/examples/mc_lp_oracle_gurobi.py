@@ -30,6 +30,7 @@ def main():
     model = gp.Model("mc_maxflow")
     model.setParam("OutputFlag", 0)  # quiet
     model.setParam("Threads", 0)     # use all cores
+    t_construct_start = time.perf_counter()
 
     # Variables
     f = model.addVars(K, m, lb=-GRB.INFINITY, ub=GRB.INFINITY, name="f")
@@ -65,7 +66,11 @@ def main():
     # Maximise Σ_i F[i]
     model.setObjective(gp.quicksum(F[i] for i in range(K)), GRB.MAXIMIZE)
 
+    t_construct_ms = (time.perf_counter() - t_construct_start) * 1000.0
+    t_solve_start = time.perf_counter()
     model.optimize()
+    t_solve_ms = (time.perf_counter() - t_solve_start) * 1000.0
+    runtime_ms = float(model.Runtime) * 1000.0  # gurobi-internal solve time
 
     elapsed_ms = (time.perf_counter() - t0) * 1000.0
 
@@ -84,6 +89,9 @@ def main():
         "total": total,
         "status": int(model.status),
         "time_ms": elapsed_ms,
+        "construct_ms": t_construct_ms,
+        "solve_wall_ms": t_solve_ms,
+        "solve_runtime_ms": runtime_ms,
         "solver": "gurobi",
     }))
 
