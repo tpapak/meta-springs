@@ -6,7 +6,6 @@ notes/
 *.swp
 *.swo
 *.lock
-claude.md
 todo.md
 gc-rust/target/
 gc-rust/Cargo.lock
