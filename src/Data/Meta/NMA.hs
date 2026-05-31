@@ -19,6 +19,7 @@ module Data.Meta.NMA
     SpringVertex (..),
     NaturalLength (..),
     TauSquare (..),
+    TauGroup,
     TauId (..),
     makeSprings,
     makeBinomialSprings,
@@ -34,6 +35,8 @@ module Data.Meta.NMA
     linearize,
     linearizeNetwork,
     updateSprings,
+    updateSpringsGrouped,
+    setTauGroups,
     removeStudy,
     netStudies
   )
@@ -140,6 +143,10 @@ linearizeNetwork net = net { springs = Map.map linearize (springs net) }
 
 type TauSquare = Double
 
+-- | Tau-group identifier for per-group heterogeneity (τ²) estimation.
+-- Default group is 0; classification functions assign edges to groups.
+type TauGroup = Int
+
 data TauId = TauId StudyId TreatmentId
   deriving (Show, Eq, Ord)
 
@@ -165,7 +172,9 @@ data SpringNetwork =
                 , springs :: Map.Map G.Edge Spring
                 , pinned :: Maybe G.Vertex
                 , tauEdges :: Set.Set G.Edge
-                , tau2 :: TauSquare
+                , tauGroupMap :: Map.Map G.Edge TauGroup -- tau edge → group
+                , tau2 :: TauSquare -- default / group 0 τ²
+                , tau2s :: Map.Map TauGroup TauSquare -- τ² per group
                 , qqTau :: Double -- Tau springs energy Qτ=2Uτ
                 , qqTau' :: Double -- kτ derivative of Qτ
                 , designs :: IM.IntMap Int -- Studies per design
@@ -321,7 +330,9 @@ makeSprings studies mpinnedVertex mtau2' armEffect =
                               , vs2ts = vssts
                               , pinned = mpinnedVertex
                               , tauEdges = tauEdges
+                              , tauGroupMap = Map.empty
                               , tau2 = fromMaybe 0.0 mtau2
+                              , tau2s = Map.singleton 0 (fromMaybe 0.0 mtau2)
                               , qqTau = 0
                               , qqTau' = 0
                               , designs = designs'
@@ -431,7 +442,9 @@ makeBinomialSprings studies mpinnedVertex mtau2' =
                                   , vs2ts = vssts
                                   , pinned = mpinnedVertex
                                   , tauEdges = tauEdges
+                                  , tauGroupMap = Map.empty
                                   , tau2 = fromMaybe 0.0 mtau2
+                                  , tau2s = Map.singleton 0 (fromMaybe 0.0 mtau2)
                                   , qqTau = 0
                                   , qqTau' = 0
                                   , designs = designs'
@@ -771,6 +784,49 @@ updateSprings oldSpringsNet newTau2 =
    in oldSpringsNet { tau2 = newTau2
                     , springs = newSprings
                     }
+
+-- | Update tau springs using per-group τ² values and per-edge multipliers.
+-- Each tau edge looks up its group (default 0) and the group's τ², then a
+-- per-edge multiplier (default 2 = symmetric, 1 = Dias anchored).
+updateSpringsGrouped ::
+  SpringNetwork ->
+  Map.Map TauGroup TauSquare ->  -- τ² per group (contrast-level)
+  Map.Map G.Edge Double ->       -- per-edge multiplier
+  SpringNetwork
+updateSpringsGrouped oldSpringsNet newTau2s edgeMults =
+  let oldSprings = springs oldSpringsNet
+      grpMap = tauGroupMap oldSpringsNet
+      !newSprings =
+        foldl' (\acc e ->
+          let grp = Map.findWithDefault 0 e grpMap
+              t2 = Map.findWithDefault 0.5 grp newTau2s
+              mult = Map.findWithDefault 2.0 e edgeMults
+           in Map.adjust (\s -> updateHardness s (t2 / mult)) e acc)
+          oldSprings (Set.toList $ tauEdges oldSpringsNet)
+      defaultTau2 = Map.findWithDefault 0.5 0 newTau2s
+   in oldSpringsNet { tau2 = defaultTau2
+                    , tau2s = newTau2s
+                    , springs = newSprings
+                    }
+
+-- | Set tau groups based on a classification function.
+-- The function receives (StudyId, TreatmentId) for each tau spring
+-- and returns the group assignment.
+setTauGroups :: (StudyId -> TreatmentId -> TauGroup) -> SpringNetwork -> SpringNetwork
+setTauGroups classify net =
+  let vssts = vs2ts net
+      newGrpMap = Map.fromList
+        [ (e, classify sid tid)
+        | e@(G.Edge u v) <- Set.toList (tauEdges net)
+        , let tauVertex = case IM.lookup v vssts of
+                Just (TauEnd _) -> v
+                _ -> u  -- try the other end
+              mTauId = case IM.lookup tauVertex vssts of
+                Just (TauEnd (TauId sid tid)) -> Just (sid, tid)
+                _ -> Nothing
+        , Just (sid, tid) <- [mTauId]
+        ]
+   in net { tauGroupMap = newGrpMap }
 
 -- | unsafely remove study given the index is that of a study. Use with
 -- netStudyies
