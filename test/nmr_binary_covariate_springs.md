@@ -34,6 +34,12 @@ one effect axis and every spring is horizontal.
   treatment effect is the network-mean of its evidence). Centering keeps β
   unchanged but decorrelates it from the intercept; the reference is pinned at 0
   and has no covariate node.
+- **β node wired to the studies that load it** — dashed wires run from the
+  shared β node to the spindles of studies that compare a treatment *against the
+  reference* (the only ones that identify the shared β). In an active-vs-active
+  study the common `β·x` shift is absorbed by `μ_i`, so β cancels and the study
+  gets no wire (S5, S6 in the toy). This is `∂E/∂β = Σ k·(x−x̄)·resid` made
+  visible: only reference-involving arms contribute.
 - **Study spindle `S_i`** at the centroid `μ̂_i`; **τ-chain** from the spindle
   to each arm's **BLUP node** `δ_ij = (τ²/(v+τ²))·(y − μ_i − d_j − β·x_i)`; and
   an **observation spring** from the BLUP node to the arm's treatment column
