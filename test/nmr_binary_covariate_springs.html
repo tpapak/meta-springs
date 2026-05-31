@@ -32,8 +32,8 @@
 <div class="subtitle">
   Same grammar as the &Xi; animation, with a covariate. Standard NMA convention y<sub>ij</sub> = &mu;<sub>i</sub> + (d<sub>j</sub> + &beta;·x<sub>i</sub>) + &delta;<sub>ij</sub>.
   <b style="color:#c2410c">Study spindles S<sub>i</sub></b> sit at the centroid &mu;&#770;<sub>i</sub>; each arm has a <b>&tau;-chain</b> to its
-  <b style="color:#444">BLUP node</b> &delta;<sub>ij</sub> and an <b style="color:#1a73e8">obs spring</b> to its treatment column.
-  The covariate is <b>centred</b>, so each treatment's capital <b>base node</b> (B, C) is the effect at the mean covariate and its two lowercase covariate nodes (b<sub>0</sub>, b<sub>1</sub>) sit <b>symmetrically</b> at d<sub>j</sub> &#8723; &beta;/2; the <b style="color:#e65100">&beta; spring</b> (length &beta;) joins them through the base node and shares one <b style="color:#e65100">&beta; node</b>.
+  <b style="color:#444">BLUP node</b> &delta;<sub>ij</sub> and an <b style="color:#1a73e8">obs spring</b> to its base column d<sub>j</sub>.
+  The covariate is <b>centred</b>, so each treatment's capital <b>base node</b> (B, C) is the effect at the mean covariate and its two lowercase covariate nodes (b<sub>0</sub>, b<sub>1</sub>) sit <b>symmetrically</b> at d<sub>j</sub> &#8723; &beta;/2. A non-reference arm then continues in series along a <b style="color:#e65100">&beta; spring</b> from the base column to the covariate node where it sits &mdash; every &beta; spring shares the one <b style="color:#e65100">&beta; node</b> (top).
 </div>
 
 <div class="ctrl-row">
@@ -53,7 +53,7 @@
 
 <div class="legend">
   <b>Vertical columns</b> through the study rows = effect nodes: <b>solid capital</b> = base node d<sub>j</sub> (effect at the mean covariate); <b>dashed lowercase</b> = the two symmetric covariate levels d<sub>j</sub>&#8723;&beta;/2 (b<sub>0</sub> = x&nbsp;=&nbsp;0 on the left, b<sub>1</sub> = x&nbsp;=&nbsp;1 on the right). x=0 arms land on b<sub>0</sub>, x=1 arms on b<sub>1</sub>.
-  Reference A is pinned (d<sub>A</sub>=0) and has no covariate node. Each study's obs spring lands on a covariate node, which the &beta; spring holds at d<sub>j</sub>&#8723;&beta;/2 &mdash; that is how the studies are tied to the &beta; node (all horizontal).
+  Reference A is pinned (d<sub>A</sub>=0) and has no covariate node. Each non-reference arm's <b style="color:#1a73e8">obs spring</b> lands on the base column d<sub>j</sub>, then a <b style="color:#e65100">&beta; spring</b> carries it in series to the covariate node d<sub>j</sub>&#8723;&beta;/2 where the arm sits &mdash; and every &beta; spring shares the one &beta; node (all horizontal, parallel).
   <b>Pooled</b> drops &beta; (one network); <b>Unrelated</b> frees each &beta;<sub>t</sub>.
   Raise &tau;² and the BLUP nodes slide out along the &tau;-chains while the obs springs relax — &tau;² is now <i>residual</i> heterogeneity after regression.
 </div>
@@ -181,7 +181,7 @@ function render(){
     if(Math.abs(v-Math.round(v))<0.01) h+=`<text x="${xx}" y="${axisYbot+39}" text-anchor="middle" font-size="10" fill="#666">${v}</text>`; }
   h+=`<text x="${baseX+scale*3.0+10}" y="${axisYbot+26}" font-size="11" fill="#444">effect axis (log-OR vs A)</text>`;
 
-  // --- beta node + beta springs (header) ---
+  // --- shared beta node (every arm's beta spring below shares this value) ---
   h+=`<text x="40" y="${yBetaRow+4}" font-size="12" fill="#e65100" font-weight="700">β node</text>`;
   if(mode==='shared'){
     const bx=baseX+scale*betaShared;
@@ -189,15 +189,9 @@ function render(){
     h+=`<rect x="${(bx-9).toFixed(1)}" y="${yBetaRow-9}" width="18" height="18" transform="rotate(45 ${bx.toFixed(1)} ${yBetaRow})" fill="#e65100" stroke="#fff" stroke-width="2"/>`;
     h+=`<text x="${bx.toFixed(1)}" y="${yBetaRow-15}" text-anchor="middle" font-size="12" fill="#e65100" font-weight="700">β=${fmt(betaShared,2)}</text>`;
     h+=`<circle cx="${baseX}" cy="${yBetaRow}" r="3" fill="#999"/>`;
-    // each treatment's beta spring (base node -> covariate node), tied to the shared beta node
-    for(let t=1;t<T;t++){ const b0=colX(t,0), b1=colX(t,1);
-      h+=drawCoil(b0, yCovRow-12, b1, yCovRow-12, '#e65100', Math.max(2,Math.round(scale*betaShared/28)), 1.8, 5);
-      h+=`<line x1="${((b0+b1)/2).toFixed(1)}" y1="${yCovRow-18}" x2="${bx.toFixed(1)}" y2="${yBetaRow+8}" stroke="#e65100" stroke-width="1" stroke-dasharray="3,3" opacity="0.5"/>`; }
+    h+=`<text x="${((baseX+bx)/2).toFixed(1)}" y="${yBetaRow+16}" text-anchor="middle" font-size="9.5" fill="#b35a00">one length, shared by every arm's β spring below</text>`;
   } else if(mode==='unrelated'){
-    h+=`<text x="${baseX}" y="${yBetaRow+4}" font-size="12" fill="#999">coupling cut — each treatment keeps its own βₜ</text>`;
-    for(let t=1;t<T;t++){ const b0=colX(t,0), b1=colX(t,1);
-      h+=drawCoil(b0, yCovRow-12, b1, yCovRow-12, treatColor[t], Math.max(2,Math.round(scale*Math.abs(betaOf(t))/28)), 1.8, 5);
-      h+=`<text x="${((b0+b1)/2).toFixed(1)}" y="${yCovRow-18}" text-anchor="middle" font-size="11" fill="${treatColor[t]}" font-weight="600">β_${treatments[t]}=${fmt(betaOf(t),2)}</text>`; }
+    h+=`<text x="${baseX}" y="${yBetaRow+4}" font-size="12" fill="#999">coupling cut — each treatment keeps its own β<tspan font-size="9" dy="2">t</tspan> (β-spring colour = treatment)</text>`;
   } else {
     h+=`<text x="${baseX}" y="${yBetaRow+4}" font-size="12" fill="#b35a00" font-weight="600">β ≡ 0 — covariate node falls onto the base node (one pooled network)</text>`;
   }
@@ -205,7 +199,7 @@ function render(){
   // --- studies: spindle S_i + per-arm tau-chain, BLUP node, obs spring ---
   studies.forEach((st,si)=>{
     const lay=layouts[si];
-    const armCols = st.arms.map(a=>colX(a.t, st.x));
+    const armCols = st.arms.map(a=>baseColX(a.t));              // centroid over BASE columns
     const xs = armCols.reduce((s,x)=>s+x,0)/armCols.length;     // centroid = mu_i visual anchor
     const barTop=lay.armYs[0]-8, barBot=lay.armYs[lay.armYs.length-1]+8;
     h+=`<rect x="${(xs-3).toFixed(1)}" y="${barTop}" width="6" height="${(barBot-barTop).toFixed(1)}" fill="#fed7aa" stroke="#c2410c" stroke-width="1.5" rx="3"/>`;
@@ -217,20 +211,27 @@ function render(){
     h+=`<text x="${baseX-150}" y="${midY+11}" font-size="10" fill="#888">μ&#770;=${fmt(mu[si],2)}</text>`;
 
     st.arms.forEach((arm,k)=>{
-      const armY=lay.armYs[k], xt=colX(arm.t, st.x);
+      const armY=lay.armYs[k];
+      const xbase=baseColX(arm.t), xlev=colX(arm.t, st.x);     // base column, and covariate-level node
       const r = arm.y - (mu[si] + colEffect(arm.t, st.x));      // residual vs full fixed predictor
       const blup = (tau2/(arm.v+tau2+1e-12))*r;
       const xtau = xs + scale*blup;
       h+=drawTauChain(xs, armY, xtau, armY, N);
       h+=`<circle cx="${xtau.toFixed(1)}" cy="${armY}" r="3.5" fill="#444" stroke="#222" stroke-width="0.6"/>`;
       if(Math.abs(blup)>0.005) h+=`<text x="${xtau.toFixed(1)}" y="${armY-8}" text-anchor="middle" font-size="9" fill="#666">δ=${fmt(blup,2)}</text>`;
-      // obs spring: tau node -> treatment column (covariate-adjusted)
-      const naturalPx=Math.abs(scale*arm.y), obsChord=Math.abs(xt-xtau);
-      const stretch=obsChord/Math.max(naturalPx,1e-3);
-      const obsColor= stretch>1.25?'#dc2626' : stretch<0.80?'#0891b2' : '#1a73e8';
-      const sgn=Math.sign(xt-xtau)||1;
-      h+=drawCoil(xtau+5*sgn, armY, xt-4*sgn, armY, obsColor, Math.max(2,Math.round(naturalPx/26)), 1.7, 6);
-      h+=`<text x="${xt.toFixed(1)}" y="${armY+14}" text-anchor="middle" font-size="9" fill="#666">${treatments[arm.t]}: y=${fmt(arm.y,2)}</text>`;
+      // obs spring: tau node -> BASE column (d_t)
+      const sgnO=Math.sign(xbase-xtau)||1;
+      h+=drawCoil(xtau+5*sgnO, armY, xbase-4*sgnO, armY, '#1a73e8', Math.max(2,Math.round(Math.abs(xbase-xtau)/26)), 1.7, 6);
+      // beta spring (series): BASE column -> covariate-level node (non-reference arms only)
+      let xend=xbase;
+      if(hasCov && arm.t!==0){
+        const bcol = (mode==='shared') ? '#e65100' : treatColor[arm.t];
+        const sgnB=Math.sign(xlev-xbase)||1;
+        h+=drawCoil(xbase+3*sgnB, armY, xlev-3*sgnB, armY, bcol, Math.max(2,Math.round(Math.abs(xlev-xbase)/20)), 1.7, 5);
+        h+=`<circle cx="${xlev.toFixed(1)}" cy="${armY}" r="3.2" fill="${bcol}"/>`;   // arm sits on the covariate node
+        xend=xlev;
+      }
+      h+=`<text x="${xend.toFixed(1)}" y="${armY+14}" text-anchor="middle" font-size="9" fill="#666">${treatments[arm.t]}${(hasCov&&arm.t!==0)?(st.x?'₁':'₀'):''}: y=${fmt(arm.y,2)}</text>`;
     });
   });
 
