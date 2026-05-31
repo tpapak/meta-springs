@@ -106,8 +106,18 @@ tests:
     # via `stack runghc`; without this list hpack would glob them into the test
     # component and GHC would reject the duplicate/ mismatched Main modules.
     other-modules:
+    # NMA / REML core (from meta-analysis)
+    - Test.Meta.Studies
+    - Test.Meta.Effects
+    - Test.Meta.Multiarm
+    - Test.Numerics
     - Test.Meta.CommonEffect
+    - Test.Meta.NMA
+    - Test.Meta.BinomialSpringTest
+    - Test.Meta.REMLValidation
     - Test.Meta.SpringREMLTest
+    - Test.Meta.GroupingTest
+    # mixed-model / spring-relaxation validation (from slmm)
     - Test.MixedModel.DyestuffTest
     - Test.MixedModel.SleepstudyTest
     - Test.MixedModel.IPDSimpleTest
