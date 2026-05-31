@@ -52,6 +52,14 @@ The fixed parameters are solved jointly from the arm-level normal equations
 `[d_1..d_{T-1}, μ_1..μ_S, β]`, exactly as the Ξ animation solves `[d, μ]` — the
 covariate just adds the β column.
 
+**Maximum-likelihood β panel.** The spring equilibrium *is* the (G)LS / ML
+estimate of β given τ², so the displayed β is `β̂`. The side panel draws its
+full profile likelihood — exact Gaussian `N(β̂, (A⁻¹)_ββ)` where `A` is the
+arm-level Hessian — with the 95% CI band and the `β=0` reference line. Because
+`A` depends on τ², raising τ² widens the curve: in the toy `β=0` is excluded at
+τ²=0 (CI [0.38, 1.67]) but no longer resolved by τ²≈0.2 (CI [−0.37, 2.43]) —
+residual heterogeneity erodes the covariate signal.
+
 Two kinds of spring:
 
 1. **Study springs** — each study `i` is a coil *inside its own covariate layer*
