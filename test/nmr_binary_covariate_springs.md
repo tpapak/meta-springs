@@ -34,12 +34,13 @@ one effect axis and every spring is horizontal.
   treatment effect is the network-mean of its evidence). Centering keeps β
   unchanged but decorrelates it from the intercept; the reference is pinned at 0
   and has no covariate node.
-- **β node wired to the studies that load it** — dashed wires run from the
-  shared β node to the spindles of studies that compare a treatment *against the
-  reference* (the only ones that identify the shared β). In an active-vs-active
-  study the common `β·x` shift is absorbed by `μ_i`, so β cancels and the study
-  gets no wire (S5, S6 in the toy). This is `∂E/∂β = Σ k·(x−x̄)·resid` made
-  visible: only reference-involving arms contribute.
+- **The studies are already tied to the β node horizontally**: each obs spring
+  lands on a covariate node, which the β spring holds at `d_j ∓ β/2` and ties to
+  the β node — so moving β moves where those springs are anchored. No extra
+  (diagonal) wires are needed; everything stays on the horizontal grammar.
+  (Only reference-involving studies actually *identify* β — active-vs-active
+  comparisons cancel the common `β·x` into `μ_i` — but that is a property of the
+  fit, not something that needs its own glyph.)
 - **Study spindle `S_i`** at the centroid `μ̂_i`; **τ-chain** from the spindle
   to each arm's **BLUP node** `δ_ij = (τ²/(v+τ²))·(y − μ_i − d_j − β·x_i)`; and
   an **observation spring** from the BLUP node to the arm's treatment column

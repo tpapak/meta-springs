@@ -53,7 +53,7 @@
 
 <div class="legend">
   <b>Vertical columns</b> through the study rows = effect nodes: <b>solid capital</b> = base node d<sub>j</sub> (effect at the mean covariate); <b>dashed lowercase</b> = the two symmetric covariate levels d<sub>j</sub>&#8723;&beta;/2 (b<sub>0</sub> = x&nbsp;=&nbsp;0 on the left, b<sub>1</sub> = x&nbsp;=&nbsp;1 on the right). x=0 arms land on b<sub>0</sub>, x=1 arms on b<sub>1</sub>.
-  Reference A is pinned (d<sub>A</sub>=0) and has no covariate node. <b style="color:#e65100">Dashed wires</b> tie the &beta; node to the study spindles that actually load it &mdash; only studies comparing a treatment <i>against the reference</i> (warm = x&nbsp;=&nbsp;1, light = x&nbsp;=&nbsp;0); active-vs-active studies (S5, S6) cancel &beta; into &mu;<sub>i</sub> and get no wire.
+  Reference A is pinned (d<sub>A</sub>=0) and has no covariate node. Each study's obs spring lands on a covariate node, which the &beta; spring holds at d<sub>j</sub>&#8723;&beta;/2 &mdash; that is how the studies are tied to the &beta; node (all horizontal).
   <b>Pooled</b> drops &beta; (one network); <b>Unrelated</b> frees each &beta;<sub>t</sub>.
   Raise &tau;² and the BLUP nodes slide out along the &tau;-chains while the obs springs relax — &tau;² is now <i>residual</i> heterogeneity after regression.
 </div>
@@ -152,16 +152,6 @@ function render(){
   const baseColX = t => baseX + scale*d[t];                            // base node = effect at mean covariate
   const hasCov = (mode!=='pooled');
 
-  // spindle positions + which studies actually identify beta (must contain the reference arm;
-  // active-vs-active comparisons cancel the shared beta into mu_i and inform it not at all)
-  const spin = studies.map((st,si)=>{
-    const armCols = st.arms.map(a=>colX(a.t, st.x));
-    return { x: armCols.reduce((s,x)=>s+x,0)/armCols.length,
-             top: layouts[si].armYs[0]-8,
-             informsBeta: st.arms.some(a=>a.t===0) && st.arms.some(a=>a.t!==0),
-             lvl: st.x };
-  });
-
   document.getElementById('tauDisplay').innerHTML  = `&tau;² = ${fmt(tau2,3)}`;
   let bStr = (mode==='shared') ? fmt(betaShared,3)
            : (mode==='pooled') ? '0 (clamped)'
@@ -176,18 +166,6 @@ function render(){
     h+=`<line x1="${bx.toFixed(1)}" y1="${yCovRow}" x2="${bx.toFixed(1)}" y2="${axisYbot}" stroke="${treatColor[t]}" stroke-width="2" opacity="0.85"/>`;
     if(hasCov && t!==0){ [0,1].forEach(xl=>{ const cx=colX(t,xl);
       h+=`<line x1="${cx.toFixed(1)}" y1="${yCovRow}" x2="${cx.toFixed(1)}" y2="${axisYbot}" stroke="${treatColor[t]}" stroke-width="1.4" stroke-dasharray="6,4" opacity="0.7"/>`; }); }
-  }
-
-  // --- wire the (shared) beta node to the study spindles that load it ---
-  if(mode==='shared'){
-    const bx=baseX+scale*betaShared, by=yBetaRow;
-    spin.forEach(sp=>{
-      if(!sp.informsBeta) return;
-      const col = sp.lvl===1 ? '#e65100' : '#fb923c';          // x=1 pulls beta up, x=0 down
-      const my = (by+sp.top)/2 - 26;
-      h+=`<path d="M ${bx.toFixed(1)} ${by} Q ${((bx+sp.x)/2).toFixed(1)} ${my.toFixed(1)} ${sp.x.toFixed(1)} ${sp.top.toFixed(1)}" stroke="${col}" stroke-width="1.5" fill="none" stroke-dasharray="2,3" opacity="0.65"/>`;
-      h+=`<circle cx="${sp.x.toFixed(1)}" cy="${sp.top.toFixed(1)}" r="2.6" fill="${col}"/>`;
-    });
   }
 
   // --- effect-axis ruler ---
