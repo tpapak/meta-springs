@@ -101,6 +101,23 @@ tests:
   meta-springs-test:
     main:                Spec.hs
     source-dirs:         test
+    # Pin the modules the suite actually uses. The rest of test/ is standalone
+    # `module Main` scripts (proto_*, gc_compare/*, BayesmetaCompare, ...) run
+    # via `stack runghc`; without this list hpack would glob them into the test
+    # component and GHC would reject the duplicate/ mismatched Main modules.
+    other-modules:
+    - Test.Meta.CommonEffect
+    - Test.Meta.SpringREMLTest
+    - Test.MixedModel.DyestuffTest
+    - Test.MixedModel.SleepstudyTest
+    - Test.MixedModel.IPDSimpleTest
+    - Test.MixedModel.SleepstudyRETest
+    - Test.MixedModel.PlaqueGLMMTest
+    - Test.MixedModel.SpringNetTest
+    - Test.MixedModel.SpringRelaxTest
+    - Test.MixedModel.LMM
+    - Test.MixedModel.SpringNet
+    - Test.MixedModel.SpringRelax
     ghc-options:
     - -threaded
     - -rtsopts
