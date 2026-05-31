@@ -22,6 +22,7 @@ module Data.Meta.RandomEffects
   , newtonSolveReducedBin
   , springREMLBin
   , springREMLBinOpt
+  , springREMLBinGrouped
   , studyWithinVariance
   , studyKeff
   , studyPredictionVariance
@@ -1812,3 +1813,116 @@ accumV :: [Double] -> [(Int, Double)] -> [Double]
 accumV v entries = foldl' (\vs (i, val) ->
   [ if j == i then old + val else old | (j, old) <- zip [0..] vs ]
   ) v entries
+
+-- | Binary REML with per-group τ² estimation (τ-grouping).
+--
+-- Generalises 'springREMLBinOpt' to estimate a separate between-study
+-- variance per group of contrasts.  Pass a classification function mapping
+-- (StudyId, TreatmentId) → group; @Nothing@ puts everything in group 0
+-- (equivalent to the ungrouped estimator).  @groupMults@ gives the springs
+-- per contrast for each group (2 = symmetric, 1 = Dias anchored).  Returns
+-- the network effects together with the per-group τ² estimates and the EM
+-- path.
+springREMLBinGrouped ::
+  [Study] ->
+  Maybe (StudyId -> TreatmentId -> TauGroup) -> -- ^ grouping function (Nothing = all group 0)
+  Map.Map TauGroup Double ->     -- ^ multiplier per group (springs per contrast: 2=symmetric, 1=Dias)
+  Map.Map TauGroup TauSquare ->  -- ^ initial τ² per group
+  Maybe Int ->        -- ^ max outer iterations
+  Maybe Double ->     -- ^ convergence tolerance
+  Either String (NetworkEffects, (Map.Map TauGroup TauSquare, [Map.Map TauGroup TauSquare]))
+springREMLBinGrouped studies mGroupFn groupMults mtau0s miters mε =
+  let iters = fromMaybe 1000 miters
+      ε = fromMaybe 1e-4 mε
+      irlsIters = 50
+      irlsEps = 1e-8
+      espringnetFE = makeBinomialSprings studies Nothing Nothing
+      mkNet t2 = makeBinomialSprings studies Nothing (Just t2)
+   in case (espringnetFE, mkNet 0.5) of
+        (Left err, _) -> Left err
+        (_, Left err) -> Left err
+        (Right fenet, Right springsnet0') ->
+          let springsnet0 = case mGroupFn of
+                Nothing -> springsnet0'
+                Just fn -> setTauGroups fn springsnet0'
+              grpMap = tauGroupMap springsnet0
+              allGroups = Set.toList $ Set.fromList $ Map.elems grpMap
+              guess0 = Map.fromList
+                [ (g, Map.findWithDefault 0.5 g mtau0s) | g <- allGroups ]
+              tau2Max = 20.0
+              -- Per-edge multiplier: each edge's multiplier comes from its group.
+              -- Symmetric model: mult=2 (two springs share each contrast).
+              -- Dias anchored: mult=1 (one spring per contrast).
+              edgeMultiplier =
+                Map.fromList
+                  [ (e, Map.findWithDefault 2.0 g groupMults)
+                  | e <- Set.toList (tauEdges springsnet0)
+                  , let g = Map.findWithDefault 0 e grpMap
+                  ]
+              -- EM step: per-group τ² update
+              emStepG t2map prevNet =
+                let netWithTau = updateSpringsGrouped prevNet t2map edgeMultiplier
+                    neteffs = irlsSolve netWithTau irlsIters irlsEps
+                    spnet = springNetwork neteffs
+                    sprs = springs spnet
+                    tauEs = tauEdges spnet
+                    studyVs = netStudies spnet
+                    deltaVarMap = studyDeltaVariances neteffs
+                    -- Collect (length², variance) per group
+                    perGroup = Map.fromListWith (++)
+                      [ (Map.findWithDefault 0 e grpMap,
+                         [(springLength s ^ 2, var)])
+                      | sv <- studyVs
+                      , (e, s) <- Map.toList $ Map.filterWithKey
+                          (\(G.Edge u v) _ -> (u == sv || v == sv)
+                            && Set.member (G.Edge u v) tauEs) sprs
+                      , let vars = IM.findWithDefault [] sv deltaVarMap
+                            svTauEdges = [ e' | (e', _) <- Map.toList $
+                              Map.filterWithKey (\(G.Edge u v) _ ->
+                                (u == sv || v == sv) &&
+                                Set.member (G.Edge u v) tauEs) sprs ]
+                            idx = length $ takeWhile (/= e) svTauEdges
+                            var = if idx < length vars then vars !! idx else 0
+                      ]
+                    -- Per-group τ² update using per-edge multipliers:
+                    -- τ²_g = Σ_{e∈g} [mult_e × (l²_e + Var_e)] / N_g
+                    perGroupWeighted = Map.fromListWith (++)
+                      [ (Map.findWithDefault 0 e grpMap,
+                         [mult_e * (l2 + var)])
+                      | sv <- studyVs
+                      , (e, s) <- Map.toList $ Map.filterWithKey
+                          (\(G.Edge u v) _ -> (u == sv || v == sv)
+                            && Set.member (G.Edge u v) tauEs) sprs
+                      , let l2 = springLength s ^ 2
+                            mult_e = Map.findWithDefault 2.0 e edgeMultiplier
+                            vars = IM.findWithDefault [] sv deltaVarMap
+                            svTauEdges = [ e' | (e', _) <- Map.toList $
+                              Map.filterWithKey (\(G.Edge u v) _ ->
+                                (u == sv || v == sv) &&
+                                Set.member (G.Edge u v) tauEs) sprs ]
+                            idx = length $ takeWhile (/= e) svTauEdges
+                            var = if idx < length vars then vars !! idx else 0
+                      ]
+                    newT2map = Map.fromList
+                      [ (g, let vals = Map.findWithDefault [] g perGroupWeighted
+                                nG = fromIntegral $ length vals
+                                raw = if nG > 0
+                                      then max 0 $ sum vals / nG
+                                      else 0
+                             in min tau2Max raw)
+                      | g <- allGroups ]
+                 in (newT2map, spnet)
+              -- Convergence check: max change across groups
+              maxChange t2old t2new =
+                maximum [ abs (Map.findWithDefault 0 g t2new - Map.findWithDefault 0 g t2old)
+                        | g <- allGroups ]
+              -- Iteration loop
+              step t2map net path iter
+                | maxChange t2map t2map_new <= ε || iter > iters =
+                    let finalNet = updateSpringsGrouped net' t2map_new edgeMultiplier
+                        neteffs' = irlsSolve finalNet irlsIters irlsEps
+                     in (neteffs', (t2map_new, reverse (t2map_new : path)))
+                | otherwise = step t2map_new net' (t2map_new : path) (iter + 1)
+                where
+                  (t2map_new, net') = emStepG t2map net
+           in Right (step guess0 springsnet0 [] 1)
