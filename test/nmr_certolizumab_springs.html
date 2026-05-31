@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Network Meta-Regression — Certolizumab (disease duration)</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; background: #fafafa; color: #222;
+    display: flex; flex-direction: column; align-items: center; padding: 20px; }
+  h1 { font-size: 19px; font-weight: 600; margin-bottom: 4px; }
+  .subtitle { font-size: 13px; color: #666; margin-bottom: 14px; max-width: 1000px; text-align: center; line-height:1.5; }
+  .ctrl-row { display: flex; gap: 10px; align-items: center; margin-bottom: 8px; flex-wrap: wrap; justify-content: center; }
+  button { padding: 5px 14px; border: 1px solid #aaa; border-radius: 4px; background: #fff; cursor: pointer; font-size: 13px; }
+  button:hover { background: #eee; }
+  button.active { background: #333; color: #fff; border-color: #333; }
+  button.mode { background: #fff7ed; border-color: #fb8c00; color: #b35a00; }
+  button.mode.active { background: #e65100; color: #fff; border-color: #e65100; }
+  label { font-size: 13px; color: #555; }
+  input[type=range] { width: 120px; vertical-align: middle; }
+  .pill { font-family: 'SF Mono','Consolas',monospace; font-size: 14px; background: #fff3e0; border: 1px solid #f0b27a;
+    border-radius: 4px; padding: 3px 10px; color: #b35a00; font-weight: 600; min-width: 130px; text-align: center; }
+  .pill.tau { background: #f0f4ff; border-color: #c4d4f4; color: #1a3a6e; }
+  svg { border: 1px solid #ddd; border-radius: 6px; background: #fff; }
+  #info { margin-top: 10px; font-size: 13px; color: #555; display: flex; gap: 22px; flex-wrap: wrap; justify-content: center; }
+  #info span { font-family: 'SF Mono','Consolas',monospace; }
+  .legend { margin-top: 10px; font-size: 12px; color: #777; max-width: 1020px; text-align: center; line-height: 1.6; }
+  .legend b { color: #555; }
+</style>
+</head>
+<body>
+
+<h1>Network Meta-Regression: Certolizumab in rheumatoid arthritis</h1>
+<div class="subtitle">
+  Canonical NMR teaching example (Dias et&nbsp;al., NICE DSU TSD&nbsp;3; gemtc <code>certolizumab</code>).
+  12 trials, 6 active drugs vs <b>Placebo</b>, outcome ACR50 (log-OR), continuous covariate = <b>mean disease duration</b> (years).
+  Each treatment's effect-vs-covariate line is a spring-loaded regression: every study (dot) hangs from its
+  treatment's line by a vertical spring of stiffness 1/(v<sub>i</sub>+&tau;&sup2;). Shared-slope model: one common &beta;.
+</div>
+
+<div class="ctrl-row">
+  <button class="mode active" id="mReg">Meta-regression (shared &beta;)</button>
+  <button class="mode" id="mNMA">Standard NMA (&beta; = 0)</button>
+</div>
+<div class="ctrl-row">
+  <button id="btnPlay">Play</button>
+  <button id="btnStep">Step</button>
+  <button id="btnSnap">Snap to fit</button>
+  <button id="btnReset">Reset</button>
+</div>
+<div class="ctrl-row">
+  <span class="pill" id="betaDisplay">&beta; = 0.000</span>
+  <span class="pill tau" id="tauDisplay">&tau;&sup2; = 0.000</span>
+  <label>&tau;&sup2; <input type="range" id="tauSlider" min="0" max="150" value="0" step="1"></label>
+  <label>Damping <input type="range" id="damping" min="1" max="40" value="20"></label>
+</div>
+
+<svg id="canvas" width="1120" height="600"></svg>
+
+<div id="info">
+  <div>Weighted SS: <span id="energy">--</span></div>
+  <div>&beta; (log-OR / yr): <span id="betaInfo">--</span></div>
+  <div>OR per yr: <span id="orInfo">--</span></div>
+  <div>Iter: <span id="iter">0</span></div>
+</div>
+
+<div class="legend">
+  <b>Coloured lines</b> = each drug's log-OR vs placebo as a function of disease duration, y = d<sub>t</sub> + &beta;·x.
+  <b>Dots</b> = observed trial log-ORs (0.5 continuity correction where a cell is 0); <b>coils</b> = the springs pulling each line
+  to its data, thicker = more precise. The dashed line at 0 is <b>placebo</b> (reference, no slope).
+  Toggle <b>Standard NMA</b> to set &beta;=0: the lines go flat and the springs strain wherever effect varies with duration —
+  that strain is the evidence for a covariate effect. The spring equilibrium is the weighted-least-squares NMR fit.
+</div>
+
+<script>
+// ===================== DATA: gemtc certolizumab (computed log-OR vs placebo) =====================
+// treatment index, study label, x = disease duration (yr), lor = log-OR vs placebo, v = variance
+const treatNames  = ['Adalimumab','Certolizumab','Etanercept','Infliximab','Rituximab','Tocilizumab'];
+const treatColors = ['#1b9e77','#d95f02','#7570b3','#e7298a','#66a61e','#e6ab02'];
+const NT = treatNames.length;
+const studies = [
+  { t:0, label:'Kim2007',       x:6.85,  lor:1.5130, v:0.19237 },
+  { t:0, label:'DE019',         x:10.95, lor:1.8122, v:0.07844 },
+  { t:0, label:'ARMADA',        x:11.65, lor:2.6433, v:0.27790 },
+  { t:1, label:'RAPID2',        x:5.85,  lor:2.6959, v:0.27665 },
+  { t:1, label:'RAPID1',        x:6.15,  lor:1.9811, v:0.08300 },
+  { t:2, label:'Weinblatt1999', x:13.00, lor:2.9193, v:1.10574 },
+  { t:3, label:'ATTEST',        x:7.85,  lor:0.8528, v:0.08283 },
+  { t:3, label:'START',         x:8.10,  lor:1.4816, v:0.04642 },
+  { t:3, label:'Abe2006',       x:8.30,  lor:3.7538, v:2.11455 },
+  { t:4, label:'Strand2006',    x:11.25, lor:0.0000, v:0.45714 },
+  { t:5, label:'CHARISMA',      x:0.915, lor:0.9963, v:0.18013 },
+  { t:5, label:'OPTION',        x:7.65,  lor:1.8678, v:0.07076 },
+];
+
+// ===================== MODEL =====================
+// coords = [ d_0 .. d_5 , beta ]   (intercept per treatment, one shared slope)
+const NP = NT + 1, IB = NT;       // beta index
+let coords = new Float64Array(NP);
+let vel    = new Float64Array(NP);
+let tau2 = 0, useBeta = true, iter = 0, running = false;
+function weight(s){ return 1/(s.v + tau2); }
+function lineAt(t, x){ return coords[t] + (useBeta ? coords[IB] : 0) * x; }
+
+function forces(){
+  const f = new Float64Array(NP);
+  for (const s of studies){
+    const w = weight(s), r = lineAt(s.t, s.x) - s.lor;   // residual (line - data)
+    f[s.t] -= 2*w*r;
+    if (useBeta) f[IB] -= 2*w*r*s.x;
+  }
+  if (!useBeta){ f[IB]=0; coords[IB]=0; vel[IB]=0; }
+  return f;
+}
+function energy(){ let e=0; for(const s of studies){ const r=lineAt(s.t,s.x)-s.lor; e+=weight(s)*r*r; } return e; }
+function stepPhysics(){
+  const dt=0.004, damp=+document.getElementById('damping').value/100;
+  const f=forces(), n = useBeta?NP:NT;
+  for(let j=0;j<n;j++){ vel[j]=(vel[j]+dt*f[j])*(1-damp); coords[j]+=dt*vel[j]; }
+  iter++;
+}
+function solveExact(){
+  const n = useBeta?NP:NT;
+  const M=Array.from({length:n},()=>new Float64Array(n)), rhs=new Float64Array(n);
+  for(const s of studies){
+    const w=weight(s);
+    const a=new Float64Array(n); a[s.t]=1; if(useBeta) a[IB]=s.x;
+    for(let i=0;i<n;i++){ rhs[i]+=w*a[i]*s.lor; for(let j=0;j<n;j++) M[i][j]+=w*a[i]*a[j]; }
+  }
+  const A=M.map((r,i)=>[...r,rhs[i]]);
+  for(let c=0;c<n;c++){ let mx=Math.abs(A[c][c]),mr=c;
+    for(let r=c+1;r<n;r++) if(Math.abs(A[r][c])>mx){mx=Math.abs(A[r][c]);mr=r;}
+    [A[c],A[mr]]=[A[mr],A[c]];
+    for(let r=c+1;r<n;r++){const ff=A[r][c]/A[c][c];for(let k=c;k<=n;k++)A[r][k]-=ff*A[c][k];} }
+  const sol=new Float64Array(n);
+  for(let i=n-1;i>=0;i--){let su=A[i][n];for(let j=i+1;j<n;j++)su-=A[i][j]*sol[j];sol[i]=su/A[i][i];}
+  const out=new Float64Array(NP); for(let i=0;i<n;i++) out[i]=sol[i]; return out;
+}
+
+// ===================== LAYOUT & DRAW =====================
+const svg = document.getElementById('canvas');
+const W=1120, H=600, margin={left:64, right:210, top:56, bottom:60};
+const plotW=W-margin.left-margin.right, plotH=H-margin.top-margin.bottom;
+const xMin=0, xMax=14, yMin=-1.5, yMax=4.5;
+function xs(d){ return margin.left + (d-xMin)/(xMax-xMin)*plotW; }
+function ys(v){ return margin.top + (yMax-v)/(yMax-yMin)*plotH; }
+
+function el(tag,a){ const e=document.createElementNS('http://www.w3.org/2000/svg',tag); for(const k in a) e.setAttribute(k,a[k]); return e; }
+function txt(x,y,s,o){ const e=el('text',Object.assign({x,y},o)); e.textContent=s; svg.appendChild(e); return e; }
+function coilPath(x1,y1,x2,y2,coils){
+  const dx=x2-x1,dy=y2-y1,len=Math.hypot(dx,dy); if(len<1e-6) return `M${x1},${y1}`;
+  const ux=dx/len,uy=dy/len,px=-uy,py=ux,lead=8,amp=6,body=Math.max(len-2*lead,0),seg=body/(coils*2);
+  let d=`M${x1},${y1} L${x1+ux*lead},${y1+uy*lead}`,cx=x1+ux*lead,cy=y1+uy*lead;
+  for(let i=0;i<coils*2;i++){const s=(i%2===0)?1:-1;cx+=ux*seg+px*amp*s;cy+=uy*seg+py*amp*s;d+=` L${cx.toFixed(1)},${cy.toFixed(1)}`;}
+  return d+` L${x2},${y2}`;
+}
+
+function draw(){
+  while(svg.firstChild) svg.removeChild(svg.firstChild);
+  // grid + axes
+  for(let v=-1;v<=4;v++){ svg.appendChild(el('line',{x1:margin.left,y1:ys(v),x2:margin.left+plotW,y2:ys(v),stroke:'#f0f0f0'}));
+    txt(margin.left-10,ys(v)+4,v.toFixed(0),{['text-anchor']:'end',['font-size']:11,fill:'#aaa'}); }
+  for(let d=0;d<=14;d+=2){ svg.appendChild(el('line',{x1:xs(d),y1:margin.top,x2:xs(d),y2:margin.top+plotH,stroke:'#f6f6f6'}));
+    txt(xs(d),margin.top+plotH+18,d.toFixed(0),{['text-anchor']:'middle',['font-size']:11,fill:'#aaa'}); }
+  txt(margin.left+plotW/2, H-16, 'mean disease duration (years)', {['text-anchor']:'middle',['font-size']:12,fill:'#777'});
+  txt(18, margin.top+plotH/2, 'log-OR vs placebo', {['text-anchor']:'middle',['font-size']:12,fill:'#777',transform:`rotate(-90 18 ${margin.top+plotH/2})`});
+
+  // placebo reference line (y = 0)
+  svg.appendChild(el('line',{x1:xs(0),y1:ys(0),x2:xs(14),y2:ys(0),stroke:'#bbb',['stroke-width']:1.5,['stroke-dasharray']:'5 4'}));
+  txt(xs(14)+6, ys(0)+4, 'Placebo', {['font-size']:11,fill:'#999',['font-weight']:600});
+
+  // treatment regression lines
+  for(let t=0;t<NT;t++){
+    const y0=lineAt(t,0), y14=lineAt(t,14);
+    svg.appendChild(el('line',{x1:xs(0),y1:ys(y0),x2:xs(14),y2:ys(y14),stroke:treatColors[t],['stroke-width']:2.4,opacity:0.9}));
+  }
+
+  // study springs (vertical: data dot -> treatment line)
+  studies.forEach(s=>{
+    const lx=xs(s.x), ly=ys(lineAt(s.t,s.x)), dy=ys(s.lor);
+    const ncoil=Math.max(3,Math.round(6/Math.sqrt(s.v+tau2)/3));   // stiffer (lower v) => more coils
+    svg.appendChild(el('path',{d:coilPath(lx,ly,lx,dy,ncoil),fill:'none',stroke:treatColors[s.t],['stroke-width']:1.6,opacity:0.8}));
+    svg.appendChild(el('circle',{cx:lx,cy:dy,r:4.5,fill:treatColors[s.t],stroke:'#fff',['stroke-width']:1.2}));
+  });
+
+  // legend (right): treatment effects at duration = 8 yr
+  let ly0=margin.top+6;
+  txt(W-margin.right+14, ly0, 'effect vs placebo @ 8 yr', {['font-size']:11,fill:'#888',['font-weight']:600}); ly0+=18;
+  for(let t=0;t<NT;t++){
+    const eff=lineAt(t,8);
+    svg.appendChild(el('line',{x1:W-margin.right+14,y1:ly0+t*22-4,x2:W-margin.right+34,y2:ly0+t*22-4,stroke:treatColors[t],['stroke-width']:3}));
+    txt(W-margin.right+40, ly0+t*22, `${treatNames[t]}`, {['font-size']:11.5,fill:'#444'});
+    txt(W-14, ly0+t*22, `${eff>=0?'+':''}${eff.toFixed(2)}`, {['text-anchor']:'end',['font-size']:11,fill:treatColors[t],['font-weight']:600});
+  }
+
+  // readouts
+  const b = useBeta?coords[IB]:0;
+  document.getElementById('betaDisplay').innerHTML = `&beta; = ${b.toFixed(3)}`;
+  document.getElementById('tauDisplay').innerHTML  = `&tau;&sup2; = ${tau2.toFixed(3)}`;
+  document.getElementById('energy').textContent = energy().toFixed(3);
+  document.getElementById('betaInfo').textContent = b.toFixed(3);
+  document.getElementById('orInfo').textContent = Math.exp(b).toFixed(3);
+  document.getElementById('iter').textContent = iter;
+}
+
+// ===================== CONTROLS =====================
+function reset(){ coords=new Float64Array(NP); vel=new Float64Array(NP); iter=0; draw(); }
+function loop(){ if(!running) return; for(let i=0;i<4;i++) stepPhysics(); draw(); requestAnimationFrame(loop); }
+function setMode(beta, btn){ useBeta=beta; vel=new Float64Array(NP); if(!beta){coords[IB]=0;}
+  document.getElementById('mReg').classList.toggle('active',beta);
+  document.getElementById('mNMA').classList.toggle('active',!beta); draw(); }
+
+document.getElementById('btnPlay').onclick=function(){ running=!running; this.classList.toggle('active',running); this.textContent=running?'Pause':'Play'; if(running) loop(); };
+document.getElementById('btnStep').onclick=()=>{ for(let i=0;i<8;i++) stepPhysics(); draw(); };
+document.getElementById('btnReset').onclick=reset;
+document.getElementById('btnSnap').onclick=()=>{ coords=solveExact(); vel=new Float64Array(NP); draw(); };
+document.getElementById('mReg').onclick=function(){ setMode(true,this); };
+document.getElementById('mNMA').onclick=function(){ setMode(false,this); };
+document.getElementById('tauSlider').oninput=function(){ tau2=(+this.value)/100; draw(); };
+
+reset();
+</script>
+</body>
+</html>
