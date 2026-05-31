@@ -1,6 +1,6 @@
-name:                meta-analysis
+name:                meta-springs
 version:             0.3.0.0
-github:              "tpapak/meta-analysis"
+github:              "tpapak/meta-springs"
 license:             GPL-3
 author:              "Thodoris Papakonstantinou"
 maintainer:          "dev@tpapak.com"
@@ -8,7 +8,6 @@ copyright:           "2024 Thodoris Papakonstantinou"
 
 extra-source-files:
 - README.md
-- ChangeLog.md
 
 # Meta-analysis evidence synthesis bio statistics
 # synopsis:            Basic functions for synthesizing medical studies.
@@ -17,7 +16,7 @@ extra-source-files:
 # To avoid duplicated efforts in documentation and dealing with the
 # complications of embedding Haddock markup inside cabal files, it is
 # common to point users to the README.md file.
-description:         Please see the README on GitHub at <https://github.com/tpapak/meta-analysis#readme>
+description:         Please see the README on GitHub at <https://github.com/tpapak/meta-springs#readme>
 
 dependencies:
 - base >= 4.8
@@ -63,7 +62,7 @@ executables:
     - -rtsopts
     - -with-rtsopts=-N
     dependencies:
-    - meta-analysis
+    - meta-springs
     - vector
     - cassava
     - aeson
@@ -77,7 +76,7 @@ executables:
     - -rtsopts
     - -with-rtsopts=-N
     dependencies:
-    - meta-analysis
+    - meta-springs
     - vector
     - cassava
     - aeson
@@ -93,13 +92,13 @@ executables:
     - -with-rtsopts=-N
     - -O2
     dependencies:
-    - meta-analysis
+    - meta-springs
     - aeson
     - bytestring
     - containers
 
 tests:
-  meta-analysis-test:
+  meta-springs-test:
     main:                Spec.hs
     source-dirs:         test
     ghc-options:
@@ -107,7 +106,7 @@ tests:
     - -rtsopts
     - -with-rtsopts=-N
     dependencies:
-    - meta-analysis
+    - meta-springs
     - vector
     - cassava
     - tesths
