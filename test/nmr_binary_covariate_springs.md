@@ -21,6 +21,14 @@ treatment nodes** (one node per treatment per layer). The free coordinates are:
 - `β`    = the shared covariate coefficient, held by its own node.
 - Reference `A` is pinned at `0` in both layers.
 
+Rendered in the same 1-D grammar as `paper/xi_animation.html`: every node sits
+on one effect axis and every spring is horizontal. Each non-reference treatment
+shows a **base node** (effect at x=0) and a **covariate node** (effect at x=1);
+β is a **length** on that axis — the spring from base node to covariate node —
+and all such springs share one **β node** (β = the network-mean covariate
+shift, exactly as a treatment effect is the network-mean of its evidence). The
+reference is pinned at 0 in both levels, so it has no covariate node.
+
 Two kinds of spring:
 
 1. **Study springs** — each study `i` is a coil *inside its own covariate layer*
