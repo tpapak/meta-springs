@@ -21,13 +21,26 @@ treatment nodes** (one node per treatment per layer). The free coordinates are:
 - `β`    = the shared covariate coefficient, held by its own node.
 - Reference `A` is pinned at `0` in both layers.
 
-Rendered in the same 1-D grammar as `paper/xi_animation.html`: every node sits
-on one effect axis and every spring is horizontal. Each non-reference treatment
-shows a **base node** (effect at x=0) and a **covariate node** (effect at x=1);
-β is a **length** on that axis — the spring from base node to covariate node —
-and all such springs share one **β node** (β = the network-mean covariate
-shift, exactly as a treatment effect is the network-mean of its evidence). The
-reference is pinned at 0 in both levels, so it has no covariate node.
+Rendered in the full **arm-level grammar** of `paper/xi_animation.html`
+(standard NMA convention `y_ij = μ_i + d_j + β·x_i + δ_ij`): every node sits on
+one effect axis and every spring is horizontal.
+
+- **Treatment columns** — base node `d_j` (solid) and, for x=1 arms, a
+  **covariate node** `d_j + β` (dashed). β is a **length** on the axis — the
+  spring from base node to covariate node — and all such springs share one
+  **β node** (β = the network-mean covariate shift, exactly as a treatment
+  effect is the network-mean of its evidence). The reference is pinned at 0 in
+  both levels, so it has no covariate node.
+- **Study spindle `S_i`** at the centroid `μ̂_i`; **τ-chain** from the spindle
+  to each arm's **BLUP node** `δ_ij = (τ²/(v+τ²))·(y − μ_i − d_j − β·x_i)`; and
+  an **observation spring** from the BLUP node to the arm's treatment column
+  (the covariate-adjusted one for x=1 arms). Raising τ² slides the BLUP nodes
+  out along the chains and relaxes the obs springs — τ² is now *residual*
+  heterogeneity after the regression.
+
+The fixed parameters are solved jointly from the arm-level normal equations
+`[d_1..d_{T-1}, μ_1..μ_S, β]`, exactly as the Ξ animation solves `[d, μ]` — the
+covariate just adds the β column.
 
 Two kinds of spring:
 
