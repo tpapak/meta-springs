@@ -25,12 +25,15 @@ Rendered in the full **arm-level grammar** of `paper/xi_animation.html`
 (standard NMA convention `y_ij = μ_i + d_j + β·x_i + δ_ij`): every node sits on
 one effect axis and every spring is horizontal.
 
-- **Treatment columns** — base node `d_j` (solid) and, for x=1 arms, a
-  **covariate node** `d_j + β` (dashed). β is a **length** on the axis — the
-  spring from base node to covariate node — and all such springs share one
-  **β node** (β = the network-mean covariate shift, exactly as a treatment
-  effect is the network-mean of its evidence). The reference is pinned at 0 in
-  both levels, so it has no covariate node.
+- **Treatment columns** — the covariate is **centred** (`x → x − x̄`), so each
+  treatment's **base node** `d_j` (solid, capital letter) is the effect at the
+  *mean* covariate and its two **covariate nodes** (dashed, lowercase `b₀`,`b₁`)
+  sit **symmetrically** at `d_j ∓ β/2`. β is a **length** on the axis — the
+  spring joining the two levels through the base node — and all such springs
+  share one **β node** (β = the network-mean covariate slope, exactly as a
+  treatment effect is the network-mean of its evidence). Centering keeps β
+  unchanged but decorrelates it from the intercept; the reference is pinned at 0
+  and has no covariate node.
 - **Study spindle `S_i`** at the centroid `μ̂_i`; **τ-chain** from the spindle
   to each arm's **BLUP node** `δ_ij = (τ²/(v+τ²))·(y − μ_i − d_j − β·x_i)`; and
   an **observation spring** from the BLUP node to the arm's treatment column

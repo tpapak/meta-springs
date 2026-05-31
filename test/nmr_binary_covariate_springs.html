@@ -33,7 +33,7 @@
   Same grammar as the &Xi; animation, with a covariate. Standard NMA convention y<sub>ij</sub> = &mu;<sub>i</sub> + (d<sub>j</sub> + &beta;·x<sub>i</sub>) + &delta;<sub>ij</sub>.
   <b style="color:#c2410c">Study spindles S<sub>i</sub></b> sit at the centroid &mu;&#770;<sub>i</sub>; each arm has a <b>&tau;-chain</b> to its
   <b style="color:#444">BLUP node</b> &delta;<sub>ij</sub> and an <b style="color:#1a73e8">obs spring</b> to its treatment column.
-  For x=1 arms that column is the <b>covariate node</b> d<sub>j</sub>+&beta; — reached from the base node by the <b style="color:#e65100">&beta; spring</b> (length &beta;), all sharing one <b style="color:#e65100">&beta; node</b>.
+  The covariate is <b>centred</b>, so each treatment's capital <b>base node</b> (B, C) is the effect at the mean covariate and its two lowercase covariate nodes (b<sub>0</sub>, b<sub>1</sub>) sit <b>symmetrically</b> at d<sub>j</sub> &#8723; &beta;/2; the <b style="color:#e65100">&beta; spring</b> (length &beta;) joins them through the base node and shares one <b style="color:#e65100">&beta; node</b>.
 </div>
 
 <div class="ctrl-row">
@@ -52,7 +52,7 @@
 <svg id="canvas" width="1060" height="760"></svg>
 
 <div class="legend">
-  <b>Vertical columns</b> through the study rows = treatment effect nodes: <b>solid</b> = base d<sub>j</sub> (x=0), <b style="color:#e65100">dashed orange-tied</b> = covariate node d<sub>j</sub>+&beta; (x=1).
+  <b>Vertical columns</b> through the study rows = effect nodes: <b>solid capital</b> = base node d<sub>j</sub> (effect at the mean covariate); <b>dashed lowercase</b> = the two symmetric covariate levels d<sub>j</sub>&#8723;&beta;/2 (b<sub>0</sub> = x&nbsp;=&nbsp;0 on the left, b<sub>1</sub> = x&nbsp;=&nbsp;1 on the right). x=0 arms land on b<sub>0</sub>, x=1 arms on b<sub>1</sub>.
   Reference A is pinned (d<sub>A</sub>=0) and has no covariate node. <b>Pooled</b> drops &beta; (one network); <b>Unrelated</b> frees each &beta;<sub>t</sub>.
   Raise &tau;² and the BLUP nodes slide out along the &tau;-chains while the obs springs relax — &tau;² is now <i>residual</i> heterogeneity after regression.
 </div>
@@ -73,6 +73,7 @@ const studies = [
   { id:'S6', x:1, arms:[ {t:1,y: 2.25,v:0.05}, {t:2,y: 2.64,v:0.05} ] },
 ];
 const T = treatments.length, S = studies.length, nD = T-1, nMu = S;
+const xbar = studies.reduce((s,st)=>s+st.x,0)/S;     // centre the covariate (here = 0.5)
 let mode = 'shared', tau2 = 0;
 
 // ===================== SOLVER (normal equations for d, mu, beta) =====================
@@ -88,7 +89,7 @@ function solve(t2){
     const k = 1/(arm.v+t2), a = {};
     if (arm.t!==0) a[arm.t-1] = (a[arm.t-1]||0)+1;
     a[nD+si] = (a[nD+si]||0)+1;
-    if (arm.t!==0 && bi.nBeta>0) a[bi.idx(arm.t)] = (a[bi.idx(arm.t)]||0)+st.x;
+    if (arm.t!==0 && bi.nBeta>0) a[bi.idx(arm.t)] = (a[bi.idx(arm.t)]||0)+(st.x-xbar);
     for (const i in a){ b[i]+=k*a[i]*arm.y; for (const j in a) A[i][j]+=k*a[i]*a[j]; }
   }));
   const M = A.map((r,i)=>[...r,b[i]]);
@@ -145,8 +146,9 @@ const axisYbot=_y+4;
 function render(){
   const { d, mu, betaOf, betaShared } = solve(tau2);
   const N = Math.round(tau2*40);                       // tau-chain elementary-spring count
-  const colEffect = (t,x)=> d[t] + (t!==0 ? betaOf(t)*x : 0);
+  const colEffect = (t,x)=> d[t] + (t!==0 ? betaOf(t)*(x-xbar) : 0);   // centred covariate
   const colX = (t,x)=> baseX + scale*colEffect(t,x);
+  const baseColX = t => baseX + scale*d[t];                            // base node = effect at mean covariate
   const hasCov = (mode!=='pooled');
 
   document.getElementById('tauDisplay').innerHTML  = `&tau;² = ${fmt(tau2,3)}`;
@@ -159,10 +161,10 @@ function render(){
 
   // --- treatment columns (base solid; covariate dashed) spanning study rows ---
   for(let t=0;t<T;t++){
-    const bx=colX(t,0);
+    const bx=baseColX(t);
     h+=`<line x1="${bx.toFixed(1)}" y1="${yCovRow}" x2="${bx.toFixed(1)}" y2="${axisYbot}" stroke="${treatColor[t]}" stroke-width="2" opacity="0.85"/>`;
-    if(hasCov && t!==0){ const cx=colX(t,1);
-      h+=`<line x1="${cx.toFixed(1)}" y1="${yCovRow}" x2="${cx.toFixed(1)}" y2="${axisYbot}" stroke="${treatColor[t]}" stroke-width="1.6" stroke-dasharray="6,4" opacity="0.8"/>`; }
+    if(hasCov && t!==0){ [0,1].forEach(xl=>{ const cx=colX(t,xl);
+      h+=`<line x1="${cx.toFixed(1)}" y1="${yCovRow}" x2="${cx.toFixed(1)}" y2="${axisYbot}" stroke="${treatColor[t]}" stroke-width="1.4" stroke-dasharray="6,4" opacity="0.7"/>`; }); }
   }
 
   // --- effect-axis ruler ---
@@ -227,16 +229,17 @@ function render(){
 
   // --- treatment nodes at top (base + covariate) ---
   for(let t=0;t<T;t++){
-    const bx=colX(t,0);
+    const bx=baseColX(t);
     h+=`<circle cx="${bx.toFixed(1)}" cy="${trtY}" r="20" fill="#dbeafe" stroke="${treatColor[t]}" stroke-width="2"/>`;
-    h+=`<text x="${bx.toFixed(1)}" y="${trtY+5}" text-anchor="middle" font-weight="700" font-size="13">${treatments[t]}</text>`;
+    h+=`<text x="${bx.toFixed(1)}" y="${trtY+5}" text-anchor="middle" font-weight="700" font-size="14">${treatments[t].toUpperCase()}</text>`;
     h+=`<text x="${bx.toFixed(1)}" y="${trtY-26}" text-anchor="middle" font-size="10" fill="#444">d=${fmt(d[t],2)}</text>`;
-    if(hasCov && t!==0){ const cx=colX(t,1);
-      h+=`<circle cx="${cx.toFixed(1)}" cy="${trtY}" r="16" fill="#fff" stroke="${treatColor[t]}" stroke-width="1.6" stroke-dasharray="4,3"/>`;
-      h+=`<text x="${cx.toFixed(1)}" y="${trtY+4}" text-anchor="middle" font-size="11" fill="${treatColor[t]}">${treatments[t]}'</text>`;
-      h+=`<text x="${cx.toFixed(1)}" y="${trtY-22}" text-anchor="middle" font-size="9" fill="#999">d+β=${fmt(colEffect(t,1),2)}</text>`; }
+    if(hasCov && t!==0){ const lc=treatments[t].toLowerCase();
+      [0,1].forEach(xl=>{ const cx=colX(t,xl);
+        h+=`<circle cx="${cx.toFixed(1)}" cy="${trtY}" r="13" fill="#fff" stroke="${treatColor[t]}" stroke-width="1.5" stroke-dasharray="4,3"/>`;
+        h+=`<text x="${cx.toFixed(1)}" y="${trtY+4}" text-anchor="middle" font-size="11" fill="${treatColor[t]}">${lc}<tspan font-size="8" dy="2">${xl}</tspan></text>`;
+        h+=`<text x="${cx.toFixed(1)}" y="${trtY-19}" text-anchor="middle" font-size="9" fill="#999">${fmt(colEffect(t,xl),2)}</text>`; }); }
   }
-  h+=`<text x="${colX(0,0).toFixed(1)}" y="${trtY+36}" text-anchor="middle" font-size="9.5" fill="#a00">⚓ d_A=0</text>`;
+  h+=`<text x="${baseColX(0).toFixed(1)}" y="${trtY+36}" text-anchor="middle" font-size="9.5" fill="#a00">⚓ d_A=0</text>`;
 
   svg.innerHTML = h;
 }
