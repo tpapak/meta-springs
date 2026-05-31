@@ -8,57 +8,63 @@ coefficient** model — the simplest case and the one in the toy.
 Toy / spec demo: [`test/nmr_binary_covariate_springs.html`](nmr_binary_covariate_springs.html)
 (self-contained, no build — open in a browser).
 
-## Model (shared coefficient)
+## Model — real nodes, a load-bearing covariate spring
 
-Treatments `A` (reference), `B`, `C`. Generalised coordinates of the system:
+Every covariate level is its own sub-network of **genuine, independent
+treatment nodes** (one node per treatment per layer). The free coordinates are:
 
-    coords = [ d_B, d_C, β ]
+    coords = [ θ_B, θ_C,   θ_B1, θ_C1,   β ]
+               x=0 layer    x=1 layer    shared β node
 
-- `d_t` = effect of treatment `t` vs reference at covariate `x = 0`.
-- `β`   = the regression coefficient (a single **shared** value across treatments).
+- `θ_t`  = effect of treatment `t` vs reference in the `x=0` layer.
+- `θ_t1` = effect of treatment `t` vs reference in the `x=1` layer (a *free* node).
+- `β`    = the shared covariate coefficient, held by its own node.
+- Reference `A` is pinned at `0` in both layers.
 
-Position of treatment `t` at covariate level `x`:
+Two kinds of spring:
 
-    pos(A, x) = 0                     (reference pinned in every covariate layer)
-    pos(B, x) = d_B + β·x
-    pos(C, x) = d_C + β·x
+1. **Study springs** — each study `i` is a coil *inside its own covariate layer*
+   connecting the nodes it compares, natural length `y_i`, precision
+   `1/(v_i + τ²)`.
+2. **Covariate springs** — for each active treatment, a spring enforcing
+   `(θ_t1 − θ_t) − β = 0`, **anchored at the β node** with stiffness `k_β`.
+   These are load-bearing: the β node feels the combined pull of every `x=1`
+   study and settles at the regression coefficient. (An earlier draft drew β
+   between a node and its *derived* copy `θ_t + β` — cosmetic, carrying no load.
+   Here the upper nodes are free and the coupling does the work.)
 
-A study comparing arm `p` vs `q` with covariate `x_i` has expected contrast
-`pos(p,x_i) − pos(q,x_i)`, observed `y_i`, precision `1/(v_i + τ²)`. The fit
-minimises the spring energy
+Total energy minimised at equilibrium:
 
-    E = Σ_i  (1/(v_i+τ²)) · ( [pos(p,x_i) − pos(q,x_i)] − y_i )²
+    E = Σ_i (1/(v_i+τ²))·(contrast_i − y_i)²        (study springs)
+      + k_β · Σ_{t∈{B,C}} ((θ_t1 − θ_t) − β)²        (covariate springs)
 
-which is exactly weighted least squares with the covariate column appended to
-the NMA design matrix. The spring equilibrium **is** the WLS / random-effects
-estimate.
+The study-spring part is exactly weighted least squares on the NMA design with
+the covariate column appended; the spring equilibrium **is** the WLS /
+random-effects estimate.
 
-## The spring picture
+## Three regimes = one coupling stiffness
 
-- Two covariate layers (`x=0`, `x=1`). Each study is a coil **inside its own
-  layer**, connecting the treatment nodes it compares, with natural length `y_i`.
-- The covariate enters as a **shared "β spring"** that couples each active
-  treatment's `x=0` node to its `x=1` node. The shared assumption forces all of
-  these couplings to have the **same length β** — a rigid translation of the
-  active nodes between layers.
-- The reference `A` is pinned at `0` in both layers, so its coupling is vertical
-  (length 0 regardless of β): the covariate shifts effects *relative to the
-  reference*. This is also why, under the shared model, β cancels for
-  active-vs-active comparisons (S5/S6 in the toy) and is identified mainly
-  through reference-involving contrasts and the between-layer gap.
+- **Unrelated** (`k_β = 0`): coupling cut → the two layers are independent NMAs,
+  each treatment keeps its own `β_t = θ_t1 − θ_t`.
+- **Shared** (`k_β` large): all gaps tied through the single β node → one β
+  (this is gemtc's `shared` regressor; the toy uses `k_β = 80`, so the per-tree
+  gaps match to ~0.01 — exact equality needs `k_β → ∞`).
+- **Pooled** (gap clamped to 0, β ≡ 0): layers collapse to one network; the
+  study coils strain (weighted SS jumps ~0.12 → ~16 in the toy), showing why a
+  covariate is needed when effects vary with `x`.
 
-Toggling **Ignore covariate** clamps β≡0 (one pooled network for both groups):
-the study coils strain badly (weighted SS jumps ~0.13 → ~19 in the toy),
-showing why a covariate is needed when effects vary with `x`.
+Because A is pinned in both layers it has no covariate spring, so β cancels for
+active-vs-active comparisons (S5/S6) and is identified through
+reference-involving contrasts + the between-layer gap.
 
-## Coefficient variants (future, mirroring gemtc)
+## Coefficient variants (mirroring gemtc)
 
-- **shared** — one β for all treatments (this toy).
-- **unrelated** — a separate β_t per treatment vs reference (one β spring length
-  per active node, all free).
-- **exchangeable** — β_t drawn from a common distribution; in spring terms a
-  *second tier* of τ-springs on the β's (hierarchical shrinkage of the
-  per-treatment covariate effects).
+- **shared** — one β node for all treatments (toy: stiff coupling).
+- **unrelated** — coupling cut; a free β_t per treatment vs reference (toy mode).
+- **exchangeable** — β_t drawn from a common distribution; in spring terms the
+  covariate springs attach to the β node through their *own* τ-springs
+  (a second heterogeneity tier shrinking the per-treatment covariate effects
+  toward a common β).
 
 ## Implementation path (Haskell / Rust)
 

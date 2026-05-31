@@ -11,7 +11,7 @@
     display: flex; flex-direction: column; align-items: center; padding: 20px;
   }
   h1 { font-size: 19px; font-weight: 600; margin-bottom: 4px; }
-  .subtitle { font-size: 13px; color: #666; margin-bottom: 16px; max-width: 980px; text-align: center; }
+  .subtitle { font-size: 13px; color: #666; margin-bottom: 16px; max-width: 1000px; text-align: center; }
   .ctrl-row {
     display: flex; gap: 10px; align-items: center; margin-bottom: 8px;
     flex-wrap: wrap; justify-content: center;
@@ -22,47 +22,53 @@
   }
   button:hover { background: #eee; }
   button.active { background: #333; color: #fff; border-color: #333; }
-  button.warn { background: #fff3e0; border-color: #fb8c00; color: #e65100; }
-  button.warn.active { background: #e65100; color: #fff; border-color: #e65100; }
+  button.mode { background: #fff7ed; border-color: #fb8c00; color: #b35a00; }
+  button.mode.active { background: #e65100; color: #fff; border-color: #e65100; }
   label { font-size: 13px; color: #555; }
   input[type=range] { width: 120px; vertical-align: middle; }
   .pill {
     font-family: 'SF Mono','Consolas',monospace; font-size: 14px;
-    background: #eef7ee; border: 1px solid #b6dab6; border-radius: 4px;
-    padding: 3px 10px; color: #1b5e20; font-weight: 600; min-width: 120px; text-align: center;
+    background: #fff3e0; border: 1px solid #f0b27a; border-radius: 4px;
+    padding: 3px 10px; color: #b35a00; font-weight: 600; min-width: 120px; text-align: center;
   }
   .pill.tau { background: #f0f4ff; border-color: #c4d4f4; color: #1a3a6e; }
   svg { border: 1px solid #ddd; border-radius: 6px; background: #fff; }
-  #info { margin-top: 10px; font-size: 13px; color: #555; display: flex; gap: 24px; }
+  #info { margin-top: 10px; font-size: 13px; color: #555; display: flex; gap: 22px; flex-wrap: wrap; justify-content: center; }
   #info span { font-family: 'SF Mono','Consolas',monospace; }
-  .legend { margin-top: 10px; font-size: 12px; color: #777; max-width: 1000px; text-align: center; line-height: 1.6; }
+  .legend { margin-top: 10px; font-size: 12px; color: #777; max-width: 1020px; text-align: center; line-height: 1.6; }
   .legend b { color: #555; }
 </style>
 </head>
 <body>
 
-<h1>Network Meta-Regression: the covariate as a shared spring</h1>
+<h1>Network Meta-Regression: the covariate &beta; node</h1>
 <div class="subtitle">
   3 treatments (A = reference, B, C), 6 studies, binary study-level covariate x &isin; {0, 1}
-  (e.g. <i>0 = short follow-up, 1 = long follow-up</i>). Outcome = log-OR.
-  Shared-coefficient model: every active treatment's effect vs A shifts by the same &beta; when x = 1.
+  (e.g. <i>0 = short follow-up, 1 = long follow-up</i>), outcome = log-OR.
+  Each covariate level is its own sub-network of real treatment nodes. The covariate springs
+  (orange) couple a treatment's two layer-nodes <b>through a shared &beta; node</b> — that coupling is
+  what carries the regression coefficient, and the x = 1 study springs are what load it.
 </div>
 
+<div class="ctrl-row">
+  <button class="mode" id="mPooled">Pooled (no covariate)</button>
+  <button class="mode active" id="mShared">Shared &beta;</button>
+  <button class="mode" id="mUnrel">Unrelated &beta;<sub>t</sub></button>
+</div>
 <div class="ctrl-row">
   <button id="btnPlay">Play</button>
   <button id="btnStep">Step</button>
   <button id="btnSnap">Snap to fit</button>
   <button id="btnReset">Reset</button>
-  <button class="warn" id="btnIgnore">Ignore covariate (&beta; &equiv; 0)</button>
 </div>
 <div class="ctrl-row">
   <span class="pill" id="betaDisplay">&beta; = 0.000</span>
   <span class="pill tau" id="tauDisplay">&tau;&sup2; = 0.000</span>
   <label>&tau;&sup2; <input type="range" id="tauSlider" min="0" max="200" value="0" step="1"></label>
-  <label>Damping <input type="range" id="damping" min="1" max="40" value="16"></label>
+  <label>Damping <input type="range" id="damping" min="1" max="40" value="18"></label>
 </div>
 
-<svg id="canvas" width="1080" height="560"></svg>
+<svg id="canvas" width="1100" height="580"></svg>
 
 <div id="info">
   <div>Weighted SS: <span id="energy">--</span></div>
@@ -73,23 +79,20 @@
 </div>
 
 <div class="legend">
-  <b style="color:#1b9e77">Coloured coils</b> = studies (precision 1/(v<sub>i</sub>+&tau;&sup2;), natural length = observed log-OR), drawn inside their own covariate layer.
-  <b style="color:#888">Lower band</b> = x&nbsp;=&nbsp;0, <b style="color:#888">upper band</b> = x&nbsp;=&nbsp;1.
-  <b style="color:#c62828">Orange &beta; springs</b> couple each active treatment across the two bands and are forced to share one length &mdash; that common displacement <b>is</b> the regression coefficient.
-  The reference A is pinned at effect&nbsp;0 in both bands, so its &beta; spring stays vertical (covariate shifts effects <i>relative to the reference</i>).
-  Toggle <b>Ignore covariate</b> to clamp &beta;&equiv;0 and watch the study coils strain as a single network is forced to fit both covariate groups at once.
+  <b style="color:#1b9e77">Coloured coils</b> = studies (precision 1/(v<sub>i</sub>+&tau;&sup2;), natural length = observed log-OR), each inside its own covariate layer.
+  <b style="color:#888">Lower band</b> = x&nbsp;=&nbsp;0, <b style="color:#888">upper band</b> = x&nbsp;=&nbsp;1 — both hold genuine, free treatment nodes.
+  <b style="color:#e65100">Orange covariate springs</b> tie each active treatment's two layer-nodes to the shared <b style="color:#e65100">&beta; node</b> (diamond);
+  the reference A is pinned at 0 in both layers so it has no covariate spring.
+  <b>Shared</b> forces one common &beta; (stiff coupling); <b>Unrelated</b> cuts the coupling so each layer is its own NMA (per-treatment &beta;<sub>t</sub>);
+  <b>Pooled</b> clamps the gap to 0 (&beta;=0) and the study coils strain — one network can't fit both groups.
 </div>
 
 <script>
 // ============================ DATA: toy network ============================
-// Treatments: 0 = A (reference), 1 = B, 2 = C
-// Generating truth (so the demo has a clear answer):
-//   d_B = 1.0, d_C = 1.4 (effects vs A at x=0), shared covariate effect beta = 1.0
-//   At x=1 the active treatments are shifted right by beta.
-// Each study compares arm `from` vs `to`; contrast y = pos(to) - pos(from).
+// Treatments: 0 = A (reference), 1 = B, 2 = C.
+// Generating truth: d_B = 1.0, d_C = 1.4 (vs A at x=0), shared covariate effect beta = 1.0.
 const treatColors = ['#555', '#1b9e77', '#d95f02'];
 const treatNames  = ['A', 'B', 'C'];
-
 const studies = [
   { label: 'S1  A–B  (x=0)', from: 0, to: 1, x: 0, y: 1.03, v: 0.05, color: '#e41a1c' },
   { label: 'S2  A–B  (x=1)', from: 0, to: 1, x: 1, y: 1.98, v: 0.05, color: '#377eb8' },
@@ -99,219 +102,221 @@ const studies = [
   { label: 'S6  B–C  (x=1)', from: 1, to: 2, x: 1, y: 0.39, v: 0.05, color: '#a65628' },
 ];
 
-// ---- Model parameters (generalised coordinates of the spring system) ----
-//   coords = [ d_B, d_C, beta ]
-//   position of treatment t at covariate level x:
-//     A -> 0
-//     B -> d_B + beta * x
-//     C -> d_C + beta * x
-// Each study contributes the design row of (pos(to,x) - pos(from,x)).
-function unitRow(t, x) {            // coefficients of [d_B, d_C, beta] for one arm
-  if (t === 0) return [0, 0, 0];   // reference A
-  if (t === 1) return [1, 0, x];   // B
-  return [0, 1, x];                // C
-}
-function designRow(s) {
-  const a = unitRow(s.from, s.x), b = unitRow(s.to, s.x);
-  return [b[0] - a[0], b[1] - a[1], b[2] - a[2]];
-}
-studies.forEach(s => { s.row = designRow(s); });
-
-const NP = 3;                       // number of free parameters
-let coords = new Float64Array(NP);  // [d_B, d_C, beta]
+// ============================ COORDINATES (real nodes) ============================
+//   0: theta_B   (B node, lower layer x=0)
+//   1: theta_C   (C node, lower layer x=0)
+//   2: theta_B1  (B node, upper layer x=1)   -- genuine free node
+//   3: theta_C1  (C node, upper layer x=1)   -- genuine free node
+//   4: beta      (the shared covariate node)
+// Reference A is pinned at 0 in both layers.
+const NP = 5;
+let coords = new Float64Array(NP);
 let vel    = new Float64Array(NP);
 let tau2   = 0;
-let ignoreCov = false;              // clamp beta = 0 (plain NMA pooled across covariate)
+let mode   = 'shared';        // 'pooled' | 'shared' | 'unrelated'
 let iter = 0, running = false;
+const WC = 80;                // covariate-spring stiffness (coupling between layers)
 
+// coordinate index that carries treatment t at covariate level x (null = reference / pinned)
+function coordOf(t, x) {
+  if (t === 0) return null;
+  if (x === 0) return (t === 1) ? 0 : 1;
+  return (t === 1) ? 2 : 3;
+}
+function pos(t, x) { const c = coordOf(t, x); return c === null ? 0 : coords[c]; }
 function weight(s) { return 1 / (s.v + tau2); }
 
-// pos of treatment t at covariate x given current coords
-function pos(t, x) {
-  if (t === 0) return 0;
-  const base = (t === 1) ? coords[0] : coords[1];
-  const b = ignoreCov ? 0 : coords[2];
-  return base + b * x;
-}
-
-// ============================ SOLVER (spring forces) ============================
-// Weighted least squares == minimum of  E = sum_i w_i (row_i . coords - y_i)^2.
-// Spring force on coordinate j = -dE/dcoords[j].
-function forces() {
-  const f = new Float64Array(NP);
+// Build the spring list = study springs (+ covariate springs unless 'unrelated').
+// Each spring: { coef: {coordIndex: weight_in_contrast}, y, w }.
+function springSet() {
+  const list = [];
   for (const s of studies) {
-    const w = weight(s);
-    const r = s.row[0]*coords[0] + s.row[1]*coords[1] + s.row[2]*coords[2] - s.y;
-    for (let j = 0; j < NP; j++) f[j] -= 2 * w * r * s.row[j];
+    const coef = {};
+    const cf = coordOf(s.from, s.x), ct = coordOf(s.to, s.x);
+    if (cf !== null) coef[cf] = (coef[cf] || 0) - 1;
+    if (ct !== null) coef[ct] = (coef[ct] || 0) + 1;
+    list.push({ coef, y: s.y, w: weight(s) });
   }
-  if (ignoreCov) { f[2] = 0; coords[2] = 0; vel[2] = 0; }
-  return f;
+  if (mode !== 'unrelated') {
+    // covariate springs: (theta_t1 - theta_t) - beta = 0, anchored at the beta node.
+    // pooled => beta clamped to 0 (no beta term, gap forced to 0).
+    const useBeta = (mode === 'shared');
+    // B: upper(2) - lower(0) - beta(4)
+    { const coef = { 2: 1, 0: -1 }; if (useBeta) coef[4] = -1; list.push({ coef, y: 0, w: WC }); }
+    // C: upper(3) - lower(1) - beta(4)
+    { const coef = { 3: 1, 1: -1 }; if (useBeta) coef[4] = -1; list.push({ coef, y: 0, w: WC }); }
+  }
+  return list;
 }
+// active coordinates per mode (beta only lives in 'shared')
+function activeCoords() { return (mode === 'shared') ? [0,1,2,3,4] : [0,1,2,3]; }
+
+// ============================ SOLVER ============================
+function residual(sp) { let c = 0; for (const k in sp.coef) c += sp.coef[k]*coords[k]; return c - sp.y; }
 function energy() {
   let e = 0;
-  for (const s of studies) {
-    const r = s.row[0]*coords[0] + s.row[1]*coords[1] + s.row[2]*coords[2] - s.y;
-    e += weight(s) * r * r;
-  }
-  return e;
+  for (const s of studies) { const r = pos(s.to,s.x)-pos(s.from,s.x)-s.y; e += weight(s)*r*r; }
+  return e;   // study weighted SS only (covariate springs are the model, not data misfit)
 }
-// Closed-form WLS solve (normal equations) for "Snap to fit".
+function forces() {
+  const f = new Float64Array(NP);
+  for (const sp of springSet()) { const r = residual(sp); for (const k in sp.coef) f[k] -= 2*sp.w*r*sp.coef[k]; }
+  return f;
+}
+function stepPhysics() {
+  const dt = 0.006, damp = +document.getElementById('damping').value/100;
+  const f = forces(), act = activeCoords();
+  // zero out inactive coords
+  for (let j=0;j<NP;j++) if (!act.includes(j)) { coords[j]=0; vel[j]=0; }
+  for (const j of act) { vel[j] = (vel[j] + dt*f[j])*(1-damp); coords[j] += dt*vel[j]; }
+  iter++;
+}
 function solveExact() {
-  const n = ignoreCov ? 2 : NP;
-  const M = Array.from({length:n}, () => new Float64Array(n));
-  const rhs = new Float64Array(n);
-  for (const s of studies) {
-    const w = weight(s);
-    for (let i=0;i<n;i++) {
-      rhs[i] += w * s.row[i] * s.y;
-      for (let j=0;j<n;j++) M[i][j] += w * s.row[i] * s.row[j];
+  const act = activeCoords(), n = act.length, idx = {}; act.forEach((c,i)=>idx[c]=i);
+  const M = Array.from({length:n},()=>new Float64Array(n)), rhs = new Float64Array(n);
+  for (const sp of springSet()) {
+    for (const a in sp.coef) { if (!(a in idx)) continue;
+      rhs[idx[a]] += sp.w*sp.coef[a]*sp.y;
+      for (const b in sp.coef) { if (!(b in idx)) continue; M[idx[a]][idx[b]] += sp.w*sp.coef[a]*sp.coef[b]; }
     }
   }
-  // Gaussian elimination
-  const A = M.map((row,i)=>[...row, rhs[i]]);
-  for (let c=0;c<n;c++){
-    let mx=Math.abs(A[c][c]), mr=c;
+  const A = M.map((r,i)=>[...r, rhs[i]]);
+  for (let c=0;c<n;c++){ let mx=Math.abs(A[c][c]),mr=c;
     for(let r=c+1;r<n;r++) if(Math.abs(A[r][c])>mx){mx=Math.abs(A[r][c]);mr=r;}
     [A[c],A[mr]]=[A[mr],A[c]];
-    for(let r=c+1;r<n;r++){const ff=A[r][c]/A[c][c];for(let k=c;k<=n;k++)A[r][k]-=ff*A[c][k];}
-  }
+    for(let r=c+1;r<n;r++){const ff=A[r][c]/A[c][c];for(let k=c;k<=n;k++)A[r][k]-=ff*A[c][k];} }
   const sol=new Float64Array(n);
   for(let i=n-1;i>=0;i--){let su=A[i][n];for(let j=i+1;j<n;j++)su-=A[i][j]*sol[j];sol[i]=su/A[i][i];}
   const out=new Float64Array(NP);
-  out[0]=sol[0]; out[1]=sol[1]; out[2]= ignoreCov ? 0 : sol[2];
+  for (const c of act) out[c]=sol[idx[c]];
   return out;
-}
-
-// ============================ INTEGRATOR ============================
-function stepPhysics() {
-  const dt = 0.012;
-  const damp = +document.getElementById('damping').value / 100;  // 0.01..0.40
-  const f = forces();
-  for (let j=0;j<NP;j++) {
-    if (ignoreCov && j===2) continue;
-    vel[j] = (vel[j] + dt * f[j]) * (1 - damp);
-    coords[j] += dt * vel[j];
-  }
-  iter++;
 }
 
 // ============================ LAYOUT & DRAW ============================
 const svg = document.getElementById('canvas');
-const W = 1080, H = 560;
-const margin = { left: 210, right: 60, top: 70, bottom: 40 };
+const W = 1100, H = 580;
+const margin = { left: 230, right: 70, top: 70, bottom: 40 };
 const plotW = W - margin.left - margin.right;
 const xMin = -0.6, xMax = 3.2;
 function xs(v){ return margin.left + (v - xMin)/(xMax - xMin)*plotW; }
-const yBand = { 1: 175, 0: 410 };      // upper band = x:1, lower band = x:0
+const yBand = { 1: 165, 0: 415 };
+const yBeta = (yBand[0] + yBand[1]) / 2;      // shared beta node lives between layers
 const NODE_R = 16;
 
 function el(tag, attrs){ const e=document.createElementNS('http://www.w3.org/2000/svg',tag); for(const k in attrs) e.setAttribute(k,attrs[k]); return e; }
-
-// horizontal coil between two points (study spring)
+function txt(x,y,s,o){ const e=el('text',Object.assign({x,y},o)); e.textContent=s; svg.appendChild(e); return e; }
 function coilPath(x1,y1,x2,y2,coils){
   const dx=x2-x1, dy=y2-y1, len=Math.hypot(dx,dy);
   if (len<1e-6) return `M${x1},${y1}`;
-  const ux=dx/len, uy=dy/len, px=-uy, py=ux;        // unit + perp
-  const lead=12, amp=8, body=Math.max(len-2*lead,0), seg=body/(coils*2);
-  let d=`M${x1},${y1} L${x1+ux*lead},${y1+uy*lead}`;
-  let cx=x1+ux*lead, cy=y1+uy*lead;
-  for(let i=0;i<coils*2;i++){ const s=(i%2===0)?1:-1; cx+=ux*seg+px*amp*s; cy+=uy*seg+py*amp*s; d+=` L${cx.toFixed(1)},${cy.toFixed(1)}`; }
-  d+=` L${x2},${y2}`; return d;
+  const ux=dx/len, uy=dy/len, px=-uy, py=ux, lead=12, amp=8, body=Math.max(len-2*lead,0), seg=body/(coils*2);
+  let d=`M${x1},${y1} L${x1+ux*lead},${y1+uy*lead}`, cx=x1+ux*lead, cy=y1+uy*lead;
+  for(let i=0;i<coils*2;i++){const s=(i%2===0)?1:-1;cx+=ux*seg+px*amp*s;cy+=uy*seg+py*amp*s;d+=` L${cx.toFixed(1)},${cy.toFixed(1)}`;}
+  return d+` L${x2},${y2}`;
 }
 
 function draw() {
   while (svg.firstChild) svg.removeChild(svg.firstChild);
-
-  // effect-axis gridlines + zero reference
-  for (let v=0; v<=3; v++){
-    svg.appendChild(el('line',{x1:xs(v),y1:margin.top-10,x2:xs(v),y2:H-margin.bottom,stroke:'#eee',['stroke-width']:1}));
-    svg.appendChild(el('text',{x:xs(v),y:H-margin.bottom+18,['text-anchor']:'middle',['font-size']:11,fill:'#aaa'})).textContent=v.toFixed(0);
-  }
-  const zero = el('line',{x1:xs(0),y1:margin.top-20,x2:xs(0),y2:H-margin.bottom,stroke:'#cbd',['stroke-width']:1.5,['stroke-dasharray']:'4 4'});
-  svg.appendChild(zero);
-  svg.appendChild(el('text',{x:xs(0),y:margin.top-26,['text-anchor']:'middle',['font-size']:11,fill:'#99a'})).textContent='effect = 0 (reference A)';
-
-  // band labels
-  for (const xlvl of [1,0]) {
-    const t = el('text',{x:28,y:yBand[xlvl]+5,['font-size']:13,fill:'#555',['font-weight']:600});
-    t.textContent = `x = ${xlvl}`; svg.appendChild(t);
-    const sub = el('text',{x:28,y:yBand[xlvl]+22,['font-size']:11,fill:'#999'});
-    sub.textContent = xlvl===1 ? 'long follow-up' : 'short follow-up'; svg.appendChild(sub);
-    svg.appendChild(el('line',{x1:margin.left-30,y1:yBand[xlvl]+40,x2:W-margin.right,y2:yBand[xlvl]+40,stroke:'#f2f2f2',['stroke-width']:1}));
-  }
-
-  // ---- study springs (within each band) ----
-  studies.forEach((s, idx) => {
-    const yb = yBand[s.x];
-    const xf = xs(pos(s.from, s.x)), xt = xs(pos(s.to, s.x));
-    // small vertical offset per study so parallel comparisons don't overlap
-    const slot = (idx % 3 - 1) * 26;
-    const yy = yb + slot;
-    const ncoil = Math.max(4, Math.round(Math.abs(xt-xf)/16));
-    const path = el('path',{d:coilPath(xf,yy,xt,yy,ncoil),fill:'none',stroke:s.color,['stroke-width']:2.2,opacity:0.9});
-    svg.appendChild(path);
-    // stub connectors to the nodes on the band line
-    svg.appendChild(el('line',{x1:xf,y1:yy,x2:xf,y2:yb,stroke:s.color,['stroke-width']:1,opacity:0.35}));
-    svg.appendChild(el('line',{x1:xt,y1:yy,x2:xt,y2:yb,stroke:s.color,['stroke-width']:1,opacity:0.35}));
-    // residual readout
-    const fit = pos(s.to,s.x)-pos(s.from,s.x), res = fit - s.y;
-    const lbl = el('text',{x:Math.min(xf,xt)-8,y:yy+4,['text-anchor']:'end',['font-size']:10.5,fill:s.color});
-    lbl.textContent = `${s.label}  y=${s.y.toFixed(2)}  r=${res>=0?'+':''}${res.toFixed(2)}`;
-    svg.appendChild(lbl);
-  });
-
-  // ---- beta regression springs (couple active treatments across bands) ----
-  [1,2].forEach(t => {
-    const x0 = xs(pos(t,0)), x1 = xs(pos(t,1));
-    const p = el('path',{d:coilPath(x0,yBand[0],x1,yBand[1],7),fill:'none',stroke:'#e65100',['stroke-width']:2.6,opacity:0.85});
-    svg.appendChild(p);
-  });
-  // reference A coupling (vertical, length independent of beta)
-  svg.appendChild(el('line',{x1:xs(0),y1:yBand[0],x2:xs(0),y2:yBand[1],stroke:'#c0a0a0',['stroke-width']:2,['stroke-dasharray']:'3 3',opacity:0.7}));
-
-  // ---- treatment nodes in both bands ----
-  for (const xlvl of [0,1]) {
-    for (let t=0;t<3;t++) {
-      const cx=xs(pos(t,xlvl)), cy=yBand[xlvl];
-      svg.appendChild(el('circle',{cx,cy,r:NODE_R,fill:treatColors[t],stroke:'#fff',['stroke-width']:2}));
-      const tx=el('text',{x:cx,y:cy+5,['text-anchor']:'middle',['font-size']:14,fill:'#fff',['font-weight']:700});
-      tx.textContent=treatNames[t]; svg.appendChild(tx);
-    }
-  }
-
-  // ---- beta annotation arrow (on treatment B, upper band) ----
-  if (!ignoreCov) {
-    const bx0=xs(pos(1,0)), bx1=xs(pos(1,1)), ay=yBand[1]-40;
-    svg.appendChild(el('line',{x1:bx0,y1:ay,x2:bx1,y2:ay,stroke:'#e65100',['stroke-width']:1.5,['marker-end']:'url(#arr)'}));
-    svg.appendChild(el('line',{x1:bx0,y1:ay-6,x2:bx0,y2:ay+6,stroke:'#e65100',['stroke-width']:1.5}));
-    const bt=el('text',{x:(bx0+bx1)/2,y:ay-8,['text-anchor']:'middle',['font-size']:12,fill:'#e65100',['font-weight']:700});
-    bt.textContent=`β = ${coords[2].toFixed(2)}`; svg.appendChild(bt);
-  }
-
-  // arrowhead marker
+  // arrowhead
   const defs=el('defs',{}); const m=el('marker',{id:'arr',markerWidth:8,markerHeight:8,refX:6,refY:3,orient:'auto'});
   m.appendChild(el('path',{d:'M0,0 L6,3 L0,6 Z',fill:'#e65100'})); defs.appendChild(m); svg.appendChild(defs);
 
+  // gridlines + zero reference
+  for (let v=0; v<=3; v++){
+    svg.appendChild(el('line',{x1:xs(v),y1:margin.top-10,x2:xs(v),y2:H-margin.bottom,stroke:'#eee'}));
+    txt(xs(v),H-margin.bottom+18,v.toFixed(0),{['text-anchor']:'middle',['font-size']:11,fill:'#aaa'});
+  }
+  svg.appendChild(el('line',{x1:xs(0),y1:margin.top-20,x2:xs(0),y2:H-margin.bottom,stroke:'#cbd',['stroke-width']:1.5,['stroke-dasharray']:'4 4'}));
+  txt(xs(0),margin.top-26,'effect = 0 (reference A)',{['text-anchor']:'middle',['font-size']:11,fill:'#99a'});
+
+  // band labels
+  for (const xl of [1,0]) {
+    txt(28,yBand[xl]+5,`x = ${xl}`,{['font-size']:13,fill:'#555',['font-weight']:600});
+    txt(28,yBand[xl]+22,xl===1?'long follow-up':'short follow-up',{['font-size']:11,fill:'#999'});
+    svg.appendChild(el('line',{x1:margin.left-40,y1:yBand[xl]+44,x2:W-margin.right,y2:yBand[xl]+44,stroke:'#f4f4f4'}));
+  }
+
+  // ---- study springs (within their covariate band) ----
+  studies.forEach((s, idx) => {
+    const yb=yBand[s.x], xf=xs(pos(s.from,s.x)), xt=xs(pos(s.to,s.x));
+    const yy=yb+(idx%3-1)*26;
+    svg.appendChild(el('path',{d:coilPath(xf,yy,xt,yy,Math.max(4,Math.round(Math.abs(xt-xf)/16))),fill:'none',stroke:s.color,['stroke-width']:2.2,opacity:0.9}));
+    svg.appendChild(el('line',{x1:xf,y1:yy,x2:xf,y2:yb,stroke:s.color,['stroke-width']:1,opacity:0.35}));
+    svg.appendChild(el('line',{x1:xt,y1:yy,x2:xt,y2:yb,stroke:s.color,['stroke-width']:1,opacity:0.35}));
+    const res=(pos(s.to,s.x)-pos(s.from,s.x))-s.y;
+    txt(Math.min(xf,xt)-8,yy+4,`${s.label}  y=${s.y.toFixed(2)}  r=${res>=0?'+':''}${res.toFixed(2)}`,{['text-anchor']:'end',['font-size']:10.5,fill:s.color});
+  });
+
+  // ---- covariate springs + shared beta node ----
+  const betaX = xs(coords[4]);
+  if (mode === 'shared') {
+    // shared beta node sits at effect = beta on the mid track; each active treatment's
+    // covariate spring runs lower-node -> beta node -> upper-node (one shared coordinate).
+    [1,2].forEach(t => {
+      const lx=xs(pos(t,0)), ux=xs(pos(t,1));
+      svg.appendChild(el('path',{d:coilPath(lx,yBand[0],betaX,yBeta,5),fill:'none',stroke:'#e65100',['stroke-width']:2.4,opacity:0.85}));
+      svg.appendChild(el('path',{d:coilPath(betaX,yBeta,ux,yBand[1],5),fill:'none',stroke:'#e65100',['stroke-width']:2.4,opacity:0.85}));
+    });
+    // the beta node glyph
+    svg.appendChild(el('rect',{x:betaX-11,y:yBeta-11,width:22,height:22,transform:`rotate(45 ${betaX} ${yBeta})`,fill:'#e65100',stroke:'#fff',['stroke-width']:2}));
+    txt(betaX,yBeta-20,`β node = ${coords[4].toFixed(2)}`,{['text-anchor']:'middle',['font-size']:12,fill:'#e65100',['font-weight']:700});
+    // beta measured from reference (0) -> arrow
+    svg.appendChild(el('line',{x1:xs(0),y1:yBeta+34,x2:betaX,y2:yBeta+34,stroke:'#e65100',['stroke-width']:1.4,['marker-end']:'url(#arr)'}));
+    svg.appendChild(el('line',{x1:xs(0),y1:yBeta+28,x2:xs(0),y2:yBeta+40,stroke:'#e65100',['stroke-width']:1.4}));
+  } else if (mode === 'pooled') {
+    // gap clamped to 0: covariate springs are vertical (beta = 0). Bands nearly coincide.
+    [1,2].forEach(t => {
+      const lx=xs(pos(t,0)), ux=xs(pos(t,1));
+      svg.appendChild(el('path',{d:coilPath(lx,yBand[0],ux,yBand[1],6),fill:'none',stroke:'#e65100',['stroke-width']:2.4,opacity:0.55}));
+    });
+    txt((margin.left+W-margin.right)/2,yBeta,'β ≡ 0  (one pooled network)',{['text-anchor']:'middle',['font-size']:13,fill:'#b35a00',['font-weight']:700});
+  } else {
+    // unrelated: coupling cut — two independent sub-networks; show per-treatment gaps as ghost lines
+    [1,2].forEach(t => {
+      const lx=xs(pos(t,0)), ux=xs(pos(t,1)), bt=coords[coordOf(t,1)]-coords[coordOf(t,0)];
+      svg.appendChild(el('line',{x1:lx,y1:yBand[0],x2:ux,y2:yBand[1],stroke:'#bbb',['stroke-width']:1.5,['stroke-dasharray']:'4 4'}));
+      txt((lx+ux)/2,yBeta,`β_${treatNames[t]} = ${bt.toFixed(2)}`,{['text-anchor']:'middle',['font-size']:11.5,fill:'#999',['font-weight']:600});
+    });
+  }
+
+  // reference A coupling (vertical, never shifted)
+  svg.appendChild(el('line',{x1:xs(0),y1:yBand[0],x2:xs(0),y2:yBand[1],stroke:'#c0a0a0',['stroke-width']:2,['stroke-dasharray']:'3 3',opacity:0.6}));
+
+  // ---- treatment nodes in both layers ----
+  for (const xl of [0,1]) for (let t=0;t<3;t++) {
+    const cx=xs(pos(t,xl)), cy=yBand[xl];
+    svg.appendChild(el('circle',{cx,cy,r:NODE_R,fill:treatColors[t],stroke:'#fff',['stroke-width']:2}));
+    txt(cx,cy+5,treatNames[t],{['text-anchor']:'middle',['font-size']:14,fill:'#fff',['font-weight']:700});
+  }
+
   // readouts
-  document.getElementById('betaDisplay').innerHTML = `&beta; = ${(ignoreCov?0:coords[2]).toFixed(3)}`;
+  let betaStr;
+  if (mode==='shared') betaStr = coords[4].toFixed(3);
+  else if (mode==='pooled') betaStr = '0 (clamped)';
+  else betaStr = `B:${(coords[2]-coords[0]).toFixed(2)} C:${(coords[3]-coords[1]).toFixed(2)}`;
+  document.getElementById('betaDisplay').innerHTML = `&beta; = ${betaStr}`;
   document.getElementById('tauDisplay').innerHTML  = `&tau;&sup2; = ${tau2.toFixed(3)}`;
   document.getElementById('energy').textContent = energy().toFixed(4);
   document.getElementById('dB').textContent = coords[0].toFixed(3);
   document.getElementById('dC').textContent = coords[1].toFixed(3);
-  document.getElementById('betaInfo').textContent = (ignoreCov?0:coords[2]).toFixed(3);
+  document.getElementById('betaInfo').textContent = betaStr;
   document.getElementById('iter').textContent = iter;
 }
 
 // ============================ CONTROLS ============================
 function reset(){ coords=new Float64Array(NP); vel=new Float64Array(NP); iter=0; draw(); }
 function loop(){ if(!running) return; for(let i=0;i<3;i++) stepPhysics(); draw(); requestAnimationFrame(loop); }
+function setMode(mname, btn){ mode=mname; vel=new Float64Array(NP);
+  ['mPooled','mShared','mUnrel'].forEach(id=>document.getElementById(id).classList.remove('active'));
+  btn.classList.add('active'); draw(); }
 
 document.getElementById('btnPlay').onclick = function(){ running=!running; this.classList.toggle('active',running); this.textContent=running?'Pause':'Play'; if(running) loop(); };
-document.getElementById('btnStep').onclick = ()=>{ for(let i=0;i<5;i++) stepPhysics(); draw(); };
+document.getElementById('btnStep').onclick = ()=>{ for(let i=0;i<6;i++) stepPhysics(); draw(); };
 document.getElementById('btnReset').onclick = reset;
 document.getElementById('btnSnap').onclick = ()=>{ coords=solveExact(); vel=new Float64Array(NP); draw(); };
-document.getElementById('btnIgnore').onclick = function(){ ignoreCov=!ignoreCov; this.classList.toggle('active',ignoreCov); if(ignoreCov){coords[2]=0;vel[2]=0;} draw(); };
-document.getElementById('tauSlider').oninput = function(){ tau2 = (+this.value)/100; draw(); };
+document.getElementById('mPooled').onclick = function(){ setMode('pooled', this); };
+document.getElementById('mShared').onclick = function(){ setMode('shared', this); };
+document.getElementById('mUnrel').onclick  = function(){ setMode('unrelated', this); };
+document.getElementById('tauSlider').oninput = function(){ tau2=(+this.value)/100; draw(); };
 
 reset();
 </script>
