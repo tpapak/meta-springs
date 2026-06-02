@@ -24,6 +24,7 @@ module Data.Meta.NMA
     makeSprings,
     makeBinomialSprings,
     nmaRegression,
+    nmaRegressionBin,
     nmaRegressionRE,
     nmaRegressionPosterior,
     nmaRegressionPosteriorB,
@@ -818,6 +819,60 @@ nmaRegressionPosteriorB studies covmap nGrid bmodel prior slopePrior armEffect =
         return RegPosteriorB { rpbBetas=betas, rpbCommonB=commonB
                              , rpbTau2=tau2summ, rpbSigmaB2=sigSumm
                              , rpbModeTau2=modeTau2, rpbModeSigmaB2=modeSigB2 }
+
+-- | Fixed-effect BINARY network meta-regression (logit link) via IRLS: the same
+-- β-regression machinery as 'nmaRegression', wrapped in the iteratively-reweighted
+-- least-squares loop that linearises each binomial arm. At each step an arm with
+-- events e of n at linear predictor η contributes a Gaussian working-response spring
+-- (weight w = n·p(1−p), response z = η + (e − n·p)/w) — exactly @linearize@ applied to
+-- a 'BinomialSpring'. Returns (β, log-OR contrasts at x=0).
+nmaRegressionBin ::
+  [Study] ->
+  Map.Map StudyId Double ->
+  Either String (Double, Map.Map TreatmentId (Map.Map TreatmentId Double))
+nmaRegressionBin studies covmap =
+  let treatments = sort $ nub $ concatMap (map tidOfArm . getStudyArms) studies
+      ref    = head treatments
+      nonref = filter (/= ref) treatments
+      nT     = length nonref
+      sids   = map getStudyId studies
+      nS     = length sids
+      sidx   = Map.fromList (zip sids [0 ..])
+      tidx   = Map.fromList (zip nonref [0 ..])
+      nonrefCovs = [ Map.findWithDefault 0 (getStudyId s) covmap
+                   | s <- studies, a <- getStudyArms s, tidOfArm a /= ref ]
+      hasBeta = length (nub nonrefCovs) > 1
+      nP      = nS + nT + (if hasBeta then 1 else 0)
+      betaCol = nS + nT
+      setAt xs i v = take i xs ++ [v] ++ drop (i+1) xs
+      armInfo study a = case a of
+        BinaryArm t ev ns ->
+          let si = sidx Map.! getStudyId study
+              x  = Map.findWithDefault 0 (getStudyId study) covmap
+              base = setAt (replicate nP 0) si (-1)   -- η = −μ_si + d_t + β·x  (same sign convention)
+              row | t == ref  = base
+                  | hasBeta   = setAt (setAt base (nS + tidx Map.! t) 1) betaCol x
+                  | otherwise = setAt base (nS + tidx Map.! t) 1
+          in Right (row, fromIntegral ev, fromIntegral ns)
+        _ -> Left "nmaRegressionBin: expects binary arms"
+   in do
+        arms <- concat <$> mapM (\s -> mapM (armInfo s) (getStudyArms s)) studies
+        let irls theta it
+              | it > (100 :: Int)               = theta
+              | maximum (zipWith (\a b -> abs (a-b)) theta theta') < 1e-10 = theta'
+              | otherwise                        = irls theta' (it+1)
+              where wz = [ let eta = sum (zipWith (*) r theta); p = sigmoid eta
+                               w = max 1e-9 (n*p*(1-p)); z = eta + (e - n*p)/w
+                           in (w,z) | (r,e,n) <- arms ]
+                    aMat = [ [ sum [ w*(r!!i)*(r!!j) | ((r,_,_),(w,_)) <- zip arms wz ] | j<-[0..nP-1] ] | i<-[0..nP-1] ]
+                    bVec = [ sum [ w*(r!!i)*z | ((r,_,_),(w,z)) <- zip arms wz ] | i<-[0..nP-1] ]
+                    theta' = matVec (matInv aMat) bVec
+            thetaF = irls (replicate nP 0) 0
+            beta = if hasBeta then thetaF !! betaCol else 0
+            dOf t = if t == ref then 0 else thetaF !! (nS + tidx Map.! t)
+            contrasts = Map.fromList
+              [ (t1, Map.fromList [ (t2, dOf t2 - dOf t1) | t2 <- treatments ]) | t1 <- treatments ]
+        return (beta, contrasts)
 
 -- | Grouped-τ² REML for exchangeable-β network meta-regression: estimates the
 -- heterogeneity τ² (tau-group 0) and the slope-dispersion σ_B² (tau-group 1) in
