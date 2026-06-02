@@ -24,6 +24,7 @@ module Data.Meta.NMA
     makeSprings,
     makeBinomialSprings,
     nmaRegression,
+    nmaRegressionRE,
     nma,
     springNMA,
     springLength,
@@ -389,6 +390,102 @@ nmaRegression studies covmap armEffect =
               [ (t1, Map.fromList [ (t2, dOf t2 - dOf t1) | t2 <- treatments ])
               | t1 <- treatments ]
         return (beta, contrasts)
+
+-- | Random-effects network meta-regression: REML/EM estimate of τ² jointly with the
+-- covariate slope β, on the same model as @nmaRegression@ (arm effect = φ_T − φ_S
+-- + β·x for non-reference arms) plus the heterogeneity τ². Matches the springREML
+-- convention exactly: reported τ² is contrast-space, arm-space is τ²/2, effective arm
+-- variance v + τ²/2, BLUP shrinkage b = w·τ²ₐᵣₘ/(1+w·τ²ₐᵣₘ), Var(δ)=b²·varST + b·τ²ₐᵣₘ,
+-- and EM update τ²_new = 2·(mean δ² + mean Var δ). Returns (β, τ², contrasts at x=0).
+nmaRegressionRE ::
+  (ArmEffect a b, Gaussian a, Gaussian b) =>
+  [Study] ->
+  Map.Map StudyId Double ->
+  Maybe TauSquare ->                 -- ^ initial τ² guess
+  (Arm -> Either String a) ->
+  Either String (Double, Double, Map.Map TreatmentId (Map.Map TreatmentId Double))
+nmaRegressionRE studies covmap mtau0 armEffect =
+  let treatments = sort $ nub $ concatMap (map tidOfArm . getStudyArms) studies
+      ref        = head treatments
+      nonref     = filter (/= ref) treatments
+      nT         = length nonref
+      sids       = map getStudyId studies
+      nS         = length sids
+      sidx       = Map.fromList (zip sids [0 ..])
+      tidx       = Map.fromList (zip nonref [0 ..])
+      -- β is identified only if the covariate varies across the non-reference arms;
+      -- otherwise drop the column (β unidentified) and report β = 0.
+      nonrefCovs = [ Map.findWithDefault 0 (getStudyId s) covmap
+                   | s <- studies, a <- getStudyArms s, tidOfArm a /= ref ]
+      hasBeta    = length (nub nonrefCovs) > 1
+      nP         = nS + nT + (if hasBeta then 1 else 0)
+      betaCol    = nS + nT
+      setAt xs i v = take i xs ++ [v] ++ drop (i + 1) xs
+      armInfo study a = do
+        ef <- armEffect a
+        let rel = relatedRelative ef
+            y   = expectation rel
+            v   = variance rel
+            t   = tidOfArm a
+            si  = sidx Map.! getStudyId study
+            x   = Map.findWithDefault 0 (getStudyId study) covmap
+            base = setAt (replicate nP 0) si (-1)
+            row  | t == ref  = base
+                 | hasBeta   = setAt (setAt base (nS + tidx Map.! t) 1) betaCol x
+                 | otherwise = setAt base (nS + tidx Map.! t) 1
+        return (row, y, v)
+   in do
+        arms <- concat <$> mapM (\study -> mapM (armInfo study) (getStudyArms study)) studies
+        let nArm = fromIntegral (length arms)
+            solveTheta t2 =                 -- GLS at τ²; returns (theta, cov)
+              let t2arm = t2 / 2
+                  aMat = [ [ sum [ (r !! i) * (r !! j) / (v + t2arm) | (r, _, v) <- arms ] | j <- [0 .. nP - 1] ]
+                         | i <- [0 .. nP - 1] ]
+                  bVec = [ sum [ (r !! i) * y / (v + t2arm) | (r, y, v) <- arms ] | i <- [0 .. nP - 1] ]
+                  cov  = matInv aMat
+              in (matVec cov bVec, cov)
+            -- One REML/EM step τ² → τ²_new, matching springREML exactly:
+            --   τ²_new = 2·(mean δ̂² + mean Var(δ̂))   (contrast-space ⇒ factor 2)
+            -- with δ̂ᵢ = bᵢ·residᵢ the per-arm BLUP, bᵢ = wᵢ·τ²ₐᵣₘ/(1+wᵢ·τ²ₐᵣₘ),
+            -- and posterior Var(δ̂ᵢ|y) = (1−bᵢ)·τ²ₐᵣₘ + bᵢ²·Var(fittedᵢ).
+            emStep t2 =
+              let t2arm = t2 / 2
+                  (theta, cov) = solveTheta t2
+                  per (r, y, v) =
+                    let fitted = sum (zipWith (*) r theta)
+                        resid  = y - fitted
+                        b      = (1 / v) * t2arm / (1 + (1 / v) * t2arm)   -- shrinkage
+                        delta  = b * resid
+                        varST  = quadForm r cov                            -- Var(fitted)
+                        varD   = (1 - b) * t2arm + b * b * varST
+                    in (delta * delta, varD)
+                  ms = map per arms
+              in max 0 $ 2 * (sum (map fst ms) / nArm + sum (map snd ms) / nArm)
+            emLoop t2 it
+              | it > (300 :: Int) = t2
+              | abs (t2' - t2) < 1e-6 = t2'
+              | otherwise = emLoop t2' (it + 1)
+              where t2' = emStep t2
+            tau2 = emLoop (fromMaybe 0.5 mtau0) 0
+            (theta, _) = solveTheta tau2
+            beta = if hasBeta then theta !! betaCol else 0
+            dOf t = if t == ref then 0 else theta !! (nS + tidx Map.! t)
+            contrasts = Map.fromList
+              [ (t1, Map.fromList [ (t2, dOf t2 - dOf t1) | t2 <- treatments ])
+              | t1 <- treatments ]
+        return (beta, tau2, contrasts)
+
+matVec :: [[Double]] -> [Double] -> [Double]
+matVec m v = [ sum (zipWith (*) row v) | row <- m ]
+
+quadForm :: [Double] -> [[Double]] -> Double      -- aᵀ M a
+quadForm a m = sum [ (a !! i) * (m !! i !! j) * (a !! j) | i <- [0 .. n - 1], j <- [0 .. n - 1] ]
+  where n = length a
+
+matInv :: [[Double]] -> [[Double]]                -- inverse via column solves
+matInv a = transpose [ gaussSolve a (unit j) | j <- [0 .. n - 1] ]
+  where n = length a
+        unit j = [ if i == j then 1 else 0 | i <- [0 .. n - 1] ]
 
 -- | Solve A x = b by Gaussian elimination with partial pivoting.
 gaussSolve :: [[Double]] -> [Double] -> [Double]
