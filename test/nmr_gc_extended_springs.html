@@ -27,8 +27,9 @@
 <div class="subtitle">
   The Ξ-animation network (4 treatments A–D; 2-, 3- and 4-arm studies), <b>extended</b> with a binary covariate and
   drawn <b>fixed-effect</b> (tau springs omitted). Convention y<sub>ij</sub> = μ<sub>i</sub> + (d<sub>j</sub> + β·x<sub>i</sub>).
-  One effect axis; every spring is a horizontal <b style="color:#1a73e8">study/obs spring</b> (spindle → the arm's covariate-level node).
-  β is shown as the <b style="color:#e65100">bracket</b> spanning each treatment's two covariate-level nodes (b₀↔b₁): its width <b>is β</b>, equal for every treatment (shared). No tau node — residuals show as obs-spring stretch.
+  The covariate level is part of the <b>network structure</b>: each treatment has two level nodes (b₀ at x=0, b₁ at x=1) and a study
+  attaches (with ordinary ±1 <b style="color:#1a73e8">study springs</b>) to the level nodes for its level. β is the <b style="color:#e65100">β spring</b> joining
+  a treatment's two level nodes — an ordinary 1:1 spring whose length is β, equal across treatments (shared). All springs parallel; no lever, no torque. Tau omitted.
 </div>
 
 <div class="ctrl-row">
@@ -41,9 +42,9 @@
 <svg id="canvas" width="1120" height="680"></svg>
 
 <div class="legend">
-  <b>Dashed columns</b> = the two covariate levels d<sub>j</sub>∓β/2; the <b>base node</b> between them = d<sub>j</sub> at the mean covariate.
-  The <b style="color:#e65100">β bracket</b> over each treatment has width <b>β</b> — identical across treatments (that equal width <i>is</i> the shared coefficient).
-  Reference A pinned at 0. Tau springs are left out — add them back and each arm gains a τ-chain to a BLUP node (heterogeneity).
+  <b>Dashed columns</b> = the two covariate-level nodes (b₀ = effect at x=0, b₁ = effect at x=1). The <b style="color:#e65100">β spring</b> joining them is an
+  <b>ordinary 1:1 spring</b> of length β — equal length across treatments <i>is</i> the shared coefficient. Study springs and the β spring meet at the same level nodes.
+  Because the covariate level is structural (which node you attach to, like which treatment you compare), <b>no lever or torque is needed</b> — it is plain NMA with extra nodes. Reference A pinned at 0; tau omitted.
 </div>
 
 <script>
@@ -67,7 +68,7 @@ function solve(){
   const bi=betaInfo(), N=nD+nMu+bi.nB, A=Array.from({length:N},()=>new Float64Array(N)), b=new Float64Array(N);
   studies.forEach((st,si)=>st.arms.forEach(a=>{const k=1/a.v,co={};
     if(a.t!==0)co[a.t-1]=(co[a.t-1]||0)+1; co[nD+si]=(co[nD+si]||0)+1;
-    if(a.t!==0&&bi.nB>0)co[bi.idx(a.t)]=(co[bi.idx(a.t)]||0)+(st.x-xbar);
+    if(a.t!==0&&bi.nB>0)co[bi.idx(a.t)]=(co[bi.idx(a.t)]||0)+st.x;   // 0/1 design entry -> 1:1 spring
     for(const i in co){b[i]+=k*co[i]*a.y;for(const j in co)A[i][j]+=k*co[i]*co[j];}}));
   const x=linSolve(A,b), d=[0]; for(let t=1;t<T;t++)d[t]=x[t-1];
   const mu=[]; for(let si=0;si<S;si++)mu[si]=x[nD+si];
@@ -93,7 +94,9 @@ const armGap=27, studyGap=18, armOffset=14; let _y=160;
 const layouts=studies.map(st=>{const yTop=_y,armYs=st.arms.map((_,k)=>yTop+armOffset+k*armGap),yBot=armYs[armYs.length-1]+10;_y=yBot+studyGap;return{yTop,yBot,armYs};});
 const axisYbot=_y+2;
 const xs=v=>baseX+(v-xMin)/(xMax-xMin)*(scale*(xMax-xMin));   // = baseX + scale*v
-function effAt(sol,t,x){return t===0?0:sol.d[t]+sol.betaOf(t)*(x-xbar);}
+// corner-point (0/1) coding: level-0 node = d[t] (effect at x=0), level-1 node = d[t] + beta.
+// beta's design coefficient is 0/1 -> ordinary 1:1 springs, no lever / no torque.
+function effAt(sol,t,x){return t===0?0:sol.d[t]+sol.betaOf(t)*x;}
 
 function draw(){
   const sol=solve(); while(svg.firstChild)svg.removeChild(svg.firstChild);
@@ -121,7 +124,7 @@ function draw(){
     svg.appendChild(tx(baseX-150,midY+11,'μ̂='+fmt(sol.mu[si],2),{['font-size']:10,fill:'#888'}));
     st.arms.forEach((a,k)=>{const armY=lay.armYs[k];
       const xnode=baseX+scale*effAt(sol,a.t,st.x);          // where this arm sits: its covariate-level node
-      const fit=sol.mu[si]+sol.d[a.t]+(a.t!==0?sol.betaOf(a.t)*(st.x-xbar):0), res=fit-a.y;
+      const fit=sol.mu[si]+sol.d[a.t]+(a.t!==0?sol.betaOf(a.t)*st.x:0), res=fit-a.y;
       const obsCol = Math.abs(res)>0.25?'#dc2626':'#1a73e8';
       // study/obs spring: spindle -> arm node (horizontal, parallel to every other spring)
       svg.appendChild(coil(xsCentroid,armY,xnode,armY,Math.max(2,Math.round(Math.abs(xnode-xsCentroid)/24)),obsCol,1.7));
@@ -132,25 +135,31 @@ function draw(){
     });
   });
 
-  // treatment nodes (top): base node (midpoint) + covariate-level nodes + β bracket (gap = β)
-  for(let t=0;t<T;t++){const bx=baseX+scale*sol.d[t];
-    if(hasCov&&t!==0){
-      const x0=baseX+scale*effAt(sol,t,0), x1=baseX+scale*effAt(sol,t,1), lo=Math.min(x0,x1), hi=Math.max(x0,x1);
-      const bcol=mode==='shared'?'#e65100':treatColor[t], by=trtY-36-(t-1)*15;
-      // covariate-level nodes
-      [[x0,'₀'],[x1,'₁']].forEach(([cx,sub])=>{
-        svg.appendChild(el('circle',{cx,cy:trtY,r:8,fill:'#fff',stroke:treatColor[t],['stroke-width']:1.3,['stroke-dasharray']:'3,2'}));
-        svg.appendChild(tx(cx,trtY+3,treatments[t].toLowerCase()+sub,{['text-anchor']:'middle',['font-size']:8,fill:treatColor[t]}));});
-      // bracket spanning b0 <-> b1 : its width IS beta
-      svg.appendChild(el('path',{d:`M${lo},${trtY-13} L${lo},${by} L${hi},${by} L${hi},${trtY-13}`,fill:'none',stroke:bcol,['stroke-width']:1.4}));
-      svg.appendChild(tx((lo+hi)/2,by-3,'β'+(mode==='unrelated'?'_'+treatments[t]:'')+'='+fmt(Math.abs(x1-x0)/scale,2),{['text-anchor']:'middle',['font-size']:10.5,fill:bcol,['font-weight']:700}));
+  // treatment nodes (top): two covariate-level nodes joined by a 1:1 β SPRING (no base/midpoint, no torque)
+  for(let t=0;t<T;t++){
+    if(t===0){const x=baseX;
+      svg.appendChild(el('circle',{cx:x,cy:trtY,r:15,fill:'#dbeafe',stroke:treatColor[0],['stroke-width']:2}));
+      svg.appendChild(tx(x,trtY+5,'A',{['text-anchor']:'middle',['font-size']:13,fill:treatColor[0],['font-weight']:700}));
+      svg.appendChild(tx(x,trtY-18,'⚓ ref',{['text-anchor']:'middle',['font-size']:9,fill:'#a00'}));
+      continue;}
+    const x0=baseX+scale*effAt(sol,t,0), x1=baseX+scale*effAt(sol,t,1);
+    if(hasCov){const bcol=mode==='shared'?'#e65100':treatColor[t], by=trtY-30-(t-1)*20;
+      // thin connectors from the two level nodes up to the β-spring row
+      svg.appendChild(el('line',{x1:x0,y1:trtY-9,x2:x0,y2:by,stroke:bcol,['stroke-width']:1,opacity:0.5}));
+      svg.appendChild(el('line',{x1:x1,y1:trtY-9,x2:x1,y2:by,stroke:bcol,['stroke-width']:1,opacity:0.5}));
+      // the β SPRING — an ordinary 1:1 spring between the two level nodes; its length is β
+      svg.appendChild(coil(x0,by,x1,by,Math.max(3,Math.round(Math.abs(x1-x0)/20)),bcol,2));
+      svg.appendChild(tx((x0+x1)/2,by-5,'β'+(mode==='unrelated'?'_'+treatments[t]:'')+'='+fmt(Math.abs(x1-x0)/scale,2),{['text-anchor']:'middle',['font-size']:10.5,fill:bcol,['font-weight']:700}));
+      // two equal-status covariate-level nodes (the study springs attach here too)
+      [[x0,'₀',0],[x1,'₁',1]].forEach(([cx,sub,l])=>{
+        svg.appendChild(el('circle',{cx,cy:trtY,r:11,fill:'#fff',stroke:treatColor[t],['stroke-width']:1.8,['stroke-dasharray']:'4,2'}));
+        svg.appendChild(tx(cx,trtY+4,treatments[t].toLowerCase()+sub,{['text-anchor']:'middle',['font-size']:10,fill:treatColor[t],['font-weight']:600}));
+        svg.appendChild(tx(cx,trtY+23,effAt(sol,t,l).toFixed(2),{['text-anchor']:'middle',['font-size']:8.5,fill:'#999'}));});
+    } else {
+      svg.appendChild(el('circle',{cx:x0,cy:trtY,r:13,fill:'#dbeafe',stroke:treatColor[t],['stroke-width']:2}));
+      svg.appendChild(tx(x0,trtY+4,treatments[t],{['text-anchor']:'middle',['font-size']:12,fill:treatColor[t],['font-weight']:700}));
     }
-    // base node (network-mean effect, = midpoint of the two covariate levels)
-    svg.appendChild(el('circle',{cx:bx,cy:trtY,r:t===0?15:11,fill:'#dbeafe',stroke:treatColor[t],['stroke-width']:2}));
-    svg.appendChild(tx(bx,trtY+(t===0?5:4),treatments[t],{['text-anchor']:'middle',['font-size']:t===0?13:11,fill:treatColor[t],['font-weight']:700}));
-    svg.appendChild(tx(bx,trtY+24,'d='+fmt(sol.d[t],2),{['text-anchor']:'middle',['font-size']:9,fill:'#444'}));
   }
-  svg.appendChild(tx(baseX,trtY-20,'⚓ A',{['text-anchor']:'middle',['font-size']:9,fill:'#a00'}));
 
   svg.appendChild(betaPanel(sol.betaShared, sol.varBeta));
   document.getElementById('betaDisplay').innerHTML='β = '+(mode==='pooled'?'0':(mode==='shared'?fmt(sol.betaShared,3):`B:${fmt(sol.betaOf(1),2)} C:${fmt(sol.betaOf(2),2)} D:${fmt(sol.betaOf(3),2)}`));
