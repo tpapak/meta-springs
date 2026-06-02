@@ -26,7 +26,10 @@ module Data.Meta.NMA
     nmaRegression,
     nmaRegressionRE,
     nmaRegressionPosterior,
+    nmaRegressionPosteriorB,
     RegPosterior (..),
+    RegPosteriorB (..),
+    BetaModel (..),
     Tau2PriorR (..),
     nma,
     springNMA,
@@ -666,6 +669,134 @@ nmaRegressionPosterior studies covmap nGrid prior armEffect =
           { rpBeta = (betaMean, sqrt (max 0 betaVar), blo, bhi)
           , rpTau2 = (tau2mode, tau2mean, t2lo, t2hi')
           , rpGrid = zip4 ts ws bhats bvars }
+
+-- | Covariate-coefficient structure for network meta-regression (cf. gemtc/MetaInsight):
+-- a single shared slope, independent per-treatment slopes, or exchangeable slopes
+-- β_t ~ N(B, σ_B²). All three are one Gaussian GC partition function with different
+-- slope coupling (see test/nmr_gc_beta_model.md).
+data BetaModel = SharedB | UnrelatedB | ExchangeableB
+  deriving (Show, Eq)
+
+type Summ = (Double, Double, Double, Double)   -- (mean, sd, lo95, hi95)
+
+-- | Joint posterior for any 'BetaModel'. Returns per-treatment slopes (unrelated /
+-- exchangeable), the common slope (shared / exchangeable hyper-mean), τ², and the
+-- slope variance σ_B² (exchangeable).
+data RegPosteriorB = RegPosteriorB
+  { rpbBetas   :: [(TreatmentId, Summ)]  -- ^ per non-reference treatment slope
+  , rpbCommonB :: Maybe Summ             -- ^ shared slope (Shared) / hyper-mean (Exchangeable)
+  , rpbTau2    :: Summ                   -- ^ heterogeneity (mean, sd, lo, hi)
+  , rpbSigmaB2 :: Maybe Summ             -- ^ slope variance (Exchangeable)
+  } deriving (Show)
+
+-- | Weighted quantile of (value, weight) pairs.
+wquantile :: [(Double, Double)] -> Double -> Double
+wquantile pairs p =
+  let s = sortOn fst pairs
+      tot = sum (map snd pairs)
+      go _   []          = fst (last s)
+      go acc ((v,w):rest) = if acc + w >= p * tot then v else go (acc + w) rest
+  in go 0 s
+
+-- | Network meta-regression joint posterior under any β structure, by exact
+-- linear-Gaussian marginalisation (the GC partition function with the slope
+-- coordinates included). See 'BetaModel' and test/nmr_gc_beta_model.md.
+nmaRegressionPosteriorB ::
+  (ArmEffect a b, Gaussian a, Gaussian b) =>
+  [Study] ->
+  Map.Map StudyId Double ->
+  Int ->                                   -- ^ τ² grid resolution
+  BetaModel ->
+  Tau2PriorR ->                            -- ^ prior on τ² (heterogeneity)
+  (Arm -> Either String a) ->
+  Either String RegPosteriorB
+nmaRegressionPosteriorB studies covmap nGrid bmodel prior armEffect =
+  let treatments = sort $ nub $ concatMap (map tidOfArm . getStudyArms) studies
+      ref    = head treatments
+      nonref = filter (/= ref) treatments
+      nT     = length nonref
+      sids   = map getStudyId studies
+      nS     = length sids
+      sidx   = Map.fromList (zip sids [0 ..])
+      tidx   = Map.fromList (zip nonref [0 ..])
+      nonrefCovs = [ Map.findWithDefault 0 (getStudyId s) covmap
+                   | s <- studies, a <- getStudyArms s, tidOfArm a /= ref ]
+      hasBeta = length (nub nonrefCovs) > 1
+      nBeta   = case bmodel of SharedB -> 1; UnrelatedB -> nT; ExchangeableB -> nT + 1
+      betaBase = nS + nT                                   -- first slope column
+      dCol t   = nS + tidx Map.! t
+      bCol t   = case bmodel of SharedB -> betaBase; _ -> betaBase + tidx Map.! t
+      commonCol = betaBase + nT                            -- hyper-mean column (Exchangeable)
+      nP = nS + nT + nBeta
+      setAt xs i v = take i xs ++ [v] ++ drop (i+1) xs
+      armInfo study a = do
+        ef <- armEffect a
+        let rel = relatedRelative ef; y = expectation rel; v = variance rel; t = tidOfArm a
+            si = sidx Map.! getStudyId study
+            x  = Map.findWithDefault 0 (getStudyId study) covmap
+            base = setAt (replicate nP 0) si (-1)
+            row | t == ref  = base
+                | otherwise = setAt (setAt base (dCol t) 1) (bCol t) x
+        return (row, y, v)
+   in if not hasBeta then Left "nmaRegressionPosteriorB: covariate does not vary; β unidentified" else do
+        arms <- concat <$> mapM (\s -> mapM (armInfo s) (getStudyArms s)) studies
+        (_, tau2mode0, _) <- nmaRegressionRE studies covmap (Just 0.1) armEffect
+        let addM m i j d = [ [ if r==i && c==j then (m!!r!!c)+d else m!!r!!c | c<-[0..nP-1] ] | r<-[0..nP-1] ]
+            -- Gaussian solve at τ² with optional exchangeable coupling 1/σ_B² (mInvSig)
+            solveCell t2 mInvSig =
+              let t2arm = t2/2
+                  a0 = [ [ sum [ (r!!i)*(r!!j)/(v+t2arm) | (r,_,v)<-arms ] | j<-[0..nP-1] ] | i<-[0..nP-1] ]
+                  aMat = case mInvSig of
+                           Nothing -> a0
+                           Just is -> foldl' (\m t -> let bt=bCol t; bb=commonCol in
+                                        addM (addM (addM (addM m bt bt is) bb bb is) bt bb (negate is)) bb bt (negate is))
+                                      a0 nonref
+                  bVec = [ sum [ (r!!i)*y/(v+t2arm) | (r,y,v)<-arms ] | i<-[0..nP-1] ]
+                  cov  = matInv aMat
+                  theta = matVec cov bVec
+                  sumLogV = sum [ log (v+t2arm) | (_,_,v)<-arms ]
+                  yWy = sum [ y*y/(v+t2arm) | (_,y,v)<-arms ]
+                  logZ = -0.5*(sumLogV + logDetPD aMat + (yWy - sum (zipWith (*) bVec theta)))
+              in (logZ, theta, cov)
+            tau2hi = max (tau2mode0*12) 0.02
+            ts = [ tau2hi*(fromIntegral i-0.5)/fromIntegral nGrid | i<-[1..nGrid] ]
+            cells = case bmodel of
+              ExchangeableB ->
+                let nSig = 24; sigHi = 1.0
+                    ss = [ sigHi*(fromIntegral i-0.5)/fromIntegral nSig | i<-[1..nSig::Int] ]
+                in [ let (lz,th,cv) = solveCell t (Just (1/s))
+                         lp = lz - 0.5*fromIntegral nT*log s
+                              + logPriorT2 prior t + logPriorT2 (HalfNormalTauR 0.5) s
+                     in (lp, t, Just s, th, cv) | t<-ts, s<-ss ]
+              _ -> [ let (lz,th,cv) = solveCell t Nothing
+                     in (lz + logPriorT2 prior t, t, Nothing, th, cv) | t<-ts ]
+            lps = [ lp | (lp,_,_,_,_)<-cells ]
+            mx  = maximum lps
+            raw = [ exp (lp-mx) | lp<-lps ]; tot = sum raw; ws = map (/tot) raw
+            thetas = [ th | (_,_,_,th,_)<-cells ]; covs = [ cv | (_,_,_,_,cv)<-cells ]
+            summ c = let m  = sum (zipWith (\w th -> w*(th!!c)) ws thetas)
+                         s2 = sum (zipWith3 (\w th cv -> w*((cv!!c!!c)+(th!!c)^2)) ws thetas covs) - m*m
+                         (lo,hi) = mixtureCI ws (map (!!c) thetas) (map (\cv -> cv!!c!!c) covs)
+                     in (m, sqrt (max 0 s2), lo, hi)
+            tcells = zip [ t | (_,t,_,_,_)<-cells ] ws
+            tau2summ = let m = sum [ t*w | (t,w)<-tcells ]
+                       in (m, sqrt (max 0 (sum [ t*t*w | (t,w)<-tcells ] - m*m)),
+                           wquantile tcells 0.025, wquantile tcells 0.975)
+            betas = if bmodel == SharedB then []
+                    else [ (t, summ (bCol t)) | t <- nonref ]
+            commonB = case bmodel of
+                        SharedB       -> Just (summ betaBase)
+                        ExchangeableB -> Just (summ commonCol)
+                        UnrelatedB    -> Nothing
+            sigSumm = case bmodel of
+                        ExchangeableB ->
+                          let sc = [ (s,w) | ((_,_,Just s,_,_),w) <- zip cells ws ]
+                              m  = sum [ s*w | (s,w)<-sc ]
+                          in Just (m, sqrt (max 0 (sum [ s*s*w | (s,w)<-sc ] - m*m)),
+                                   wquantile sc 0.025, wquantile sc 0.975)
+                        _ -> Nothing
+        return RegPosteriorB { rpbBetas=betas, rpbCommonB=commonB
+                             , rpbTau2=tau2summ, rpbSigmaB2=sigSumm }
 
 -- | makeBinomialSprings constructs a spring network using exact binomial
 -- springs for binary arm data, instead of Gaussian inverse-variance springs.
