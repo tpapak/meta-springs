@@ -25,6 +25,8 @@ module Data.Meta.NMA
     makeBinomialSprings,
     nmaRegression,
     nmaRegressionRE,
+    nmaRegressionPosterior,
+    RegPosterior (..),
     nma,
     springNMA,
     springLength,
@@ -509,6 +511,143 @@ gaussSolve a0 b0 = back (elim (zipWith (\r y -> r ++ [y]) a0 b0) 0)
                             s = sum [ (row !! j) * (xs !! j) | j <- [i + 1 .. n - 1] ]
                         in setAtL xs i ((row !! n - s) / (row !! i))
     setAtL xs i v = take i xs ++ [v] ++ drop (i + 1) xs
+
+-- | log determinant of a (symmetric positive-definite) matrix via Gaussian
+-- elimination with partial pivoting (sum of log|pivot|).
+logDetPD :: [[Double]] -> Double
+logDetPD a0 = go a0 0 0
+  where
+    n = length a0
+    go m c acc
+      | c >= n = acc
+      | otherwise =
+          let piv = maximumBy (\i j -> compare (abs (m !! i !! c)) (abs (m !! j !! c))) [c .. n - 1]
+              m1  = [ if k == c then m !! piv else if k == piv then m !! c else m !! k | k <- [0 .. n - 1] ]
+              prow = m1 !! c
+              p    = prow !! c
+              m2  = [ if r <= c then m1 !! r
+                      else let f = (m1 !! r !! c) / p
+                           in zipWith (\u v -> u - f * v) (m1 !! r) prow
+                    | r <- [0 .. n - 1] ]
+          in go m2 (c + 1) (acc + log (abs p))
+
+-- | Standard normal CDF (Abramowitz–Stegun 7.1.26 erf approximation).
+normCdf :: Double -> Double
+normCdf x = 0.5 * (1 + erf (x / sqrt 2))
+  where
+    erf z = let s = signum z; az = abs z
+                t = 1 / (1 + 0.3275911 * az)
+                y = 1 - (((((1.061405429 * t - 1.453152027) * t) + 1.421413741) * t - 0.284496736) * t + 0.254829592) * t * exp (- az * az)
+            in s * y
+
+-- | Weighted 95% interval of a sorted-ascending grid (trapezoid CDF).
+weightedCI :: [Double] -> [Double] -> (Double, Double)
+weightedCI ts ws = (q 0.025, q 0.975)
+  where cums = scanl1 (+) ws
+        q p  = let i = length (takeWhile (< p) cums)
+               in ts !! min i (length ts - 1)
+
+-- | 2.5/97.5% quantiles of a Gaussian mixture Σ wₖ N(mₖ, vₖ) by bisection.
+mixtureCI :: [Double] -> [Double] -> [Double] -> (Double, Double)
+mixtureCI ws ms vs = (solve 0.025, solve 0.975)
+  where cdf b = sum [ w * normCdf ((b - m) / sqrt (max 1e-300 v)) | (w, m, v) <- zip3 ws ms vs ]
+        mn = minimum ms; mx = maximum ms; sd = sqrt (maximum (1e-12 : vs))
+        solve p = bis (mn - 12 * sd) (mx + 12 * sd) (60 :: Int)
+          where bis lo hi k
+                  | k <= 0 = (lo + hi) / 2
+                  | cdf mid < p = bis mid hi (k - 1)
+                  | otherwise   = bis lo mid (k - 1)
+                  where mid = (lo + hi) / 2
+
+-- | Joint (β, τ²) posterior summary for network meta-regression.
+data RegPosterior = RegPosterior
+  { rpBeta :: (Double, Double, Double, Double)  -- ^ (mean, sd, lo95, hi95)
+  , rpTau2 :: (Double, Double, Double, Double)  -- ^ (mode, mean, lo95, hi95)
+  , rpGrid :: [(Double, Double, Double, Double)] -- ^ (τ², weight, β̂(τ²), Var(β|τ²))
+  } deriving (Show)
+
+-- | Joint (β, τ²) posterior under flat priors on (μ, d, β, τ²), by exact
+-- linear-Gaussian marginalisation: at each τ² the fixed effects (μ, d, β) are
+-- integrated analytically, so the τ² posterior ∝ exp(REML logLik) and β|τ² is
+-- Gaussian. β's marginal posterior is therefore a τ²-mixture of Gaussians — a
+-- genuine joint posterior, not a profile. (β is integrated, never profiled out.)
+nmaRegressionPosterior ::
+  (ArmEffect a b, Gaussian a, Gaussian b) =>
+  [Study] ->
+  Map.Map StudyId Double ->
+  Int ->                                   -- ^ τ² grid resolution (e.g. 200)
+  (Arm -> Either String a) ->
+  Either String RegPosterior
+nmaRegressionPosterior studies covmap nGrid armEffect =
+  let treatments = sort $ nub $ concatMap (map tidOfArm . getStudyArms) studies
+      ref        = head treatments
+      nonref     = filter (/= ref) treatments
+      nT         = length nonref
+      sids       = map getStudyId studies
+      nS         = length sids
+      sidx       = Map.fromList (zip sids [0 ..])
+      tidx       = Map.fromList (zip nonref [0 ..])
+      nonrefCovs = [ Map.findWithDefault 0 (getStudyId s) covmap
+                   | s <- studies, a <- getStudyArms s, tidOfArm a /= ref ]
+      hasBeta    = length (nub nonrefCovs) > 1
+      nP         = nS + nT + 1
+      betaCol    = nS + nT
+      setAt xs i v = take i xs ++ [v] ++ drop (i + 1) xs
+      armInfo study a = do
+        ef <- armEffect a
+        let rel = relatedRelative ef
+            y = expectation rel; v = variance rel; t = tidOfArm a
+            si = sidx Map.! getStudyId study
+            x  = Map.findWithDefault 0 (getStudyId study) covmap
+            base = setAt (replicate nP 0) si (-1)
+            row  = if t == ref then base
+                     else setAt (setAt base (nS + tidx Map.! t) 1) betaCol x
+        return (row, y, v)
+   in if not hasBeta then Left "nmaRegressionPosterior: covariate does not vary; β unidentified" else do
+        arms <- concat <$> mapM (\study -> mapM (armInfo study) (getStudyArms study)) studies
+        (_, tau2mode0, _) <- nmaRegressionRE studies covmap (Just 0.1) armEffect
+        let tau2hi = max (tau2mode0 * 12) 0.02
+            ts     = [ tau2hi * fromIntegral i / fromIntegral nGrid | i <- [0 .. nGrid] ]
+            eval t2 =
+              let t2arm = t2 / 2
+                  aMat = [ [ sum [ (r !! i) * (r !! j) / (v + t2arm) | (r, _, v) <- arms ] | j <- [0 .. nP - 1] ]
+                         | i <- [0 .. nP - 1] ]
+                  bVec = [ sum [ (r !! i) * y / (v + t2arm) | (r, y, v) <- arms ] | i <- [0 .. nP - 1] ]
+                  cov  = matInv aMat
+                  theta = matVec cov bVec
+                  sumLogV = sum [ log (v + t2arm) | (_, _, v) <- arms ]
+                  yWy = sum [ y * y / (v + t2arm) | (_, y, v) <- arms ]
+                  residSS = yWy - sum (zipWith (*) bVec theta)
+                  logL = -0.5 * (sumLogV + logDetPD aMat + residSS)
+              in (logL, theta !! betaCol, cov !! betaCol !! betaCol)
+            evals = map eval ts
+            logLs = [ l | (l, _, _) <- evals ]
+            bhats = [ b | (_, b, _) <- evals ]
+            bvars = [ v | (_, _, v) <- evals ]
+            mx    = maximum logLs
+            dt    = tau2hi / fromIntegral nGrid
+            raw   = [ (if i == 0 || i == nGrid then dt / 2 else dt) * exp (l - mx)
+                    | (i, l) <- zip [0 ..] logLs ]
+            tot   = sum raw
+            ws    = map (/ tot) raw
+            modeIdx  = snd $ maximum (zip logLs [0 :: Int ..])
+            -- parabolic refinement of the mode (REML argmax) off the equally
+            -- spaced grid: vertex = x1 + (dt/2)·(y0−y2)/(y0−2y1+y2)
+            tau2mode
+              | modeIdx > 0 && modeIdx < nGrid && denom < 0 =
+                  (ts !! modeIdx) + (dt / 2) * (y0 - y2) / denom
+              | otherwise = ts !! modeIdx
+              where y0 = logLs !! (modeIdx - 1); y1 = logLs !! modeIdx; y2 = logLs !! (modeIdx + 1)
+                    denom = y0 - 2 * y1 + y2
+            tau2mean = sum (zipWith (*) ts ws)
+            (t2lo, t2hi') = weightedCI ts ws
+            betaMean = sum (zipWith (*) ws bhats)
+            betaVar  = sum [ w * (v + b * b) | (w, b, v) <- zip3 ws bhats bvars ] - betaMean * betaMean
+            (blo, bhi) = mixtureCI ws bhats bvars
+        return RegPosterior
+          { rpBeta = (betaMean, sqrt (max 0 betaVar), blo, bhi)
+          , rpTau2 = (tau2mode, tau2mean, t2lo, t2hi')
+          , rpGrid = zip4 ts ws bhats bvars }
 
 -- | makeBinomialSprings constructs a spring network using exact binomial
 -- springs for binary arm data, instead of Gaussian inverse-variance springs.
