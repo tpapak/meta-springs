@@ -33,12 +33,23 @@ gemtc reports `B` per **2·SD** (it standardises the covariate); divide by `scal
    garbage slopes, while the spring (raw arm-level `x`) was unaffected. Fixed by
    building the covariate in `S1..Sn` order.
 
-## multinma — not yet correctly specified
+## multinma — different estimand for the covariate term (resolved)
 
-`multinma` (0.8.1) ran, but `regression = ~x` with `class_interactions="common"`
-on an AgD-only network gave inconsistent slopes across seeds (ratios ×14.6,
-×17.4, ×−10.3 vs the MLE — sign-flipping), i.e. it is **not** estimating the
-shared aggregate-level effect modifier under this specification. multinma's NMR
-API targets IPD + AgD (ML-NMR); the AgD-only shared-EM spec needs the correct
-form (prognostic vs effect-modifier terms, centering/standardisation). **Open** —
-gemtc (exact match above) is the established-package validation in the meantime.
+Following multinma (0.8.1)'s vignette pattern — `set_agd_arm(..., sample_size, trt_class)`,
+`nma(..., regression = ~x, class_interactions = "common")`, covariate centred,
+8000 iters with `adapt_delta=0.999, max_treedepth=15` — the fit **converges**
+(Rhat 1.00) and its **treatment effects match** (e.g. d[B]=2.56 = 0.6+0.30·6.63
+at the centred covariate ✓). But the **effect-modifier coefficient β[x] is
+unidentified from aggregate-only data**: posterior ≈ prior (sd ≈ 7.5, 95% CI
+[−14.5, +15.3]), even though the MLE pins β=0.257 tightly.
+
+This is multinma's design, not a bug or a mis-spec: `regression = ~x` is the
+**ML-NMR effect modifier**, identified from **individual-level (IPD)** covariate
+variation. From between-study aggregate variation alone it is *not* identified
+(that route is ecological/aggregation bias, which multinma is built to avoid).
+**Classical aggregate meta-regression** (gemtc, netmeta) *does* use between-study
+variation — and that is exactly what the spring framework implements. Hence:
+- spring ≡ gemtc/netmeta (classical aggregate NMR) — exact match (above);
+- multinma confirms the **treatment effects** but targets a **different
+  estimand** for the covariate term, so it is not a comparator for the
+  aggregate β. gemtc is the established-package validation.
