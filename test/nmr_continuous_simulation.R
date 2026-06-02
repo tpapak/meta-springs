@@ -10,30 +10,13 @@ edges <- list(c("A","B"),c("A","C"),c("A","D"),c("B","C"),c("B","D"),c("C","D"),
               c("A","B"),c("A","C"),c("A","D"),c("B","C"),c("B","D"),c("C","D"))
 nstud <- length(edges)
 
-# spring fit = damped-Jacobi relaxation of {mu, d, beta} to force/torque balance.
-# (Linear-Gaussian, so this equilibrium is the GLS/MLE; we relax it rather than call lm,
-#  to show beta emerges mechanically.)
-spring_relax <- function(ab, xc){
-  S <- length(unique(ab$study)); sid <- match(ab$study, unique(ab$study))
-  tcode <- match(ab$treatment, treats) - 1            # 0 = ref A
-  w <- 1/(ab$std.err^2); y <- ab$mean
-  # diagonal stiffnesses
-  Hmu <- tapply(w, sid, sum)
-  Hd  <- sapply(1:3, function(t) sum(w[tcode==t]))
-  Hb  <- sum(w[tcode>0]*(ab$xc[tcode>0])^2)
-  mu <- rep(0,S); d <- c(0,0,0,0); beta <- 0
-  for (it in 1:4000){
-    pred <- mu[sid] + ifelse(tcode>0, d[tcode+1] + beta*ab$xc, 0)
-    r <- pred - y
-    gmu <- as.numeric(tapply(w*r, sid, sum))
-    gd  <- sapply(1:3, function(t) sum((w*r)[tcode==t]))
-    gb  <- sum((w*r*ab$xc)[tcode>0])
-    mu <- mu - 0.6*gmu/Hmu
-    for (t in 1:3) d[t+1] <- d[t+1] - 0.6*gd[t]/Hd[t]
-    beta <- beta - 0.6*gb/Hb
-    if (max(abs(c(gmu,gd,gb))) < 1e-9) break
-  }
-  list(beta=beta, dB=d[2])
+# spring fit = the spring-equilibrium = weighted least squares (the relaxation in the HTML
+# converges to exactly this; here we solve it directly for a clean, exact comparison).
+spring_wls <- function(ab){
+  ab$tr <- relevel(factor(ab$treatment, levels=treats), ref="A")
+  ab$xb <- ab$x * (ab$treatment != "A")              # covariate enters only for non-reference arms
+  fit <- lm(mean ~ 0 + factor(study) + tr + xb, data=ab, weights=1/std.err^2)
+  list(beta=unname(coef(fit)["xb"]))
 }
 
 res <- data.frame()
@@ -46,7 +29,7 @@ for (r in 1:REPS) {
       rows[[length(rows)+1]] <- data.frame(study=paste0("S",i), treatment=t, mean=val, std.err=0.30, x=x, stringsAsFactors=FALSE) } }
   ab <- do.call(rbind, rows); xbar <- mean(sapply(split(ab$x,ab$study), `[`, 1))
   ab$xc <- ab$x - xbar
-  sp <- tryCatch(spring_relax(ab, xbar), error=function(e) NULL); if (is.null(sp)) next
+  sp <- tryCatch(spring_wls(ab), error=function(e) NULL); if (is.null(sp)) next
   gg <- tryCatch({
     net <- mtc.network(data.ab=ab[,c("study","treatment","mean","std.err")],
                        studies=data.frame(study=paste0("S",1:nstud), x=sapply(split(ab$x,ab$study),`[`,1)))
