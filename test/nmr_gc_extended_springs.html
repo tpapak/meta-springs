@@ -27,8 +27,9 @@
 <div class="subtitle">
   The Ξ-animation network (4 treatments A–D; 2-, 3- and 4-arm studies), <b>extended</b> with a binary covariate and
   drawn <b>fixed-effect</b> (tau springs omitted). Convention y<sub>ij</sub> = μ<sub>i</sub> + (d<sub>j</sub> + β·x<sub>i</sub>).
-  Each arm's <b style="color:#1a73e8">obs spring</b> runs from its study spindle to its treatment base column; for
-  active arms a <b style="color:#e65100">β spring</b> carries it on to the covariate node d<sub>j</sub>±β/2. No tau node — residuals show as obs-spring stretch.
+  Each arm is <b>two springs in series</b> meeting at a <b>base node ●</b> (filled dot on the treatment column):
+  the <b style="color:#1a73e8">study/obs spring</b> (spindle → base node) and, for active arms, a <b style="color:#e65100">β spring</b>
+  that branches off the base node down to the covariate node d<sub>j</sub>±β/2. No tau node — residuals show as obs-spring stretch.
 </div>
 
 <div class="ctrl-row">
@@ -128,16 +129,20 @@ function draw(){
     svg.appendChild(tx(baseX-150,midY+11,'μ̂='+fmt(sol.mu[si],2),{['font-size']:10,fill:'#888'}));
     st.arms.forEach((a,k)=>{const armY=lay.armYs[k];
       const xbase=baseX+scale*sol.d[a.t], xlev=baseX+scale*effAt(sol,a.t,st.x);
-      // obs spring: spindle -> base column (fixed-effect; no tau node)
       const fit=sol.mu[si]+sol.d[a.t]+(a.t!==0?sol.betaOf(a.t)*(st.x-xbar):0), res=fit-a.y;
       const obsCol = Math.abs(res)>0.25?'#dc2626':'#1a73e8';
+      // study (obs) spring: spindle -> base node (the junction)
       svg.appendChild(coil(xsCentroid,armY,xbase,armY,Math.max(2,Math.round(Math.abs(xbase-xsCentroid)/24)),obsCol,1.7));
       svg.appendChild(el('circle',{cx:xsCentroid,cy:armY,r:2.6,fill:'#c2410c'}));
-      let xend=xbase;
-      if(hasCov && a.t!==0){const bcol=mode==='shared'?'#e65100':treatColor[a.t];
-        svg.appendChild(coil(xbase,armY,xlev,armY,Math.max(2,Math.round(Math.abs(xlev-xbase)/18)),bcol,1.6));
-        svg.appendChild(el('circle',{cx:xlev,cy:armY,r:3,fill:'none',stroke:bcol,['stroke-width']:1.4,['stroke-dasharray']:'3,2'})); xend=xlev;}
-      svg.appendChild(tx(xend, armY+13, treatments[a.t]+(hasCov&&a.t!==0?(st.x?'₁':'₀'):'')+' y='+fmt(a.y,2)+(Math.abs(res)>0.005?' r='+(res>=0?'+':'')+fmt(res,2):''),
+      // BASE NODE = junction where the study spring and the beta spring meet (in series)
+      svg.appendChild(el('circle',{cx:xbase,cy:armY,r:3.6,fill:treatColor[a.t],stroke:'#fff',['stroke-width']:1.2}));
+      let lx=xbase, ly=armY;
+      if(hasCov && a.t!==0){const bcol=mode==='shared'?'#e65100':treatColor[a.t]; const cy=armY+12;
+        // beta spring branches OFF the base node (down) to the covariate node -> the connection is visible
+        svg.appendChild(coil(xbase,armY,xlev,cy,Math.max(3,Math.round(Math.hypot(xlev-xbase,12)/15)),bcol,1.7));
+        svg.appendChild(el('circle',{cx:xlev,cy:cy,r:3.2,fill:'#fff',stroke:bcol,['stroke-width']:1.5,['stroke-dasharray']:'3,2'}));
+        lx=xlev; ly=cy;}
+      svg.appendChild(tx(lx, ly+12, treatments[a.t]+(hasCov&&a.t!==0?(st.x?'₁':'₀'):'')+' y='+fmt(a.y,2)+(Math.abs(res)>0.005?' r='+(res>=0?'+':'')+fmt(res,2):''),
         {['text-anchor']:'middle',['font-size']:8.5,fill:'#777'}));
     });
   });
