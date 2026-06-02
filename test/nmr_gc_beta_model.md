@@ -101,3 +101,11 @@ picture — a Gaussian spring tying coordinates to a shared node (= a variance c
 So `exchangeable` β is just the heterogeneity mechanism applied to the slope coordinates,
 with σ_B² a *second fugacity* the GC integrates over alongside τ². shared = infinitely
 stiff slope springs (σ_B²→0, β_t pinned to B); unrelated = no slope springs (σ_B²→∞).
+
+**Wired explicitly** (`test/nmr_exchangeable_springs.hs`): the whole exchangeable-β model
+is built as ONE spring list over (μ_i, d_t, β_t, B, δ_a) where every entry is
+`½·k·(Σ coef·coord − ℓ₀)²` — obs springs (k=1/v), heterogeneity τ-springs (k=2/τ², δ_a→0),
+and slope-springs (k=1/σ_B², β_t→B). The τ-spring and the slope-spring are byte-for-byte
+the same object. Assembling `A=Σ k·g·gᵀ`, `b=Σ k·ℓ₀·g` and solving reproduces the marginal
+(δ-integrated) solve to machine precision (max|Δ| ≈ 1e-15). Diagram:
+`test/nmr_exchangeable_springs.html`.

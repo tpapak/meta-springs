@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Exchangeable β = tau-springs on the slopes</title>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;background:#fafafa;color:#222;
+    display:flex;flex-direction:column;align-items:center;padding:18px}
+  h1{font-size:18px;font-weight:600;margin-bottom:4px}
+  .sub{font-size:12.5px;color:#666;max-width:940px;text-align:center;line-height:1.55;margin-bottom:8px}
+  code{font-family:'SF Mono',Consolas,monospace;background:#eef;padding:0 3px;border-radius:3px}
+  svg{border:1px solid #ddd;border-radius:6px;background:#fff}
+  .legend{margin-top:10px;font-size:12px;color:#555;max-width:940px;line-height:1.7;text-align:center}
+  b.h{color:#7b1fa2}  b.s{color:#e65100}
+</style>
+</head>
+<body>
+<h1>Exchangeable β is the heterogeneity construct on the slope coordinates</h1>
+<div class="sub">
+  Both panels are the <b>same spring</b> <code>½·k·(coord − target)²</code> tying a coordinate to a shared node.
+  <b class="h">Top — heterogeneity (random effects):</b> each arm's δ is tied to its study by a τ-spring
+  <code>k=2/τ²</code> ⇒ study effects exchangeable around the network mean.
+  <b class="s">Bottom — exchangeable β:</b> each treatment slope β<sub>t</sub> is tied to the hyper-mean
+  <b class="s">B</b> by a slope-spring <code>k=1/σ_B²</code> ⇒ slopes exchangeable around B. Identical mechanism,
+  different coordinates; the GC integrates τ² and σ_B² alike.
+</div>
+<svg id="c" width="900" height="560"></svg>
+<div class="legend">
+  Solid coils = springs. <b class="h">τ-spring</b> (StudyEnd→TauEnd δ, <code>k=2/τ²</code>) and
+  <b class="s">slope-spring</b> (β<sub>t</sub>→B, <code>k=1/σ_B²</code>) are drawn identically because they
+  are the same object. Grey coils = obs springs <code>k=1/v</code>. Dashed orange = the covariate
+  <b>lever ×x<sub>i</sub></b> (β<sub>t</sub> shifts the treatment end by β<sub>t</sub>·x<sub>i</sub>). ⚓ = pinned reference.
+  <br><b>shared</b> β = σ_B²→0 (rigid slope-springs, all β<sub>t</sub>≡B) &nbsp;·&nbsp;
+  <b>unrelated</b> β = σ_B²→∞ (no slope-springs).
+</div>
+<script>
+"use strict";
+const svg=document.getElementById('c');
+function el(t,a){const e=document.createElementNS('http://www.w3.org/2000/svg',t);for(const k in a)e.setAttribute(k,a[k]);return e;}
+function tx(x,y,s,o){const e=el('text',Object.assign({x,y},o));e.textContent=s;return e;}
+function coil(x1,y1,x2,y2,col,turns,wd){const dx=x2-x1,dy=y2-y1,len=Math.hypot(dx,dy);if(len<2)return el('line',{x1,y1,x2,y2,stroke:col});
+ const ux=dx/len,uy=dy/len,px=-uy,py=ux,lead=12,amp=5,body=Math.max(len-2*lead,0),seg=body/(turns*2);
+ let d=`M${x1},${y1} L${(x1+ux*lead).toFixed(1)},${(y1+uy*lead).toFixed(1)}`,cx=x1+ux*lead,cy=y1+uy*lead;
+ for(let i=0;i<turns*2;i++){const sg=(i%2===0)?1:-1;cx+=ux*seg+px*amp*sg;cy+=uy*seg+py*amp*sg;d+=` L${cx.toFixed(1)},${cy.toFixed(1)}`;}
+ d+=` L${x2},${y2}`;return el('path',{d,fill:'none',stroke:col,['stroke-width']:wd||1.8});}
+function node(x,y,r,fill,stroke,label,sub,pin){
+ svg.appendChild(el('circle',{cx:x,cy:y,r,fill,stroke,['stroke-width']:2}));
+ svg.appendChild(tx(x,y+4,label,{['text-anchor']:'middle',['font-size']:12,fill:stroke,['font-weight']:700}));
+ if(sub)svg.appendChild(tx(x,y-r-5,sub,{['text-anchor']:'middle',['font-size']:9.5,fill:'#888'}));
+ if(pin)svg.appendChild(tx(x,y+r+13,'⚓',{['text-anchor']:'middle',['font-size']:11,fill:'#a00'}));}
+function klab(x1,y1,x2,y2,s,col){svg.appendChild(tx((x1+x2)/2,(y1+y2)/2-6,s,{['text-anchor']:'middle',['font-size']:9.5,fill:col||'#555',['font-weight']:600}));}
+
+// ---- TOP: heterogeneity (random effects) ----
+svg.appendChild(tx(450,28,'Heterogeneity: τ-springs make the study effects exchangeable around d',{['text-anchor']:'middle',['font-size']:13,fill:'#7b1fa2',['font-weight']:700}));
+const stud=[[120,90],[120,160],[120,230]], tau=[[330,90],[330,160],[330,230]], trt=[[620,120],[620,200]];
+stud.forEach((s,i)=>{const[sx,sy]=s,[tx_,ty_]=tau[i];svg.appendChild(coil(sx,sy,tx_,ty_,'#7b1fa2',4));klab(sx,sy,tx_,ty_,'k=2/τ²','#7b1fa2');
+  const[bx,by]=trt[i%2];svg.appendChild(coil(tx_,ty_,bx,by,'#999',5));klab(tx_,ty_,bx,by,'k=1/v','#999');});
+stud.forEach((s,i)=>node(s[0],s[1],17,'#fed7aa','#c2410c','μ'+(i+1)));
+tau.forEach((t,i)=>{svg.appendChild(el('circle',{cx:t[0],cy:t[1],r:11,fill:'#f3e5f5',stroke:'#7b1fa2',['stroke-width']:1.5}));svg.appendChild(tx(t[0],t[1]+4,'δ',{['text-anchor']:'middle',['font-size']:11,fill:'#7b1fa2'}));});
+node(trt[0][0],trt[0][1],18,'#dbeafe','#1e40af','d_B');node(trt[1][0],trt[1][1],18,'#dbeafe','#1e40af','d_C');
+svg.appendChild(tx(330,265,'TauEnd δ (per arm) ~ N(0, τ²/2)',{['text-anchor']:'middle',['font-size']:10,fill:'#999'}));
+
+svg.appendChild(el('line',{x1:40,y1:300,x2:860,y2:300,stroke:'#eee'}));
+
+// ---- BOTTOM: exchangeable beta (same spring on slopes) ----
+svg.appendChild(tx(450,330,'Exchangeable β: slope-springs make the slopes exchangeable around B',{['text-anchor']:'middle',['font-size']:13,fill:'#e65100',['font-weight']:700}));
+const B=[330,440], bt=[[120,400],[120,480]], te=[[620,400],[620,480]];
+bt.forEach((b,i)=>{svg.appendChild(coil(b[0],b[1],B[0],B[1],'#e65100',4));klab(b[0],b[1],B[0],B[1],'k=1/σ_B²','#e65100');
+  // covariate lever to the treatment end
+  svg.appendChild(el('line',{x1:b[0],y1:b[1],x2:te[i][0],y2:te[i][1],stroke:'#e65100',['stroke-width']:1.2,['stroke-dasharray']:'3,3',opacity:0.55}));
+  svg.appendChild(tx((b[0]+te[i][0])/2,(b[1]+te[i][1])/2-6,'×xᵢ',{['text-anchor']:'middle',['font-size']:9.5,fill:'#e65100'}));});
+node(bt[0][0],bt[0][1],17,'#ffe0b2','#e65100','β_B');node(bt[1][0],bt[1][1],17,'#ffe0b2','#e65100','β_C');
+svg.appendChild(el('rect',{x:B[0]-15,y:B[1]-15,width:30,height:30,transform:`rotate(45 ${B[0]} ${B[1]})`,fill:'#e65100',stroke:'#fff',['stroke-width']:2}));
+svg.appendChild(tx(B[0],B[1]+5,'B',{['text-anchor']:'middle',['font-size']:14,fill:'#fff',['font-weight']:700}));
+svg.appendChild(tx(B[0],B[1]+34,'hyper-mean slope',{['text-anchor']:'middle',['font-size']:10,fill:'#e65100'}));
+node(te[0][0],te[0][1],18,'#dbeafe','#1e40af','d_B');node(te[1][0],te[1][1],18,'#dbeafe','#1e40af','d_C');
+svg.appendChild(tx(620,520,'treatment ends sit at d_t + β_t·xᵢ',{['text-anchor']:'middle',['font-size']:10,fill:'#999'}));
+</script>
+</body>
+</html>
