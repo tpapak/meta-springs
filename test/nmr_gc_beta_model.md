@@ -136,3 +136,27 @@ and slope-springs (k=1/σ_B², β_t→B). The τ-spring and the slope-spring are
 the same object. Assembling `A=Σ k·g·gᵀ`, `b=Σ k·ℓ₀·g` and solving reproduces the marginal
 (δ-integrated) solve to machine precision (max|Δ| ≈ 1e-15). Diagram:
 `test/nmr_exchangeable_springs.html`.
+
+## Binary (logit) via IRLS — RE and exchangeable
+
+The same β-machinery runs on binary outcomes by PQL: the IRLS binomial linearisation
+(`nmaRegressionBin`) interleaved with the variance-component EM:
+- `nmaRegressionBinRE` — RE binary, shared β (IRLS + REML/EM τ²).
+- `nmaRegressionBinGroupedREML` — exchangeable binary (IRLS + two-tau-group EM: τ², σ_B²).
+
+Verified vs gemtc exact-binomial RE regression (5-treatment multi-arm, heterogeneity
+τ²=0.10, shared β=0.25; `test/nmr_binary_re_gen.R`, `test/nmr_binary_re.hs`):
+
+| quantity | spring (PQL) | gemtc | note |
+|---|---|---|---|
+| RE-shared β | 0.2564 | 0.2535 | ✓ |
+| RE-shared τ² | 0.0827 | 0.0891 | ✓ (PQL slightly low — known PQL bias) |
+| exch B | 0.2552 | 0.2421 | ✓ |
+| exch τ² | 0.0809 | 0.0832 | ✓ |
+| exch σ_B² | 0.0015 (REML point) | 0.067 (posterior mean) | mode↔boundary vs mean↔skew |
+
+β/B and τ² agree with gemtc; the σ_B² gap is the same REML-point (→boundary, β_t pooled)
+vs posterior-mean (β_t spread) distinction seen in the continuous case — a *binary GC*
+(integrating σ_B², the analogue of `nmaRegressionPosteriorB`) would match the mean and is
+the remaining piece. PQL is a linearised approximation to the exact binomial RE gemtc
+samples; point estimates agree closely for non-sparse data.

@@ -25,6 +25,8 @@ module Data.Meta.NMA
     makeBinomialSprings,
     nmaRegression,
     nmaRegressionBin,
+    nmaRegressionBinRE,
+    nmaRegressionBinGroupedREML,
     nmaRegressionRE,
     nmaRegressionPosterior,
     nmaRegressionPosteriorB,
@@ -873,6 +875,122 @@ nmaRegressionBin studies covmap =
             contrasts = Map.fromList
               [ (t1, Map.fromList [ (t2, dOf t2 - dOf t1) | t2 <- treatments ]) | t1 <- treatments ]
         return (beta, contrasts)
+
+-- | Random-effects BINARY network meta-regression (logit link, shared β) by PQL:
+-- the IRLS binomial linearisation interleaved with the REML/EM heterogeneity update.
+-- Each iteration linearises every arm to a Gaussian working-response spring (working
+-- variance 1/w), adds τ²/2 (the heterogeneity spring in series), solves the GLS, and
+-- updates τ² from the BLUPs — the binary analogue of 'nmaRegressionRE'. Returns
+-- (β, τ², log-OR contrasts at x=0). (PQL is a linearised approximation to the exact
+-- binomial RE that gemtc samples; point estimates agree closely for non-sparse data.)
+nmaRegressionBinRE ::
+  [Study] -> Map.Map StudyId Double -> Maybe TauSquare ->
+  Either String (Double, TauSquare, Map.Map TreatmentId (Map.Map TreatmentId Double))
+nmaRegressionBinRE studies covmap mtau0 =
+  let treatments = sort $ nub $ concatMap (map tidOfArm . getStudyArms) studies
+      ref = head treatments; nonref = filter (/= ref) treatments; nT = length nonref
+      sids = map getStudyId studies; nS = length sids
+      sidx = Map.fromList (zip sids [0..]); tidx = Map.fromList (zip nonref [0..])
+      nonrefCovs = [ Map.findWithDefault 0 (getStudyId s) covmap
+                   | s <- studies, a <- getStudyArms s, tidOfArm a /= ref ]
+      hasBeta = length (nub nonrefCovs) > 1
+      nP = nS + nT + (if hasBeta then 1 else 0); betaCol = nS + nT
+      setAt xs i v = take i xs ++ [v] ++ drop (i+1) xs
+      armInfo study a = case a of
+        BinaryArm t ev ns ->
+          let si = sidx Map.! getStudyId study; x = Map.findWithDefault 0 (getStudyId study) covmap
+              base = setAt (replicate nP 0) si (-1)
+              row | t == ref  = base
+                  | hasBeta   = setAt (setAt base (nS + tidx Map.! t) 1) betaCol x
+                  | otherwise = setAt base (nS + tidx Map.! t) 1
+          in Right (row, fromIntegral ev, fromIntegral ns)
+        _ -> Left "nmaRegressionBinRE: expects binary arms"
+   in do
+        arms <- concat <$> mapM (\s -> mapM (armInfo s) (getStudyArms s)) studies
+        let nArm = fromIntegral (length arms)
+            step (theta, tau2) =
+              let t2arm = tau2/2
+                  wz = [ let eta = sum (zipWith (*) r theta); p = sigmoid eta
+                             w = max 1e-9 (n*p*(1-p)); z = eta + (e - n*p)/w in (r,z,w)
+                       | (r,e,n) <- arms ]
+                  wEff w = 1/(1/w + t2arm)
+                  aMat = [ [ sum [ wEff w*(r!!i)*(r!!j) | (r,_,w) <- wz ] | j<-[0..nP-1] ] | i<-[0..nP-1] ]
+                  bVec = [ sum [ wEff w*(r!!i)*z | (r,z,w) <- wz ] | i<-[0..nP-1] ]
+                  cov = matInv aMat; theta' = matVec cov bVec
+                  per (r,z,w) = let resid = z - sum (zipWith (*) r theta')
+                                    b = w*t2arm/(1+w*t2arm)
+                                in ((b*resid)^2, (1-b)*t2arm + b*b*quadForm r cov)
+                  ms = map per wz
+              in (theta', max 1e-8 $ 2*(sum (map fst ms)/nArm + sum (map snd ms)/nArm))
+            loop p it | it > (200::Int) = p
+                      | maximum (zipWith (\a b->abs(a-b)) (fst p) (fst p')) < 1e-9 && abs (snd p - snd p') < 1e-9 = p'
+                      | otherwise = loop p' (it+1)
+              where p' = step p
+            (thetaF, tau2F) = loop (replicate nP 0, fromMaybe 0.5 mtau0) 0
+            beta = if hasBeta then thetaF !! betaCol else 0
+            dOf t = if t == ref then 0 else thetaF !! (nS + tidx Map.! t)
+            contrasts = Map.fromList [ (t1, Map.fromList [ (t2, dOf t2 - dOf t1) | t2<-treatments ]) | t1<-treatments ]
+        return (beta, tau2F, contrasts)
+
+-- | EXCHANGEABLE-β BINARY network meta-regression by PQL: the IRLS binomial
+-- linearisation interleaved with the two-tau-group EM of 'nmaRegressionGroupedREML'
+-- (heterogeneity τ² = group 0, slope dispersion σ_B² = group 1). Returns
+-- (τ² per group, common slope B, per-treatment slopes, log-OR contrasts at x=0).
+nmaRegressionBinGroupedREML ::
+  [Study] -> Map.Map StudyId Double ->
+  Either String ( Map.Map TauGroup TauSquare, Double
+                , Map.Map TreatmentId Double, Map.Map TreatmentId (Map.Map TreatmentId Double) )
+nmaRegressionBinGroupedREML studies covmap =
+  let treatments = sort $ nub $ concatMap (map tidOfArm . getStudyArms) studies
+      ref = head treatments; nonref = filter (/= ref) treatments; nT = length nonref
+      sids = map getStudyId studies; nS = length sids
+      sidx = Map.fromList (zip sids [0..]); tidx = Map.fromList (zip nonref [0..])
+      betaBase = nS + nT; dCol t = nS + tidx Map.! t; bCol t = betaBase + tidx Map.! t
+      commonCol = betaBase + nT; nP = nS + 2*nT + 1
+      setAt xs i v = take i xs ++ [v] ++ drop (i+1) xs
+      armInfo study a = case a of
+        BinaryArm t ev ns ->
+          let si = sidx Map.! getStudyId study; x = Map.findWithDefault 0 (getStudyId study) covmap
+              base = setAt (replicate nP 0) si (-1)
+              row | t == ref  = base
+                  | otherwise = setAt (setAt base (dCol t) 1) (bCol t) x
+          in Right (row, fromIntegral ev, fromIntegral ns)
+        _ -> Left "nmaRegressionBinGroupedREML: expects binary arms"
+   in do
+        arms <- concat <$> mapM (\s -> mapM (armInfo s) (getStudyArms s)) studies
+        let nArm = fromIntegral (length arms)
+            addM m i j d = [ [ if r==i && c==j then (m!!r!!c)+d else m!!r!!c | c<-[0..nP-1] ] | r<-[0..nP-1] ]
+            step (theta, t0, t1) =
+              let t2arm = t0/2; invSig = 1/t1
+                  wz = [ let eta = sum (zipWith (*) r theta); p = sigmoid eta
+                             w = max 1e-9 (n*p*(1-p)); z = eta + (e - n*p)/w in (r,z,w)
+                       | (r,e,n) <- arms ]
+                  wEff w = 1/(1/w + t2arm)
+                  a0 = [ [ sum [ wEff w*(r!!i)*(r!!j) | (r,_,w) <- wz ] | j<-[0..nP-1] ] | i<-[0..nP-1] ]
+                  aMat = foldl' (\m t -> let bt=bCol t; bb=commonCol in
+                            addM (addM (addM (addM m bt bt invSig) bb bb invSig) bt bb (negate invSig)) bb bt (negate invSig))
+                          a0 nonref
+                  bVec = [ sum [ wEff w*(r!!i)*z | (r,z,w) <- wz ] | i<-[0..nP-1] ]
+                  cov = matInv aMat; theta' = matVec cov bVec
+                  per (r,z,w) = let resid = z - sum (zipWith (*) r theta')
+                                    b = w*t2arm/(1+w*t2arm)
+                                in ((b*resid)^2, (1-b)*t2arm + b*b*quadForm r cov)
+                  ms = map per wz
+                  t0' = max 1e-8 $ 2*(sum (map fst ms)/nArm + sum (map snd ms)/nArm)
+                  perT t = let m = theta'!!bCol t - theta'!!commonCol
+                           in m*m + cov!!(bCol t)!!(bCol t) + cov!!commonCol!!commonCol - 2*cov!!(bCol t)!!commonCol
+                  t1' = max 1e-8 $ sum (map perT nonref) / fromIntegral nT
+              in (theta', t0', t1')
+            loop p@(th,a,b) it
+              | it > (300::Int) = p
+              | maximum (zipWith (\x y->abs(x-y)) th th') < 1e-8 && abs (a-a')<1e-8 && abs (b-b')<1e-8 = p'
+              | otherwise = loop p' (it+1)
+              where p'@(th',a',b') = step p
+            (thetaF, tau2, sigB2) = loop (replicate nP 0, 0.1, 0.1) 0
+            dOf t = if t==ref then 0 else thetaF!!dCol t
+            betaMap = Map.fromList [ (t, thetaF!!bCol t) | t<-nonref ]
+            contrasts = Map.fromList [ (t1, Map.fromList [ (t2, dOf t2 - dOf t1) | t2<-treatments ]) | t1<-treatments ]
+        return (Map.fromList [(0,tau2),(1,sigB2)], thetaF!!commonCol, betaMap, contrasts)
 
 -- | Grouped-τ² REML for exchangeable-β network meta-regression: estimates the
 -- heterogeneity τ² (tau-group 0) and the slope-dispersion σ_B² (tau-group 1) in
