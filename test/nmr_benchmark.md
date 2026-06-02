@@ -68,3 +68,16 @@ Rust RE τ²=**0.00423** = gemtc τ²=**0.00423** exactly; β 0.30483 (Rust) vs 
   (`linearizeBinaryRegression`), as in Haskell.
 - gemtc is exact-Bayesian (full posterior); the spring GC is the closed-form competitor.
   Generators/timers: `test/nmr_t20_gen.R`, `test/nmr_t20_bench.hs`, `gc-rust/examples/nmr_*`.
+
+## Binary in Rust (`gc-rust/examples/nmr_bin.rs`)
+Binary (logit) NMR via IRLS linearisation (binomial → Gaussian working response) +
+spring RE/GC. On the 5-treatment binary RE dataset:
+
+| | Rust binary | Haskell `nmaRegressionBinRE` | gemtc |
+|---|---|---|---|
+| RE β | 0.25637 | 0.2564 | 0.2535 |
+| RE τ² | 0.08288 | 0.0827 | 0.0891 |
+| GC β mean | 0.25663 | — | — |
+
+Rust = Haskell to ~4 dp (same IRLS+spring), matches gemtc; timing: linearise 0.08 ms,
+RE 0.58 ms, GC 2.18 ms. So Rust now covers FE / RE / GC × continuous / binary.
