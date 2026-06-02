@@ -27,6 +27,7 @@ module Data.Meta.NMA
     nmaRegressionRE,
     nmaRegressionPosterior,
     RegPosterior (..),
+    Tau2PriorR (..),
     nma,
     springNMA,
     springLength,
@@ -566,19 +567,34 @@ data RegPosterior = RegPosterior
   , rpGrid :: [(Double, Double, Double, Double)] -- ^ (τ², weight, β̂(τ²), Var(β|τ²))
   } deriving (Show)
 
--- | Joint (β, τ²) posterior under flat priors on (μ, d, β, τ²), by exact
--- linear-Gaussian marginalisation: at each τ² the fixed effects (μ, d, β) are
--- integrated analytically, so the τ² posterior ∝ exp(REML logLik) and β|τ² is
--- Gaussian. β's marginal posterior is therefore a τ²-mixture of Gaussians — a
--- genuine joint posterior, not a profile. (β is integrated, never profiled out.)
+-- | Heterogeneity prior for the joint posterior. @FlatT2@ = improper flat on τ²
+-- (REML evidence; posterior mode = the REML point). @HalfNormalTauR σ@ = a
+-- half-normal prior with scale σ on the heterogeneity SD τ (matches gemtc/multinma
+-- conventions), transformed to the τ² scale.
+data Tau2PriorR = FlatT2 | HalfNormalTauR Double
+  deriving (Show, Eq)
+
+-- | log prior density on τ² (Lebesgue scale, up to a constant).
+logPriorT2 :: Tau2PriorR -> Double -> Double
+logPriorT2 FlatT2 _ = 0
+logPriorT2 (HalfNormalTauR s) t          -- τ ~ HalfNormal(s) ⇒ p(τ²) ∝ exp(−τ²/2s²)/√τ²
+  | t <= 0    = -1e300
+  | otherwise = - t / (2 * s * s) - 0.5 * log t
+
+-- | Joint (β, τ²) posterior by exact linear-Gaussian marginalisation: at each τ²
+-- the fixed effects (μ, d, β) are integrated analytically, so the τ² posterior
+-- ∝ exp(REML logLik)·prior(τ²) and β|τ² is Gaussian. β's marginal posterior is
+-- therefore a τ²-mixture of Gaussians — a genuine joint posterior, not a profile.
+-- (β is integrated, never profiled out.) The prior is on τ² (see 'Tau2PriorR').
 nmaRegressionPosterior ::
   (ArmEffect a b, Gaussian a, Gaussian b) =>
   [Study] ->
   Map.Map StudyId Double ->
   Int ->                                   -- ^ τ² grid resolution (e.g. 200)
+  Tau2PriorR ->                            -- ^ prior on the heterogeneity
   (Arm -> Either String a) ->
   Either String RegPosterior
-nmaRegressionPosterior studies covmap nGrid armEffect =
+nmaRegressionPosterior studies covmap nGrid prior armEffect =
   let treatments = sort $ nub $ concatMap (map tidOfArm . getStudyArms) studies
       ref        = head treatments
       nonref     = filter (/= ref) treatments
@@ -607,7 +623,11 @@ nmaRegressionPosterior studies covmap nGrid armEffect =
         arms <- concat <$> mapM (\study -> mapM (armInfo study) (getStudyArms study)) studies
         (_, tau2mode0, _) <- nmaRegressionRE studies covmap (Just 0.1) armEffect
         let tau2hi = max (tau2mode0 * 12) 0.02
-            ts     = [ tau2hi * fromIntegral i / fromIntegral nGrid | i <- [0 .. nGrid] ]
+            dt     = tau2hi / fromIntegral nGrid
+            -- midpoint grid (no τ²=0 node, so a τ-prior Jacobian stays finite)
+            ts     = [ tau2hi * (fromIntegral i - 0.5) / fromIntegral nGrid | i <- [1 .. nGrid] ]
+            -- GC partition function at τ²: the Gaussian integral over the free
+            -- coordinates (μ, d, β). logZ = −½(Σlog(v+τ²/2) + log|XᵀΣ⁻¹X| + RSS).
             eval t2 =
               let t2arm = t2 / 2
                   aMat = [ [ sum [ (r !! i) * (r !! j) / (v + t2arm) | (r, _, v) <- arms ] | j <- [0 .. nP - 1] ]
@@ -618,26 +638,24 @@ nmaRegressionPosterior studies covmap nGrid armEffect =
                   sumLogV = sum [ log (v + t2arm) | (_, _, v) <- arms ]
                   yWy = sum [ y * y / (v + t2arm) | (_, y, v) <- arms ]
                   residSS = yWy - sum (zipWith (*) bVec theta)
-                  logL = -0.5 * (sumLogV + logDetPD aMat + residSS)
-              in (logL, theta !! betaCol, cov !! betaCol !! betaCol)
+                  logZ = -0.5 * (sumLogV + logDetPD aMat + residSS)
+              in (logZ, theta !! betaCol, cov !! betaCol !! betaCol)
             evals = map eval ts
-            logLs = [ l | (l, _, _) <- evals ]
+            -- posterior log-density on τ² = logZ + log prior(τ²)
+            posts = [ l + logPriorT2 prior t | (t, (l, _, _)) <- zip ts evals ]
             bhats = [ b | (_, b, _) <- evals ]
             bvars = [ v | (_, _, v) <- evals ]
-            mx    = maximum logLs
-            dt    = tau2hi / fromIntegral nGrid
-            raw   = [ (if i == 0 || i == nGrid then dt / 2 else dt) * exp (l - mx)
-                    | (i, l) <- zip [0 ..] logLs ]
+            mx    = maximum posts
+            raw   = [ exp (p - mx) | p <- posts ]   -- uniform dt cancels in normalisation
             tot   = sum raw
             ws    = map (/ tot) raw
-            modeIdx  = snd $ maximum (zip logLs [0 :: Int ..])
-            -- parabolic refinement of the mode (REML argmax) off the equally
-            -- spaced grid: vertex = x1 + (dt/2)·(y0−y2)/(y0−2y1+y2)
+            modeIdx  = snd $ maximum (zip posts [0 :: Int ..])
+            -- parabolic refinement of the posterior mode off the equally spaced grid
             tau2mode
-              | modeIdx > 0 && modeIdx < nGrid && denom < 0 =
+              | modeIdx > 0 && modeIdx < nGrid - 1 && denom < 0 =
                   (ts !! modeIdx) + (dt / 2) * (y0 - y2) / denom
               | otherwise = ts !! modeIdx
-              where y0 = logLs !! (modeIdx - 1); y1 = logLs !! modeIdx; y2 = logLs !! (modeIdx + 1)
+              where y0 = posts !! (modeIdx - 1); y1 = posts !! modeIdx; y2 = posts !! (modeIdx + 1)
                     denom = y0 - 2 * y1 + y2
             tau2mean = sum (zipWith (*) ts ws)
             (t2lo, t2hi') = weightedCI ts ws

@@ -43,6 +43,35 @@ tail (flat-prior posterior vs profile likelihood).
 | β covered | 19/20 | 18/20 (Wald) |
 | τ² covered | 19/20 | 18/20 (profile) |
 
+## β written into the GC solution (not profiled)
+`nmaRegressionPosterior` **is** the grand-canonical solution with β added as a
+coordinate. At each τ² the partition function `Z(τ²)` is the Gaussian integral over the
+free coordinates — and β is just one more free linear coordinate (coupled through the
+lever `x`), integrated analytically alongside (μ, d). So the τ² posterior is
+`∝ Z(τ²)·prior(τ²)` with β **integrated, never profiled**, and `β | τ²` falls out of the
+same solve. A `Tau2PriorR` argument (`FlatT2` = REML evidence; `HalfNormalTauR σ` on the
+SD τ) sets the heterogeneity prior; a midpoint τ² grid keeps the τ-prior Jacobian finite.
+
+## Cross-check against gemtc (matched prior) + a 5-treatment multi-arm network
+With a **matched half-normal(0.5)** prior on τ, the spring joint posterior and gemtc's
+MCMC posterior are overlaid in `test/nmr_posteriors.html` (data in
+`test/nmr_posterior_data/`, built by `nmr_posterior_dump.hs` + `nmr_posterior_ref.R`;
+5-treatment multi-arm network from `nmr5_multiarm_gen.R`). netmetareg (flat/REML) marks
+the **mode**.
+
+| network | quantity | spring (HN) | gemtc (HN) | netmetareg (mode) | truth |
+|---|---|---|---|---|---|
+| 3-trt, 2-arm | β | 0.404 [0.275,0.533] | 0.399 [0.272,0.527] | 0.404 ±0.061 | 0.30 |
+| 3-trt, 2-arm | τ² | 0.122 (mode .093) [.049,.256] | 0.111 [.051,.258] | 0.104 [.047,.243] | 0.10 |
+| 5-trt, multi-arm | β | 0.235 [0.093,0.377] | 0.230 [0.090,0.372] | 0.235 ±0.068 | 0.30 |
+| 5-trt, multi-arm | τ² | 0.063 (mode .049) [.023,.138] | 0.058 [.022,.136] | 0.055 [.021,.128] | 0.08 |
+
+The spring and gemtc densities are **essentially superimposed** for both β and τ² on both
+networks — including the multi-arm network (multi-arm correlation is handled by the free
+study baselines μ_i plus iid per-arm random effects, τ²ₐᵣₘ = τ²/2). On the 5-treatment
+single dataset all three methods agree with each other (β≈0.23, τ²≈0.05); the gap to truth
+(0.30, 0.08) is sampling noise in that one dataset, not method disagreement.
+
 ## What this does and does not claim
 - The joint posterior is a genuine flat-prior Bayesian posterior over (β, τ²) by exact
   marginalisation — **β is integrated, not profiled** (the corner is gone).

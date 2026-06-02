@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>NMR joint posterior — springs vs gemtc (vs netmetareg mode)</title>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;background:#fafafa;color:#222;
+    display:flex;flex-direction:column;align-items:center;padding:18px}
+  h1{font-size:18px;font-weight:600;margin-bottom:4px}
+  .sub{font-size:12.5px;color:#666;max-width:920px;text-align:center;line-height:1.55;margin-bottom:10px}
+  code{font-family:'SF Mono',Consolas,monospace;background:#eef;padding:0 3px;border-radius:3px}
+  .ctrl{display:flex;gap:10px;margin-bottom:8px}
+  button{padding:5px 14px;border:1px solid #aaa;border-radius:4px;background:#fff;cursor:pointer;font-size:13px}
+  button.active{background:#1a73e8;color:#fff;border-color:#1a73e8}
+  .panels{display:flex;gap:18px;flex-wrap:wrap;justify-content:center}
+  .panel{background:#fff;border:1px solid #ddd;border-radius:6px;padding:8px}
+  .legend{margin-top:10px;font-size:12px;color:#555;max-width:920px;line-height:1.7}
+  .sw{display:inline-block;width:22px;height:10px;border-radius:2px;vertical-align:middle;margin-right:4px}
+  table{border-collapse:collapse;font-size:12px;margin-top:10px}
+  th,td{border:1px solid #ddd;padding:3px 8px;text-align:right}
+  th:first-child,td:first-child{text-align:left}
+</style>
+</head>
+<body>
+<h1>Network meta-regression — joint (β, τ²) posterior</h1>
+<div class="sub">
+  <b style="color:#1a73e8">Spring</b> joint posterior (<code>nmaRegressionPosterior</code>, β integrated as a
+  GC coordinate) and <b style="color:#e8710a">gemtc</b> share a matched <b>half-normal(0.5)</b> prior on τ;
+  <b style="color:#188038">netmetareg</b> is frequentist REML (flat) — its point is the posterior <b>mode</b>,
+  shown as a vertical line with its 95% interval. Dashed grey line = the simulation <b>truth</b>.
+</div>
+<div class="ctrl">
+  <button id="b3" class="active">3 treatments (20 studies, 2-arm)</button>
+  <button id="b5">5 treatments (19 studies, multi-arm)</button>
+</div>
+<div class="panels">
+  <div class="panel"><svg id="svBeta" width="430" height="300"></svg></div>
+  <div class="panel"><svg id="svTau"  width="430" height="300"></svg></div>
+</div>
+<div id="tbl"></div>
+<div class="legend">
+  <span class="sw" style="background:rgba(26,115,232,.35)"></span>Spring posterior (HN τ prior)
+  &nbsp; <span class="sw" style="background:#e8710a"></span>gemtc posterior (HN τ prior)
+  &nbsp; <span class="sw" style="background:#188038"></span>netmetareg REML mode + 95% CI
+  &nbsp; <span class="sw" style="background:#999"></span>truth.
+  Spring &amp; gemtc share the prior, so they should overlay; netmetareg's mode sits at the REML point
+  (flat prior, hence slightly higher τ² than the HN-shrunk densities).
+</div>
+<script>
+"use strict";
+const TRUTH = { "3t": {beta:0.30, tau2:0.10}, "5t": {beta:0.30, tau2:0.08} };
+let net = "3t", data = {};
+function el(t,a){const e=document.createElementNS('http://www.w3.org/2000/svg',t);for(const k in a)e.setAttribute(k,a[k]);return e;}
+function load(n){return Promise.all([
+  fetch(`nmr_posterior_data/spring_${n}.json`).then(r=>r.json()),
+  fetch(`nmr_posterior_data/gemtc_${n}.json`).then(r=>r.json()),
+  fetch(`nmr_posterior_data/nmr_${n}.json`).then(r=>r.json())
+]).then(([s,g,m])=>({s,g,m}));}
+
+function draw(svg, sx, sy, gx, gy, modeV, ciLo, ciHi, truth, title, unit){
+  while(svg.firstChild) svg.removeChild(svg.firstChild);
+  const W=430,H=300,L=44,R=12,T=30,B=38, w=W-L-R, h=H-T-B;
+  const xs=[...sx,...gx,modeV,ciLo,ciHi,truth].filter(v=>isFinite(v));
+  let xmin=Math.min(...xs), xmax=Math.max(...xs); const pad=(xmax-xmin)*0.06; xmin-=pad; xmax+=pad;
+  const ymax=Math.max(Math.max(...sy),Math.max(...gy))*1.08;
+  const X=v=>L+(v-xmin)/(xmax-xmin)*w, Y=v=>T+h-v/ymax*h;
+  svg.appendChild(el('text',{x:W/2,y:18,'text-anchor':'middle','font-size':13,'font-weight':700})).textContent=title;
+  // axes
+  svg.appendChild(el('line',{x1:L,y1:T+h,x2:L+w,y2:T+h,stroke:'#999'}));
+  for(let i=0;i<=4;i++){const v=xmin+(xmax-xmin)*i/4, x=X(v);
+    svg.appendChild(el('line',{x1:x,y1:T+h,x2:x,y2:T+h+4,stroke:'#999'}));
+    svg.appendChild(el('text',{x:x,y:T+h+16,'text-anchor':'middle','font-size':10,fill:'#666'})).textContent=v.toFixed(2);}
+  svg.appendChild(el('text',{x:L+w/2,y:H-4,'text-anchor':'middle','font-size':11,fill:'#444'})).textContent=unit;
+  // CI band (netmetareg)
+  if(isFinite(ciLo)&&isFinite(ciHi))
+    svg.appendChild(el('rect',{x:X(ciLo),y:T,width:Math.max(1,X(ciHi)-X(ciLo)),height:h,fill:'rgba(24,128,56,.08)'}));
+  // spring area
+  let d=`M${X(sx[0])},${Y(0)}`; for(let i=0;i<sx.length;i++) d+=` L${X(sx[i])},${Y(sy[i])}`; d+=` L${X(sx[sx.length-1])},${Y(0)} Z`;
+  svg.appendChild(el('path',{d,fill:'rgba(26,115,232,.30)',stroke:'#1a73e8','stroke-width':1.4}));
+  // gemtc line
+  let dg=`M${X(gx[0])},${Y(gy[0])}`; for(let i=1;i<gx.length;i++) dg+=` L${X(gx[i])},${Y(gy[i])}`;
+  svg.appendChild(el('path',{d:dg,fill:'none',stroke:'#e8710a','stroke-width':2}));
+  // netmetareg mode + truth
+  svg.appendChild(el('line',{x1:X(modeV),y1:T,x2:X(modeV),y2:T+h,stroke:'#188038','stroke-width':2}));
+  svg.appendChild(el('line',{x1:X(truth),y1:T,x2:X(truth),y2:T+h,stroke:'#999','stroke-width':1.6,'stroke-dasharray':'5,4'}));
+}
+
+function render(){
+  const {s,g,m}=data;
+  draw(document.getElementById('svBeta'), s.betaGrid, s.betaDens, g.beta.dens.x, g.beta.dens.y,
+       m.beta, m.blo, m.bhi, TRUTH[net].beta, 'Covariate slope  β', 'β');
+  draw(document.getElementById('svTau'), s.tau2Grid, s.tau2Dens, g.tau2.dens.x, g.tau2.dens.y,
+       m.tau2, m.t2lo, m.t2hi, TRUTH[net].tau2, 'Heterogeneity  τ²', 'τ²');
+  const f=x=>x.toFixed(3);
+  document.getElementById('tbl').innerHTML =
+   `<table><tr><th>quantity</th><th>spring mean</th><th>spring 95%</th><th>gemtc mean</th><th>gemtc 95%</th>
+      <th>netmetareg (mode)</th><th>truth</th></tr>
+    <tr><td>β</td><td>${f(s.beta.mean)}</td><td>[${f(s.beta.lo)}, ${f(s.beta.hi)}]</td>
+      <td>${f(g.beta.mean)}</td><td>[${f(g.beta.lo)}, ${f(g.beta.hi)}]</td>
+      <td>${f(m.beta)} ±${f(m.se)}</td><td>${f(TRUTH[net].beta)}</td></tr>
+    <tr><td>τ²</td><td>${f(s.tau2.mean)} (mode ${f(s.tau2.mode)})</td><td>[${f(s.tau2.lo)}, ${f(s.tau2.hi)}]</td>
+      <td>${f(g.tau2.median)}</td><td>[${f(g.tau2.lo)}, ${f(g.tau2.hi)}]</td>
+      <td>${f(m.tau2)} [${f(m.t2lo)}, ${f(m.t2hi)}]</td><td>${f(TRUTH[net].tau2)}</td></tr></table>`;
+}
+function pick(n){net=n; document.getElementById('b3').classList.toggle('active',n==='3t');
+  document.getElementById('b5').classList.toggle('active',n==='5t');
+  load(n).then(d=>{data=d;render();});}
+document.getElementById('b3').onclick=()=>pick('3t');
+document.getElementById('b5').onclick=()=>pick('5t');
+pick('3t');
+</script>
+</body>
+</html>

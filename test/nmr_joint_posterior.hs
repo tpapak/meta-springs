@@ -11,7 +11,7 @@ import           Text.Printf          (printf)
 
 import Data.Meta.Effects (TreatmentId (..), StringIntId (..), meanArm)
 import Data.Meta.Studies (StudyId (..), readStudies)
-import Data.Meta.NMA     (nmaRegressionPosterior, RegPosterior (..))
+import Data.Meta.NMA     (nmaRegressionPosterior, RegPosterior (..), Tau2PriorR (..))
 
 main :: IO ()
 main = do
@@ -24,7 +24,7 @@ main = do
     est <- readStudies (printf "/tmp/nmrgc/rep_%03d.json" r)
     case est of
       Left e -> printf "%d,NA -- %s\n" r e
-      Right studies -> case nmaRegressionPosterior studies cov 160 meanArm of
+      Right studies -> case nmaRegressionPosterior studies cov 200 FlatT2 meanArm of
         Left e -> printf "%d,NA -- %s\n" r e
         Right rp -> do
           let (bm,bs,bl,bh) = rpBeta rp
