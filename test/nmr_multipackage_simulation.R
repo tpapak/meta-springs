@@ -29,7 +29,8 @@ for (r in 1:REPS) {
   for(i in 1:nstud){mu<-rnorm(1,0,0.5);x<-runif(1,0,10)
     for(t in edges[[i]]) rows[[length(rows)+1]]<-data.frame(study=paste0("S",i),treatment=t,
       mean=mu+d_t[[t]]+beta*x*(t!="A")+rnorm(1,0,0.10),std.err=0.10,x=x,stringsAsFactors=FALSE)}
-  ab<-do.call(rbind,rows); sx<-sapply(split(ab$x,ab$study),`[`,1); sd2<-2*sd(sx)
+  ab<-do.call(rbind,rows)
+  sx<-sapply(1:nstud, function(i) ab$x[ab$study==paste0("S",i)][1]); sd2<-2*sd(sx)  # covariate per study, in S1..Sn order
   bsp <- tryCatch(spring_beta(ab), error=function(e) NA)
   bg <- tryCatch({gnet<-mtc.network(data.ab=ab[,c("study","treatment","mean","std.err")],studies=data.frame(study=paste0("S",1:nstud),x=sx))
     gm<-mtc.model(gnet,type="regression",regressor=list(coefficient="shared",variable="x",control="A"),likelihood="normal",link="identity",linearModel="fixed")
