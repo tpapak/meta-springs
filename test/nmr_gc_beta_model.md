@@ -84,6 +84,20 @@ across the board (both σ_B² summaries are posterior **means**):
 | τ² | 0.0655 | 0.0658 |
 | σ_B² (mean) | 0.0239 [0.0001, 0.189] | 0.0220 [0.000, 0.175] |
 
+The GC reports **both** the integrated mean and the marginal **mode** (`rpbModeTau2`,
+`rpbModeSigmaB2`) — and they bracket the two reference tools:
+
+| param | GC mean | GC mode | gemtc (mean) | REML point |
+|---|---|---|---|---|
+| τ²   | 0.0655 | 0.0518 | 0.0658 | 0.0545 (grouped-REML / netmetareg) |
+| σ_B² | 0.0239 | 0.0075 | 0.0220 | 0.0000 (grouped-REML boundary) |
+
+**GC mean ↔ gemtc** (the Bayesian posterior mean); **GC mode ↔ REML** (the frequentist
+point). σ_B² is the clearest case: the GC *mode* sits near the boundary (≈ the grouped-REML
+σ_B²=0 / gemtc median 0.005) while the GC *mean* is positive (≈ gemtc's 0.022) because the
+posterior is right-skewed. One grand-canonical posterior contains both — integrating σ_B²
+(the GC) avoids the boundary collapse that maximizing it (grouped REML) produces.
+
 The first-pass gap ("0.045 vs 0.004") was three stacked artifacts: (i) unmatched
 slope-dispersion prior, (ii) a coarse σ_B² grid whose floor sat *above* gemtc's posterior
 mass (σ_B² is weakly identified here — true value 0 — so the mass piles near zero), and

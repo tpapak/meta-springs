@@ -687,10 +687,12 @@ type Summ = (Double, Double, Double, Double)   -- (mean, sd, lo95, hi95)
 -- exchangeable), the common slope (shared / exchangeable hyper-mean), τ², and the
 -- slope variance σ_B² (exchangeable).
 data RegPosteriorB = RegPosteriorB
-  { rpbBetas   :: [(TreatmentId, Summ)]  -- ^ per non-reference treatment slope
-  , rpbCommonB :: Maybe Summ             -- ^ shared slope (Shared) / hyper-mean (Exchangeable)
-  , rpbTau2    :: Summ                   -- ^ heterogeneity (mean, sd, lo, hi)
-  , rpbSigmaB2 :: Maybe Summ             -- ^ slope variance (Exchangeable)
+  { rpbBetas      :: [(TreatmentId, Summ)]  -- ^ per non-reference treatment slope
+  , rpbCommonB    :: Maybe Summ             -- ^ shared slope (Shared) / hyper-mean (Exchangeable)
+  , rpbTau2       :: Summ                   -- ^ heterogeneity (mean, sd, lo, hi)
+  , rpbSigmaB2    :: Maybe Summ             -- ^ slope variance (Exchangeable)
+  , rpbModeTau2   :: Double                 -- ^ τ² posterior marginal mode (≈ REML point)
+  , rpbModeSigmaB2 :: Maybe Double          -- ^ σ_B² posterior marginal mode (Exchangeable; ≈ REML)
   } deriving (Show)
 
 -- | Weighted quantile of (value, weight) pairs.
@@ -805,8 +807,17 @@ nmaRegressionPosteriorB studies covmap nGrid bmodel prior slopePrior armEffect =
                           in Just (m, sqrt (max 0 (sum [ s*s*w | (s,w)<-sc ] - m*m)),
                                    wquantile sc 0.025, wquantile sc 0.975)
                         _ -> Nothing
+            -- marginal modes (group grid weights by the fugacity value, argmax) — the
+            -- REML-comparable point of the GC posterior, vs the integrated means above.
+            marg pairs = fst $ maximumBy (\x y -> compare (snd x) (snd y))
+                               (Map.toList (Map.fromListWith (+) pairs))
+            modeTau2 = marg [ (t,w) | ((_,t,_,_,_),w) <- zip cells ws ]
+            modeSigB2 = if bmodel == ExchangeableB
+                          then Just (marg [ (s,w) | ((_,_,Just s,_,_),w) <- zip cells ws ])
+                          else Nothing
         return RegPosteriorB { rpbBetas=betas, rpbCommonB=commonB
-                             , rpbTau2=tau2summ, rpbSigmaB2=sigSumm }
+                             , rpbTau2=tau2summ, rpbSigmaB2=sigSumm
+                             , rpbModeTau2=modeTau2, rpbModeSigmaB2=modeSigB2 }
 
 -- | Grouped-τ² REML for exchangeable-β network meta-regression: estimates the
 -- heterogeneity τ² (tau-group 0) and the slope-dispersion σ_B² (tau-group 1) in

@@ -23,8 +23,11 @@ main = do
         case rpbCommonB rp of Just (m,s,lo,hi) -> printf "  common B : %.3f (sd %.3f) [%.3f, %.3f]\n" m s lo hi; Nothing -> pure ()
         mapM_ (\(t,(m,s,lo,hi)) -> printf "  beta[%s] : %.3f (sd %.3f) [%.3f, %.3f]\n" (showT t) m s lo hi) (rpbBetas rp)
         let (tm,ts,tlo,thi) = rpbTau2 rp
-        printf "  tau2     : %.4f (sd %.4f) [%.4f, %.4f]\n" tm ts tlo thi
-        case rpbSigmaB2 rp of Just (m,s,lo,hi) -> printf "  sigmaB2  : %.4f (sd %.4f) [%.4f, %.4f]\n" m s lo hi; Nothing -> pure ()
+        printf "  tau2     : mean %.4f  MODE %.4f  [%.4f, %.4f]\n" tm (rpbModeTau2 rp) tlo thi
+        case rpbSigmaB2 rp of
+          Just (m,s,lo,hi) -> printf "  sigmaB2  : mean %.4f  MODE %.4f  [%.4f, %.4f]\n"
+                                m (maybe (0/0) id (rpbModeSigmaB2 rp)) lo hi
+          Nothing -> pure ()
       go name bm sp = either (\e -> putStrLn (name++": ERR "++e)) (report name)
                         (nmaRegressionPosteriorB studies cov 120 bm (HalfNormalTauR 0.5) sp meanArm)
   go "SHARED"       SharedB        FlatT2
