@@ -27,7 +27,8 @@
 <div class="subtitle">
   Two axes: <b>x = effect</b> (log-OR vs A), <b>y = covariate</b>. Each treatment is a <b>line</b> through its two level
   nodes (b₀ at x=0, b₁ at x=1); the line's horizontal <b>rise per unit covariate is β</b>. Study springs (horizontal) hold the
-  nodes to the data at each covariate height. <b>Shared β = parallel lines.</b> Binary covariate ⇒ two pinned points ⇒ no torque.
+  nodes to the data at each covariate height. <b>Shared β = parallel lines</b>, held by a <b>παραλληλόγραφος</b> (parallelograph /
+  parallel rule — the old draughting linkage that translates a straightedge while keeping its angle): its one DOF, the rigid shift of the x=1 frame, <b>is β</b>.
 </div>
 
 <div class="ctrl-row">
@@ -129,8 +130,9 @@ function draw(){
     // shade one parallelogram (B–C between the two levels) to show "kept parallel"
     const bB0=xs(effAt(sol,1,0)),bC0=xs(effAt(sol,2,0)),bB1=xs(effAt(sol,1,1)),bC1=xs(effAt(sol,2,1));
     svg.appendChild(el('path',{d:`M${bB0},${ys(0)} L${bC0},${ys(0)} L${bC1},${ys(1)} L${bB1},${ys(1)} Z`,fill:'#e65100',opacity:0.06}));
-    svg.appendChild(tx(28,(ys(0)+ys(1))/2,'parallelogram',{['font-size']:10,fill:'#999'}));
-    svg.appendChild(tx(28,(ys(0)+ys(1))/2+13,'linkage',{['font-size']:10,fill:'#999'}));
+    svg.appendChild(tx(26,(ys(0)+ys(1))/2-7,'παραλληλό-',{['font-size']:10,fill:'#999'}));
+    svg.appendChild(tx(26,(ys(0)+ys(1))/2+5,'γραφος',{['font-size']:10,fill:'#999'}));
+    svg.appendChild(tx(26,(ys(0)+ys(1))/2+18,'(parallelograph)',{['font-size']:8.5,fill:'#bbb'}));
   }
 
   // treatment lines (the regression lines): slope = beta
