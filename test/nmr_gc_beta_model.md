@@ -72,16 +72,32 @@ estimate is ≈0.235 (sampling noise).
 **exchangeable** — slopes shrink toward the common mean (partial pooling); vs gemtc
 `coefficient="exchangeable"`:
 
+With gemtc's prior matched (`reg.sd ~ Uniform(0, om.scale)` ⇒ on the raw scale
+`σ_B ~ Uniform(0, om.scale/scale)` = U(0, 0.729), `UniformSD 0.7293`) and a **log-spaced
+σ_B² grid** (a coarse linear grid floors above gemtc's near-zero posterior), the two agree
+across the board (both σ_B² summaries are posterior **means**):
+
 | quantity | spring | gemtc |
 |---|---|---|
-| common B | 0.230 | 0.226 |
-| β_B,β_C,β_D,β_E | 0.174, 0.272, 0.213, 0.259 | 0.203, 0.246, 0.220, 0.244 |
-| τ² | 0.068 | 0.059 |
-| σ_B² | 0.045 | 0.004 |
+| common B | 0.231 | 0.222 |
+| β_B, β_C, β_D, β_E | 0.200, 0.255, 0.221, 0.249 | 0.203, 0.246, 0.220, 0.244 |
+| τ² | 0.0655 | 0.0658 |
+| σ_B² (mean) | 0.0239 [0.0001, 0.189] | 0.0220 [0.000, 0.175] |
 
-B, τ², and the β_t **pattern** agree; the **degree of shrinkage differs** because σ_B²
-disagrees (0.045 vs 0.004). That is honest and expected: with only 4 truly-equal slopes
-σ_B² is weakly identified and **prior-dominated**, and the slope-dispersion priors were
-not matched (spring used half-normal(0.5) on the slope SD; gemtc used its default
-`reg.sd` prior). Matching that prior would close the gap; shared (σ_B²→0) and unrelated
-(σ_B²→∞) are the validated endpoints.
+The first-pass gap ("0.045 vs 0.004") was three stacked artifacts: (i) unmatched
+slope-dispersion prior, (ii) a coarse σ_B² grid whose floor sat *above* gemtc's posterior
+mass (σ_B² is weakly identified here — true value 0 — so the mass piles near zero), and
+(iii) comparing the spring posterior *mean* to gemtc's *median²*. Fixing all three closes
+it. shared (σ_B²→0) and unrelated (σ_B²→∞) remain the exactly-validated endpoints.
+
+## Note: τ springs *are* exchangeability
+Heterogeneity and exchangeable coefficients are the **same construct** in the spring/GC
+picture — a Gaussian spring tying coordinates to a shared node (= a variance component):
+- the **τ spring** (hardness 2/τ², StudyEnd↔TauEnd) makes the study-specific effects
+  θ_i = d + δ_i exchangeable around the network mean d (variance τ²) — the standard RE model;
+- the **slope spring** (hardness 1/σ_B², β_t↔B) makes the per-treatment slopes β_t
+  exchangeable around B (variance σ_B²).
+
+So `exchangeable` β is just the heterogeneity mechanism applied to the slope coordinates,
+with σ_B² a *second fugacity* the GC integrates over alongside τ². shared = infinitely
+stiff slope springs (σ_B²→0, β_t pinned to B); unrelated = no slope springs (σ_B²→∞).

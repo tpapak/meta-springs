@@ -574,7 +574,7 @@ data RegPosterior = RegPosterior
 -- (REML evidence; posterior mode = the REML point). @HalfNormalTauR σ@ = a
 -- half-normal prior with scale σ on the heterogeneity SD τ (matches gemtc/multinma
 -- conventions), transformed to the τ² scale.
-data Tau2PriorR = FlatT2 | HalfNormalTauR Double
+data Tau2PriorR = FlatT2 | HalfNormalTauR Double | UniformSD Double
   deriving (Show, Eq)
 
 -- | log prior density on τ² (Lebesgue scale, up to a constant).
@@ -583,6 +583,9 @@ logPriorT2 FlatT2 _ = 0
 logPriorT2 (HalfNormalTauR s) t          -- τ ~ HalfNormal(s) ⇒ p(τ²) ∝ exp(−τ²/2s²)/√τ²
   | t <= 0    = -1e300
   | otherwise = - t / (2 * s * s) - 0.5 * log t
+logPriorT2 (UniformSD u) t               -- τ ~ Uniform(0,u) ⇒ p(τ²) ∝ 1/√τ² on (0,u²)
+  | t <= 0 || t >= u * u = -1e300
+  | otherwise            = -0.5 * log t
 
 -- | Joint (β, τ²) posterior by exact linear-Gaussian marginalisation: at each τ²
 -- the fixed effects (μ, d, β) are integrated analytically, so the τ² posterior
@@ -708,9 +711,10 @@ nmaRegressionPosteriorB ::
   Int ->                                   -- ^ τ² grid resolution
   BetaModel ->
   Tau2PriorR ->                            -- ^ prior on τ² (heterogeneity)
+  Tau2PriorR ->                            -- ^ prior on σ_B² (slope dispersion; Exchangeable only)
   (Arm -> Either String a) ->
   Either String RegPosteriorB
-nmaRegressionPosteriorB studies covmap nGrid bmodel prior armEffect =
+nmaRegressionPosteriorB studies covmap nGrid bmodel prior slopePrior armEffect =
   let treatments = sort $ nub $ concatMap (map tidOfArm . getStudyArms) studies
       ref    = head treatments
       nonref = filter (/= ref) treatments
@@ -762,11 +766,16 @@ nmaRegressionPosteriorB studies covmap nGrid bmodel prior armEffect =
             ts = [ tau2hi*(fromIntegral i-0.5)/fromIntegral nGrid | i<-[1..nGrid] ]
             cells = case bmodel of
               ExchangeableB ->
-                let nSig = 24; sigHi = 1.0
-                    ss = [ sigHi*(fromIntegral i-0.5)/fromIntegral nSig | i<-[1..nSig::Int] ]
+                -- σ_B² is often weakly identified with mass near 0, so use a
+                -- LOG-spaced grid (with the dσ_B² = σ_B²·dlog Jacobian, i.e. +log s)
+                -- reaching down to sigHi/1e4 — a midpoint linear grid floors too high.
+                let nSig = 40
+                    sigHi = case slopePrior of UniformSD u -> u*u; _ -> 1.0
+                    sLo   = sigHi / 1e4
+                    ss = [ sLo * (sigHi/sLo) ** ((fromIntegral i-0.5)/fromIntegral nSig) | i<-[1..nSig::Int] ]
                 in [ let (lz,th,cv) = solveCell t (Just (1/s))
                          lp = lz - 0.5*fromIntegral nT*log s
-                              + logPriorT2 prior t + logPriorT2 (HalfNormalTauR 0.5) s
+                              + logPriorT2 prior t + logPriorT2 slopePrior s + log s  -- +log s = log Jacobian
                      in (lp, t, Just s, th, cv) | t<-ts, s<-ss ]
               _ -> [ let (lz,th,cv) = solveCell t Nothing
                      in (lz + logPriorT2 prior t, t, Nothing, th, cv) | t<-ts ]
