@@ -29,10 +29,13 @@
   GC coordinate) and <b style="color:#e8710a">gemtc</b> share a matched <b>half-normal(0.5)</b> prior on τ;
   <b style="color:#188038">netmetareg</b> is frequentist REML (flat) — its point is the posterior <b>mode</b>,
   shown as a vertical line with its 95% interval. Dashed grey line = the simulation <b>truth</b>.
+  The <b>Binary</b> panel is the logit-scale single-Laplace GC (<code>nmaRegressionBinPosteriorB</code>:
+  IRLS linearisation → Gaussian GC) vs gemtc's exact-binomial posterior; β and τ² are on the logit scale.
 </div>
 <div class="ctrl">
   <button id="b3" class="active">3 treatments (20 studies, 2-arm)</button>
   <button id="b5">5 treatments (19 studies, multi-arm)</button>
+  <button id="bBin">Binary (3-trt, logit)</button>
 </div>
 <div class="panels">
   <div class="panel"><svg id="svBeta" width="430" height="300"></svg></div>
@@ -49,7 +52,7 @@
 </div>
 <script>
 "use strict";
-const TRUTH = { "3t": {beta:0.30, tau2:0.10}, "5t": {beta:0.30, tau2:0.08} };
+const TRUTH = { "3t": {beta:0.30, tau2:0.10}, "5t": {beta:0.30, tau2:0.08}, "bin": {beta:0.25, tau2:0.10} };
 let net = "3t", data = {};
 function el(t,a){const e=document.createElementNS('http://www.w3.org/2000/svg',t);for(const k in a)e.setAttribute(k,a[k]);return e;}
 function load(n){return Promise.all([
@@ -105,9 +108,11 @@ function render(){
 }
 function pick(n){net=n; document.getElementById('b3').classList.toggle('active',n==='3t');
   document.getElementById('b5').classList.toggle('active',n==='5t');
+  document.getElementById('bBin').classList.toggle('active',n==='bin');
   load(n).then(d=>{data=d;render();});}
 document.getElementById('b3').onclick=()=>pick('3t');
 document.getElementById('b5').onclick=()=>pick('5t');
+document.getElementById('bBin').onclick=()=>pick('bin');
 pick('3t');
 </script>
 </body>

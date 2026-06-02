@@ -28,6 +28,7 @@ module Data.Meta.NMA
     nmaRegressionBinRE,
     nmaRegressionBinGroupedREML,
     nmaRegressionBinPosteriorB,
+    linearizeBinaryRegression,
     nmaRegressionRE,
     nmaRegressionPosterior,
     nmaRegressionPosteriorB,
@@ -888,7 +889,17 @@ nmaRegressionBin studies covmap =
 nmaRegressionBinPosteriorB ::
   [Study] -> Map.Map StudyId Double -> Int -> BetaModel -> Tau2PriorR -> Tau2PriorR ->
   Either String RegPosteriorB
-nmaRegressionBinPosteriorB studies covmap nGrid bmodel prior slopePrior =
+nmaRegressionBinPosteriorB studies covmap nGrid bmodel prior slopePrior = do
+  pseudo <- linearizeBinaryRegression studies covmap
+  nmaRegressionPosteriorB pseudo covmap nGrid bmodel prior slopePrior meanArm
+
+-- | Linearise a binary network meta-regression at its shared-β IRLS fit, returning
+-- pseudo-continuous studies (each arm a ContinuousArm carrying the working response z
+-- with variance 1/w). The Gaussian β-machinery (FE/RE/GC) then runs on these — this is
+-- the bridge that lets every continuous regression function serve binary outcomes.
+linearizeBinaryRegression ::
+  [Study] -> Map.Map StudyId Double -> Either String [Study]
+linearizeBinaryRegression studies covmap =
   let treatments = sort $ nub $ concatMap (map tidOfArm . getStudyArms) studies
       ref = head treatments; nonref = filter (/= ref) treatments; nT = length nonref
       sids = map getStudyId studies; nS = length sids
@@ -906,9 +917,9 @@ nmaRegressionBinPosteriorB studies covmap nGrid bmodel prior slopePrior =
                   | hasBeta   = setAt (setAt base (nS + tidx Map.! t) 1) betaCol x
                   | otherwise = setAt base (nS + tidx Map.! t) 1
           in Right (row, fromIntegral ev, fromIntegral ns)
-        _ -> Left "nmaRegressionBinPosteriorB: expects binary arms"
+        _ -> Left "linearizeBinaryRegression: expects binary arms"
    in do
-        recs <- mapM (\s -> mapM (armRec s) (getStudyArms s)) studies   -- per study, list of (row,e,n)
+        recs <- mapM (\s -> mapM (armRec s) (getStudyArms s)) studies
         let flat = concat recs
             irls theta it
               | it > (100::Int) = theta
@@ -920,17 +931,14 @@ nmaRegressionBinPosteriorB studies covmap nGrid bmodel prior slopePrior =
                     bVec = [ sum [ w*(r!!i)*z | ((r,_,_),(w,z))<-zip flat wz ] | i<-[0..nP-1] ]
                     theta' = matVec (matInv aMat) bVec
             thetaF = irls (replicate nP 0) 0
-            -- working response (z, variance 1/w) per arm, in study/arm order
             working = [ let eta=sum (zipWith (*) r thetaF); p=sigmoid eta
                             w=max 1e-9 (n*p*(1-p)) in (eta + (e-n*p)/w, 1/w) | (r,e,n)<-flat ]
-            -- rebuild pseudo-continuous studies (ContinuousArm carrying z, variance 1/w)
             rebuild [] _ = []
             rebuild (s:ss) ws = let k = length (getStudyArms s); (mine, rest) = splitAt k ws
                                     arms' = zipWith (\a (z,v) -> ContinuousArm (tidOfArm a) z (sqrt v) 1)
                                               (getStudyArms s) mine
                                 in ContinuousStudy (getStudyId s) arms' : rebuild ss rest
-            pseudo = rebuild studies working
-        nmaRegressionPosteriorB pseudo covmap nGrid bmodel prior slopePrior meanArm
+        return (rebuild studies working)
 
 -- | Random-effects BINARY network meta-regression (logit link, shared β) by PQL:
 -- the IRLS binomial linearisation interleaved with the REML/EM heterogeneity update.
