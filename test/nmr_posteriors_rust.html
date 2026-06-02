@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Rust GC NMR posteriors (vs Haskell spring, gemtc)</title>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;background:#fafafa;color:#222;
+    display:flex;flex-direction:column;align-items:center;padding:18px}
+  h1{font-size:18px;font-weight:600;margin-bottom:4px}
+  .sub{font-size:12.5px;color:#666;max-width:900px;text-align:center;line-height:1.55;margin-bottom:10px}
+  code{font-family:'SF Mono',Consolas,monospace;background:#eef;padding:0 3px;border-radius:3px}
+  .panels{display:flex;gap:18px;flex-wrap:wrap;justify-content:center}
+  .panel{background:#fff;border:1px solid #ddd;border-radius:6px;padding:8px}
+  .legend{margin-top:10px;font-size:12px;color:#555;max-width:900px;line-height:1.7;text-align:center}
+  .sw{display:inline-block;width:22px;height:10px;border-radius:2px;vertical-align:middle;margin-right:4px}
+  table{border-collapse:collapse;font-size:12px;margin-top:10px}
+  th,td{border:1px solid #ddd;padding:3px 9px;text-align:right}
+  th:first-child,td:first-child{text-align:left}
+</style>
+</head>
+<body>
+<h1>Rust GC network-meta-regression posterior</h1>
+<div class="sub">
+  The <b style="color:#1a73e8">Rust</b> grand-canonical posterior (<code>gc-rust/examples/nmr_post_dump.rs</code>,
+  nalgebra) overlaid with the <b style="color:#188038">Haskell spring</b> GC
+  (<code>nmaRegressionPosterior</code>) and <b style="color:#e8710a">gemtc</b> MCMC — same 3-treatment,
+  20-study dataset (β truth 0.30, τ²=0.10). Rust and Haskell are the same closed-form spring posterior;
+  gemtc is exact-Bayesian MCMC.
+</div>
+<div class="panels">
+  <div class="panel"><svg id="svBeta" width="430" height="300"></svg></div>
+  <div class="panel"><svg id="svTau"  width="430" height="300"></svg></div>
+</div>
+<div id="tbl"></div>
+<div class="legend">
+  <span class="sw" style="background:#1a73e8"></span>Rust GC (nalgebra)
+  &nbsp;<span class="sw" style="background:#188038"></span>Haskell spring GC
+  &nbsp;<span class="sw" style="background:#e8710a"></span>gemtc MCMC. Rust ≡ Haskell (same
+  spring partition function); both match gemtc's posterior.
+</div>
+<script>
+"use strict";
+function el(t,a){const e=document.createElementNS('http://www.w3.org/2000/svg',t);for(const k in a)e.setAttribute(k,a[k]);return e;}
+function load(){return Promise.all([
+  fetch('nmr_posterior_data/rust_3t.json').then(r=>r.json()),
+  fetch('nmr_posterior_data/spring_3t.json').then(r=>r.json()),
+  fetch('nmr_posterior_data/gemtc_3t.json').then(r=>r.json())
+]);}
+function line(svg,X,Y,xs,ys,col,w,dash){let d=`M${X(xs[0])},${Y(ys[0])}`;for(let i=1;i<xs.length;i++)d+=` L${X(xs[i])},${Y(ys[i])}`;
+  svg.appendChild(el('path',Object.assign({d,fill:'none',stroke:col,'stroke-width':w},dash?{'stroke-dasharray':dash}:{})));}
+function draw(svg,series,title,unit){
+  const W=430,H=300,L=44,R=12,T=30,B=38,w=W-L-R,h=H-T-B;
+  const allx=series.flatMap(s=>s.x),ally=series.flatMap(s=>s.y);
+  let xmin=Math.min(...allx),xmax=Math.max(...allx);const pad=(xmax-xmin)*0.05;xmin-=pad;xmax+=pad;
+  const ymax=Math.max(...ally)*1.08;
+  const X=v=>L+(v-xmin)/(xmax-xmin)*w,Y=v=>T+h-v/ymax*h;
+  svg.appendChild(el('text',{x:W/2,y:18,'text-anchor':'middle','font-size':13,'font-weight':700})).textContent=title;
+  svg.appendChild(el('line',{x1:L,y1:T+h,x2:L+w,y2:T+h,stroke:'#999'}));
+  for(let i=0;i<=4;i++){const v=xmin+(xmax-xmin)*i/4;svg.appendChild(el('text',{x:X(v),y:T+h+16,'text-anchor':'middle','font-size':10,fill:'#666'})).textContent=v.toFixed(2);}
+  svg.appendChild(el('text',{x:L+w/2,y:H-4,'text-anchor':'middle','font-size':11,fill:'#444'})).textContent=unit;
+  for(const s of series) line(svg,X,Y,s.x,s.y,s.col,s.w,s.dash);
+}
+load().then(([rust,spring,gemtc])=>{
+  const dt=(g)=>{const d=(g[g.length-1]-g[0])/(g.length-1);return d;};
+  // tau2 density: spring/rust tau2Dens already density; gemtc dens.x/y
+  draw(document.getElementById('svBeta'),[
+    {x:rust.betaGrid,y:rust.betaDens,col:'#1a73e8',w:2.2},
+    {x:spring.betaGrid,y:spring.betaDens,col:'#188038',w:1.6,dash:'5,4'},
+    {x:gemtc.beta.dens.x,y:gemtc.beta.dens.y,col:'#e8710a',w:1.6}
+  ],'Covariate slope  β','β');
+  draw(document.getElementById('svTau'),[
+    {x:rust.tau2Grid,y:rust.tau2Dens,col:'#1a73e8',w:2.2},
+    {x:spring.tau2Grid,y:spring.tau2Dens,col:'#188038',w:1.6,dash:'5,4'},
+    {x:gemtc.tau2.dens.x,y:gemtc.tau2.dens.y,col:'#e8710a',w:1.6}
+  ],'Heterogeneity  τ²','τ²');
+  const f=x=>x.toFixed(4);
+  document.getElementById('tbl').innerHTML=
+    `<table><tr><th>quantity</th><th>Rust</th><th>Haskell spring</th><th>gemtc</th></tr>
+     <tr><td>β mean</td><td>${f(rust.beta.mean)}</td><td>${f(spring.beta.mean)}</td><td>${f(gemtc.beta.mean)}</td></tr>
+     <tr><td>β 95%</td><td>[${f(rust.beta.lo)}, ${f(rust.beta.hi)}]</td><td>[${f(spring.beta.lo)}, ${f(spring.beta.hi)}]</td><td>[${f(gemtc.beta.lo)}, ${f(gemtc.beta.hi)}]</td></tr>
+     <tr><td>τ² mode/median</td><td>${f(rust.tau2.mode)}</td><td>${f(spring.tau2.mode)}</td><td>${f(gemtc.tau2.median)}</td></tr></table>`;
+});
+</script>
+</body>
+</html>
