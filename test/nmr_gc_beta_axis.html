@@ -36,6 +36,10 @@
   <button class="mode" id="mUnrel">Unrelated β<sub>t</sub></button>
   <span class="pill" id="betaDisplay">β = 0.000</span>
 </div>
+<div class="ctrl-row">
+  <button id="btnPlay">▶ Relax linkage</button>
+  <button id="btnSnap">Snap to fit</button>
+</div>
 
 <svg id="canvas" width="980" height="600"></svg>
 
@@ -65,6 +69,21 @@ function solve(){const bi=betaInfo(),N=nD+nMu+bi.nB,A=Array.from({length:N},()=>
   return {d,betaOf,betaShared:(mode==='shared')?x[nD+nMu]:0};}
 function effAt(sol,t,l){return t===0?0:sol.d[t]+sol.betaOf(t)*l;}
 
+// ---- relaxation (gradient descent on the spring energy) : proves beta emerges mechanically ----
+let cur=null, playing=false, raf=0;
+function curSol(st){return {d:st.d, betaOf:()=>st.beta, betaShared:st.beta};}
+function gradStep(st){
+  const gd=[0,0,0,0], gmu=[0,0,0,0]; let gb=0;
+  studies.forEach((s,si)=>s.arms.forEach(a=>{const w=1/a.v;
+    const fit=st.mu[si]+(a.t?st.d[a.t]+st.beta*s.x:0), r=fit-a.y;
+    gmu[si]+=w*r; if(a.t){gd[a.t]+=w*r; gb+=w*r*s.x;}}));
+  const lr=0.015;
+  for(let t=1;t<T;t++) st.d[t]-=lr*gd[t];
+  for(let i=0;i<S;i++) st.mu[i]-=lr*gmu[i];
+  st.beta-=lr*gb;
+  return Math.abs(gb)+gd.reduce((s,g)=>s+Math.abs(g),0);
+}
+
 const svg=document.getElementById('canvas'),W=980,H=600,mar={l:60,r:60,t:70,b:60};
 const plotW=W-mar.l-mar.r, plotH=H-mar.t-mar.b, xMin=-0.6,xMax=4.8, cMin=-0.35,cMax=1.35;
 const xs=v=>mar.l+(v-xMin)/(xMax-xMin)*plotW;
@@ -78,7 +97,7 @@ function coil(x1,y1,x2,y2,c,col,sw){const dx=x2-x1,dy=y2-y1,len=Math.hypot(dx,dy
  d+=` L${x2},${y2}`;return el('path',{d,fill:'none',stroke:col,['stroke-width']:sw});}
 
 function draw(){
-  const sol=solve(),hasCov=mode!=='pooled';while(svg.firstChild)svg.removeChild(svg.firstChild);
+  const sol=(cur&&mode==='shared')?curSol(cur):solve(),hasCov=mode!=='pooled';while(svg.firstChild)svg.removeChild(svg.firstChild);
   // axes
   for(let v=0;v<=4;v++){svg.appendChild(el('line',{x1:xs(v),y1:mar.t-6,x2:xs(v),y2:mar.t+plotH,stroke:'#f1f1f1'}));
     svg.appendChild(tx(xs(v),mar.t+plotH+18,v.toFixed(0),{['text-anchor']:'middle',['font-size']:11,fill:'#aaa'}));}
@@ -99,6 +118,20 @@ function draw(){
       svg.appendChild(coil(xsc,cy,xn,cy,Math.max(3,Math.round(Math.abs(xn-xsc)/16)),'#1a73e8',1.5));});
     svg.appendChild(tx(xsc,cy-13,st.id,{['text-anchor']:'middle',['font-size']:9,fill:'#c2410c',['font-weight']:600}));
   });
+
+  // parallelogram linkage (shared mode): two rigid frames (the covariate levels) joined by the parallel treatment links
+  if(mode==='shared'){
+    const act=[1,2,3];
+    const x0s=act.map(t=>xs(effAt(sol,t,0))), x1s=act.map(t=>xs(effAt(sol,t,1)));
+    // the two frame bars
+    svg.appendChild(el('line',{x1:Math.min(...x0s),y1:ys(0),x2:Math.max(...x0s),y2:ys(0),stroke:'#999',['stroke-width']:4,opacity:0.5,['stroke-linecap']:'round'}));
+    svg.appendChild(el('line',{x1:Math.min(...x1s),y1:ys(1),x2:Math.max(...x1s),y2:ys(1),stroke:'#999',['stroke-width']:4,opacity:0.5,['stroke-linecap']:'round'}));
+    // shade one parallelogram (B–C between the two levels) to show "kept parallel"
+    const bB0=xs(effAt(sol,1,0)),bC0=xs(effAt(sol,2,0)),bB1=xs(effAt(sol,1,1)),bC1=xs(effAt(sol,2,1));
+    svg.appendChild(el('path',{d:`M${bB0},${ys(0)} L${bC0},${ys(0)} L${bC1},${ys(1)} L${bB1},${ys(1)} Z`,fill:'#e65100',opacity:0.06}));
+    svg.appendChild(tx(28,(ys(0)+ys(1))/2,'parallelogram',{['font-size']:10,fill:'#999'}));
+    svg.appendChild(tx(28,(ys(0)+ys(1))/2+13,'linkage',{['font-size']:10,fill:'#999'}));
+  }
 
   // treatment lines (the regression lines): slope = beta
   for(let t=1;t<T;t++){
@@ -128,10 +161,24 @@ function draw(){
 
   document.getElementById('betaDisplay').innerHTML='β = '+(mode==='pooled'?'0':(mode==='shared'?sol.betaShared.toFixed(3):`B:${sol.betaOf(1).toFixed(2)} C:${sol.betaOf(2).toFixed(2)} D:${sol.betaOf(3).toFixed(2)}`));
 }
-function setMode(m,btn){mode=m;['mPooled','mShared','mUnrel'].forEach(id=>document.getElementById(id).classList.remove('active'));btn.classList.add('active');draw();}
+function stopPlay(){playing=false;cancelAnimationFrame(raf);document.getElementById('btnPlay').textContent='▶ Relax linkage';}
+function setMode(m,btn){mode=m;stopPlay();cur=null;['mPooled','mShared','mUnrel'].forEach(id=>document.getElementById(id).classList.remove('active'));btn.classList.add('active');draw();}
 document.getElementById('mPooled').onclick=function(){setMode('pooled',this);};
 document.getElementById('mShared').onclick=function(){setMode('shared',this);};
 document.getElementById('mUnrel').onclick =function(){setMode('unrelated',this);};
+document.getElementById('btnPlay').onclick=function(){
+  if(mode!=='shared'){setMode('shared',document.getElementById('mShared'));}
+  if(playing){stopPlay();return;}
+  cur={d:[0,0,0,0],mu:[0,0,0,0],beta:0};   // flat start: lines vertical, frames coincident (beta=0)
+  playing=true; this.textContent='⏸ Pause';
+  (function loop(){ if(!playing) return; let g=0; for(let i=0;i<3;i++) g=gradStep(cur); draw();
+    if(g<1e-3){stopPlay();} else raf=requestAnimationFrame(loop); })();
+};
+document.getElementById('btnSnap').onclick=function(){stopPlay();
+  if(mode==='shared'){const eq=solve();cur={d:eq.d.slice(),mu:[0,0,0,0],beta:eq.betaShared};
+    // recover mu for a faithful static frame (optional): leave 0, draw uses effAt only
+  } else cur=null;
+  draw();};
 draw();
 </script>
 </body>
