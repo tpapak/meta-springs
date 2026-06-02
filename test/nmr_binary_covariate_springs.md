@@ -118,3 +118,24 @@ reference-involving contrasts + the between-layer gap.
    unchanged: β is just additional fixed coordinates; τ² is now *residual*
    heterogeneity after regression.
 4. Continuous covariate, then `unrelated` / `exchangeable` coefficients.
+
+## Verification against gemtc
+
+The spring NMR equilibrium (= WLS/MLE given τ²) was checked against `gemtc`
+(Bayesian NMA regression, JAGS) — scripts in `test/nmr_*_verify.R/.js`:
+
+- **Star toy** (Gaussian, 3 trt): β 1.023 vs gemtc 0.993; d_B/d_C and SE match to ~0.002.
+- **Bigger looped network** (Gaussian, 5 trt, 14 studies, two 3-arm, loops):
+  treatment effects agree ≤0.006; β 0.463 vs 0.443; SE 0.347 vs 0.342.
+- **Certolizumab** (exact binomial, real data): β 0.138/yr vs gemtc 0.135/yr
+  (gemtc reports `B` per 2·SD scale unit); 5/6 effects match ~0.02.
+- **Monte-Carlo, 120 reps** (binary 4-trt networks with loops + covariate),
+  gemtc vs binomial spring IRLS per rep:
+  - β: mean(spring−gemtc) = +0.003, RMSD 0.028, **cor 0.9993**, lm slope 0.951
+  - d.A.B: mean diff +0.0003, RMSD 0.005, **cor 0.99999**, lm slope 1.007
+
+The tiny residual is MCMC noise + gemtc's vague-prior shrinkage (β slightly
+toward 0, hence lm slope just under 1). Conclusion: the spring system and gemtc
+estimate the same quantity. Note this is the **fixed-effect** layer (equilibrium
+/ IRLS); it does **not** use Grand Canonical (the τ² posterior), which would be
+the right comparison against gemtc *random-effects*.
