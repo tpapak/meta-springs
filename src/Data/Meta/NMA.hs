@@ -23,6 +23,7 @@ module Data.Meta.NMA
     TauId (..),
     makeSprings,
     makeBinomialSprings,
+    nmaRegression,
     nma,
     springNMA,
     springLength,
@@ -338,6 +339,79 @@ makeSprings studies mpinnedVertex mtau2' armEffect =
                               , designs = designs'
                               , dof = degreesOfFreedom vssts designs'
                               }
+
+-- | Fixed-effect network meta-regression: extends the makeSprings model with a
+-- shared covariate slope β. Same convention as makeSprings — an arm's effect
+-- equals (φ_T − φ_S), now plus β·x_i for non-reference arms (the covariate shifts
+-- the treatment end). Solved as arm-level weighted least squares (the spring
+-- equilibrium with the β coordinate), reference treatment pinned (d_ref = 0).
+-- Returns (β, contrasts d_t−d_s at covariate x = 0).
+nmaRegression ::
+  (ArmEffect a b, Gaussian a, Gaussian b) =>
+  [Study] ->
+  Map.Map StudyId Double ->          -- ^ study-level covariate x_i
+  (Arm -> Either String a) ->
+  Either String (Double, Map.Map TreatmentId (Map.Map TreatmentId Double))
+nmaRegression studies covmap armEffect =
+  let treatments = sort $ nub $ concatMap (map tidOfArm . getStudyArms) studies
+      ref        = head treatments
+      nonref     = filter (/= ref) treatments
+      nT         = length nonref
+      sids       = map getStudyId studies
+      nS         = length sids
+      sidx       = Map.fromList (zip sids [0 ..])
+      tidx       = Map.fromList (zip nonref [0 ..])
+      nP         = nS + nT + 1          -- μ per study, d per non-ref treatment, β
+      betaCol    = nS + nT
+      setAt xs i v = take i xs ++ [v] ++ drop (i + 1) xs
+      armRow study a = do
+        ef <- armEffect a
+        let rel = relatedRelative ef
+            y   = expectation rel
+            w   = 1 / variance rel
+            t   = tidOfArm a
+            si  = sidx Map.! getStudyId study
+            x   = Map.findWithDefault 0 (getStudyId study) covmap
+            base = setAt (replicate nP 0) si (-1)         -- φ_S coefficient −1
+            row  = if t == ref
+                     then base
+                     else setAt (setAt base (nS + tidx Map.! t) 1) betaCol x
+        return (row, y, w)
+   in do
+        rows <- concat <$> mapM (\study -> mapM (armRow study) (getStudyArms study)) studies
+        let aMat = [ [ sum [ w * (r !! i) * (r !! j) | (r, _, w) <- rows ] | j <- [0 .. nP - 1] ]
+                   | i <- [0 .. nP - 1] ]
+            bVec = [ sum [ w * (r !! i) * y | (r, y, w) <- rows ] | i <- [0 .. nP - 1] ]
+            theta = gaussSolve aMat bVec
+            beta  = theta !! betaCol
+            dOf t = if t == ref then 0 else theta !! (nS + tidx Map.! t)
+            contrasts = Map.fromList
+              [ (t1, Map.fromList [ (t2, dOf t2 - dOf t1) | t2 <- treatments ])
+              | t1 <- treatments ]
+        return (beta, contrasts)
+
+-- | Solve A x = b by Gaussian elimination with partial pivoting.
+gaussSolve :: [[Double]] -> [Double] -> [Double]
+gaussSolve a0 b0 = back (elim (zipWith (\r y -> r ++ [y]) a0 b0) 0)
+  where
+    n = length b0
+    elim m c
+      | c >= n = m
+      | otherwise =
+          let piv = maximumBy (\i j -> compare (abs (m !! i !! c)) (abs (m !! j !! c))) [c .. n - 1]
+              m1  = swap' c piv m
+              prow = m1 !! c
+              m2  = [ if r <= c then m1 !! r
+                      else let f = (m1 !! r !! c) / (prow !! c)
+                           in zipWith (\u v -> u - f * v) (m1 !! r) prow
+                    | r <- [0 .. n - 1] ]
+          in elim m2 (c + 1)
+    swap' i j m = [ if k == i then m !! j else if k == j then m !! i else m !! k | k <- [0 .. n - 1] ]
+    back m = foldr step (replicate n 0) [0 .. n - 1]
+      where step i xs = let row = m !! i
+                            s = sum [ (row !! j) * (xs !! j) | j <- [i + 1 .. n - 1] ]
+                        in setAtL xs i ((row !! n - s) / (row !! i))
+    setAtL xs i v = take i xs ++ [v] ++ drop (i + 1) xs
 
 -- | makeBinomialSprings constructs a spring network using exact binomial
 -- springs for binary arm data, instead of Gaussian inverse-variance springs.
