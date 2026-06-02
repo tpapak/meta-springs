@@ -27,6 +27,7 @@ module Data.Meta.NMA
     nmaRegressionBin,
     nmaRegressionBinRE,
     nmaRegressionBinGroupedREML,
+    nmaRegressionBinPosteriorB,
     nmaRegressionRE,
     nmaRegressionPosterior,
     nmaRegressionPosteriorB,
@@ -875,6 +876,61 @@ nmaRegressionBin studies covmap =
             contrasts = Map.fromList
               [ (t1, Map.fromList [ (t2, dOf t2 - dOf t1) | t2 <- treatments ]) | t1 <- treatments ]
         return (beta, contrasts)
+
+-- | BINARY joint (β, τ², σ_B²) posterior — the GC for binary, by single-Laplace:
+-- linearise the binomial arms once at the shared-β IRLS fit (working response z,
+-- variance 1/w), then run the Gaussian exchangeable GC ('nmaRegressionPosteriorB')
+-- on the frozen working response. Because the GC *integrates* σ_B² (rather than
+-- maximizing it, as the grouped REML does), this lifts σ_B² off the boundary and
+-- recovers gemtc's posterior mean. Returns the same 'RegPosteriorB' (with marginal
+-- means AND modes). A single-point Laplace — re-linearising per grid cell would be
+-- more accurate, but this already matches gemtc's posterior means.
+nmaRegressionBinPosteriorB ::
+  [Study] -> Map.Map StudyId Double -> Int -> BetaModel -> Tau2PriorR -> Tau2PriorR ->
+  Either String RegPosteriorB
+nmaRegressionBinPosteriorB studies covmap nGrid bmodel prior slopePrior =
+  let treatments = sort $ nub $ concatMap (map tidOfArm . getStudyArms) studies
+      ref = head treatments; nonref = filter (/= ref) treatments; nT = length nonref
+      sids = map getStudyId studies; nS = length sids
+      sidx = Map.fromList (zip sids [0..]); tidx = Map.fromList (zip nonref [0..])
+      nonrefCovs = [ Map.findWithDefault 0 (getStudyId s) covmap
+                   | s <- studies, a <- getStudyArms s, tidOfArm a /= ref ]
+      hasBeta = length (nub nonrefCovs) > 1
+      nP = nS + nT + (if hasBeta then 1 else 0); betaCol = nS + nT
+      setAt xs i v = take i xs ++ [v] ++ drop (i+1) xs
+      armRec study a = case a of
+        BinaryArm t ev ns ->
+          let si = sidx Map.! getStudyId study; x = Map.findWithDefault 0 (getStudyId study) covmap
+              base = setAt (replicate nP 0) si (-1)
+              row | t == ref  = base
+                  | hasBeta   = setAt (setAt base (nS + tidx Map.! t) 1) betaCol x
+                  | otherwise = setAt base (nS + tidx Map.! t) 1
+          in Right (row, fromIntegral ev, fromIntegral ns)
+        _ -> Left "nmaRegressionBinPosteriorB: expects binary arms"
+   in do
+        recs <- mapM (\s -> mapM (armRec s) (getStudyArms s)) studies   -- per study, list of (row,e,n)
+        let flat = concat recs
+            irls theta it
+              | it > (100::Int) = theta
+              | maximum (zipWith (\a b->abs(a-b)) theta theta') < 1e-10 = theta'
+              | otherwise = irls theta' (it+1)
+              where wz = [ let eta=sum (zipWith (*) r theta); p=sigmoid eta
+                               w=max 1e-9 (n*p*(1-p)); z=eta+(e-n*p)/w in (w,z) | (r,e,n)<-flat ]
+                    aMat = [ [ sum [ w*(r!!i)*(r!!j) | ((r,_,_),(w,_))<-zip flat wz ] | j<-[0..nP-1] ] | i<-[0..nP-1] ]
+                    bVec = [ sum [ w*(r!!i)*z | ((r,_,_),(w,z))<-zip flat wz ] | i<-[0..nP-1] ]
+                    theta' = matVec (matInv aMat) bVec
+            thetaF = irls (replicate nP 0) 0
+            -- working response (z, variance 1/w) per arm, in study/arm order
+            working = [ let eta=sum (zipWith (*) r thetaF); p=sigmoid eta
+                            w=max 1e-9 (n*p*(1-p)) in (eta + (e-n*p)/w, 1/w) | (r,e,n)<-flat ]
+            -- rebuild pseudo-continuous studies (ContinuousArm carrying z, variance 1/w)
+            rebuild [] _ = []
+            rebuild (s:ss) ws = let k = length (getStudyArms s); (mine, rest) = splitAt k ws
+                                    arms' = zipWith (\a (z,v) -> ContinuousArm (tidOfArm a) z (sqrt v) 1)
+                                              (getStudyArms s) mine
+                                in ContinuousStudy (getStudyId s) arms' : rebuild ss rest
+            pseudo = rebuild studies working
+        nmaRegressionPosteriorB pseudo covmap nGrid bmodel prior slopePrior meanArm
 
 -- | Random-effects BINARY network meta-regression (logit link, shared β) by PQL:
 -- the IRLS binomial linearisation interleaved with the REML/EM heterogeneity update.

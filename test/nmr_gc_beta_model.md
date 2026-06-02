@@ -160,3 +160,23 @@ vs posterior-mean (β_t spread) distinction seen in the continuous case — a *b
 (integrating σ_B², the analogue of `nmaRegressionPosteriorB`) would match the mean and is
 the remaining piece. PQL is a linearised approximation to the exact binomial RE gemtc
 samples; point estimates agree closely for non-sparse data.
+
+### Binary GC — closing the σ_B² posterior-mean gap
+
+`nmaRegressionBinPosteriorB` is the GC for binary by single-Laplace: linearise the
+binomial arms once at the shared-β IRLS fit (working response z, variance 1/w), then run
+the Gaussian exchangeable GC (`nmaRegressionPosteriorB`) on the frozen working response.
+Because it *integrates* σ_B² (vs the grouped-REML point that maximises it to the boundary),
+it recovers gemtc's posterior mean (5-trt binary, matched `UniformSD 0.9612`;
+`test/nmr_binary_gc.hs`):
+
+| quantity | binary GC | gemtc | grouped-REML point |
+|---|---|---|---|
+| B | 0.248 | 0.242 | — |
+| β_B,β_C,β_D,β_E | 0.279,0.338,0.194,0.180 | 0.270,0.327,0.196,0.185 | pooled |
+| τ² mean | 0.095 | 0.083 | — |
+| **σ_B² mean** | **0.073** | **0.067** | **0.0015 (boundary)** |
+
+σ_B² lifts off the boundary (0.0015 → 0.073 ≈ gemtc 0.067) and the β_t match gemtc within
+~0.01. Single-point Laplace (re-linearising per grid cell would be more accurate); τ² runs
+slightly high (0.095 vs 0.083) — the working-response approximation.
