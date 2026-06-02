@@ -6,7 +6,11 @@ covariate modifies treatment effects, à la MetaInsight's `covariate_model`
 coefficient** model — the simplest case and the one in the toy.
 
 Toy / spec demo: [`test/nmr_binary_covariate_springs.html`](nmr_binary_covariate_springs.html)
-(self-contained, no build — open in a browser).
+— the arm-level effect-axis ledger (xi_animation grammar).
+Spring-network graph: [`test/nmr_binary_covariate_network.html`](nmr_binary_covariate_network.html)
+— the force-directed node-link view: treatment nodes, covariate-level nodes,
+study nodes, and the shared β node that every level node ties to (so one β node
+serves all covariate levels). Both self-contained, no build.
 
 ## Model — real nodes, a load-bearing covariate spring
 

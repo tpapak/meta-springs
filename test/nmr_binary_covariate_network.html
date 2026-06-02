@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Network Meta-Regression — the spring network (binary covariate)</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { font-family:'Helvetica Neue',Helvetica,Arial,sans-serif; background:#fafafa; color:#222;
+    display:flex; flex-direction:column; align-items:center; padding:18px; }
+  h1 { font-size:18px; font-weight:600; margin-bottom:4px; }
+  .subtitle { font-size:13px; color:#666; margin-bottom:12px; max-width:900px; text-align:center; line-height:1.5; }
+  .ctrl-row { display:flex; gap:10px; align-items:center; margin-bottom:8px; flex-wrap:wrap; justify-content:center; }
+  button { padding:5px 14px; border:1px solid #aaa; border-radius:4px; background:#fff; cursor:pointer; font-size:13px; }
+  button:hover { background:#eee; }
+  button.active { background:#333; color:#fff; border-color:#333; }
+  button.mode { background:#fff7ed; border-color:#fb8c00; color:#b35a00; }
+  button.mode.active { background:#e65100; color:#fff; border-color:#e65100; }
+  svg { border:1px solid #ddd; border-radius:6px; background:#fff; }
+  .legend { margin-top:10px; font-size:12px; color:#777; max-width:920px; text-align:center; line-height:1.6; }
+  .legend b { color:#555; }
+</style>
+</head>
+<body>
+
+<h1>Network Meta-Regression: the spring network</h1>
+<div class="subtitle">
+  The actual node-link spring system (force-directed). <b style="color:#1e40af">Treatment nodes</b> A, B, C;
+  small <b>covariate-level nodes</b> b₀,b₁,c₀,c₁; the shared <b style="color:#e65100">β node</b>; and
+  <b style="color:#c2410c">study nodes</b> S<sub>i</sub>. <b style="color:#1a73e8">Obs springs</b> tie studies to their arms;
+  <b style="color:#e65100">β springs</b> tie every covariate-level node to the one β node (so one β node serves all levels).
+</div>
+
+<div class="ctrl-row">
+  <button class="mode" id="mPooled">Pooled (no covariate)</button>
+  <button class="mode active" id="mShared">Shared β</button>
+  <button class="mode" id="mUnrel">Unrelated β<sub>t</sub></button>
+</div>
+<div class="ctrl-row">
+  <button id="btnPlay">Pause</button>
+  <button id="btnReset">Reshuffle</button>
+</div>
+
+<svg id="canvas" width="900" height="600"></svg>
+
+<div class="legend">
+  Drag-free force layout: springs pull connected nodes together, all nodes repel so the wiring spreads out.
+  See how each <b>study</b> connects to its two arms (reference A, and a covariate-level node for the active arm),
+  how each level node hangs off its <b>treatment</b>, and how all level nodes converge on the single
+  <b style="color:#e65100">β node</b> — that hub <i>is</i> the shared regression coefficient. <b>Unrelated</b> splits it into one β node per treatment; <b>Pooled</b> drops the covariate nodes entirely.
+</div>
+
+<script>
+"use strict";
+const studies = [
+  { id:'S1', x:0, arms:['A','B'] }, { id:'S2', x:1, arms:['A','B'] },
+  { id:'S3', x:0, arms:['A','C'] }, { id:'S4', x:1, arms:['A','C'] },
+  { id:'S5', x:0, arms:['B','C'] }, { id:'S6', x:1, arms:['B','C'] },
+];
+const treatColor = { A:'#1e40af', B:'#1b9e77', C:'#d95f02' };
+const svg = document.getElementById('canvas');
+const W=900, H=600, CX=W/2, CY=H/2;
+let mode='shared', running=true, nodes=[], edges=[], byId={};
+
+function el(t,a){ const e=document.createElementNS('http://www.w3.org/2000/svg',t); for(const k in a) e.setAttribute(k,a[k]); return e; }
+function coilPath(x1,y1,x2,y2,coils){
+  const dx=x2-x1,dy=y2-y1,len=Math.hypot(dx,dy); if(len<1) return `M${x1},${y1}L${x2},${y2}`;
+  const ux=dx/len,uy=dy/len,px=-uy,py=ux,lead=Math.min(14,len*0.18),amp=5,body=Math.max(len-2*lead,0),seg=body/(coils*2);
+  let d=`M${x1.toFixed(1)},${y1.toFixed(1)} L${(x1+ux*lead).toFixed(1)},${(y1+uy*lead).toFixed(1)}`;
+  let cx=x1+ux*lead,cy=y1+uy*lead;
+  for(let i=0;i<coils*2;i++){const s=(i%2===0)?1:-1;cx+=ux*seg+px*amp*s;cy+=uy*seg+py*amp*s;d+=` L${cx.toFixed(1)},${cy.toFixed(1)}`;}
+  return d+` L${x2.toFixed(1)},${y2.toFixed(1)}`;
+}
+
+function build(){
+  nodes=[]; edges=[]; byId={};
+  const add=(id,o)=>{ const n=Object.assign({id,x:CX+(Math.cos(nodes.length)*180),y:CY+(Math.sin(nodes.length*1.7)*150),vx:0,vy:0},o); nodes.push(n); byId[id]=n; return n; };
+  // treatments
+  ['A','B','C'].forEach(t=>add(t,{type:'trt',label:t,r:22,col:treatColor[t]}));
+  const hasCov = mode!=='pooled';
+  if(hasCov){
+    ['B','C'].forEach(t=>[0,1].forEach(l=>add(t+l,{type:'lev',label:t.toLowerCase()+(l===0?'₀':'₁'),r:12,col:treatColor[t],trt:t})));
+    if(mode==='shared') add('beta',{type:'beta',label:'β',r:15,col:'#e65100'});
+    else { add('betaB',{type:'beta',label:'β_B',r:13,col:treatColor.B}); add('betaC',{type:'beta',label:'β_C',r:13,col:treatColor.C}); }
+  }
+  studies.forEach(s=>add(s.id,{type:'study',label:s.id,r:10,col:'#c2410c'}));
+  // edges
+  const E=(a,b,L,kind)=>edges.push({a,b,L,kind});
+  studies.forEach(s=>s.arms.forEach(t=>{
+    if(t==='A') E(s.id,'A',120,'obs');
+    else if(!hasCov) E(s.id,t,120,'obs');
+    else E(s.id, t+s.x, 110,'obs');
+  }));
+  if(hasCov){
+    ['B','C'].forEach(t=>[0,1].forEach(l=>{
+      E(t+l, t, 70,'lev');                                   // level node hangs off its treatment
+      E(t+l, mode==='shared'?'beta':'beta'+t, 95,'beta');    // ... and ties to the (shared) beta node
+    }));
+  }
+  // pin reference A near left-centre as an anchor
+  byId['A'].fx=200; byId['A'].fy=CY;
+}
+
+function step(){
+  // spring forces
+  for(const e of edges){ const a=byId[e.a], b=byId[e.b]; let dx=b.x-a.x, dy=b.y-a.y, d=Math.hypot(dx,dy)||0.01;
+    const f=0.02*(d-e.L)/d; a.vx+=f*dx; a.vy+=f*dy; b.vx-=f*dx; b.vy-=f*dy; }
+  // repulsion
+  for(let i=0;i<nodes.length;i++) for(let j=i+1;j<nodes.length;j++){ const a=nodes[i],b=nodes[j];
+    let dx=b.x-a.x, dy=b.y-a.y, d2=dx*dx+dy*dy+25, d=Math.sqrt(d2); const f=2600/d2/d;
+    a.vx-=f*dx; a.vy-=f*dy; b.vx+=f*dx; b.vy+=f*dy; }
+  for(const n of nodes){ n.vx+=(CX-n.x)*0.001; n.vy+=(CY-n.y)*0.001;       // gentle centring
+    n.vx*=0.86; n.vy*=0.86;
+    if(n.fx!=null){ n.x=n.fx; n.y=n.fy; n.vx=n.vy=0; } else { n.x+=n.vx; n.y+=n.vy; }
+    n.x=Math.max(30,Math.min(W-30,n.x)); n.y=Math.max(30,Math.min(H-30,n.y)); }
+}
+
+function draw(){
+  while(svg.firstChild) svg.removeChild(svg.firstChild);
+  for(const e of edges){ const a=byId[e.a], b=byId[e.b];
+    const col = e.kind==='obs'?'#1a73e8' : e.kind==='beta'?'#e65100' : a.col;
+    const sw = e.kind==='lev'?1.4:2, op = e.kind==='lev'?0.4:0.8, coils = e.kind==='lev'?3:5;
+    svg.appendChild(el('path',{d:coilPath(a.x,a.y,b.x,b.y,coils),fill:'none',stroke:col,['stroke-width']:sw,opacity:op})); }
+  for(const n of nodes){
+    if(n.type==='beta'){
+      svg.appendChild(el('rect',{x:n.x-n.r,y:n.y-n.r,width:2*n.r,height:2*n.r,transform:`rotate(45 ${n.x} ${n.y})`,fill:n.col,stroke:'#fff',['stroke-width']:2}));
+      svg.appendChild(Object.assign(el('text',{x:n.x,y:n.y+4,['text-anchor']:'middle',['font-size']:11,fill:'#fff',['font-weight']:700}),{textContent:n.label}));
+    } else {
+      const fill = n.type==='trt'?'#dbeafe' : n.type==='study'?'#fed7aa' : '#fff';
+      const dash = n.type==='lev'?'4,3':'none';
+      svg.appendChild(el('circle',{cx:n.x,cy:n.y,r:n.r,fill:fill,stroke:n.col,['stroke-width']:n.type==='lev'?1.6:2,['stroke-dasharray']:dash}));
+      svg.appendChild(Object.assign(el('text',{x:n.x,y:n.y+4,['text-anchor']:'middle',['font-size']:n.type==='trt'?14:11,fill:n.type==='trt'?'#1e3a8a':n.col,['font-weight']:700}),{textContent:n.label}));
+    }
+  }
+  if(byId['A']) svg.appendChild(Object.assign(el('text',{x:byId['A'].x,y:byId['A'].y-30,['text-anchor']:'middle',['font-size']:10,fill:'#a00'}),{textContent:'⚓ reference'}));
+}
+function loop(){ if(running){ for(let i=0;i<3;i++) step(); } draw(); requestAnimationFrame(loop); }
+
+function setMode(m,btn){ mode=m; ['mPooled','mShared','mUnrel'].forEach(id=>document.getElementById(id).classList.remove('active')); btn.classList.add('active'); build(); }
+document.getElementById('mPooled').onclick=function(){ setMode('pooled',this); };
+document.getElementById('mShared').onclick=function(){ setMode('shared',this); };
+document.getElementById('mUnrel').onclick =function(){ setMode('unrelated',this); };
+document.getElementById('btnPlay').onclick=function(){ running=!running; this.textContent=running?'Pause':'Play'; };
+document.getElementById('btnReset').onclick=()=>build();
+
+build(); loop();
+</script>
+</body>
+</html>
