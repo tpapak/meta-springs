@@ -28,3 +28,5 @@ test/contribution/fallers/hatmatrix.json
 test/contribution/fallers/rust_*.json
 test/contribution/fallers/payload.json
 test/contribution/fallers/iv_weights_netmeta.json
+test/nmr_sim_results.rds
+test/nmr_sim_log.txt
