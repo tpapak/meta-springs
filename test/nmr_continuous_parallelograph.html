@@ -28,13 +28,20 @@
   <b>x = effect</b> (vs A), <b>y = continuous covariate</b>. Each treatment is a <b>rigid rod</b> (its regression line);
   each <b style="color:#c2410c">study node S<sub>i</sub></b> (spindle, at its covariate height) sends <b>one <span style="color:#1a73e8">spring per arm</span></b> to that arm's <b>treatment node</b> (point on the treatment's rod) — including the reference A — exactly as in standard NMA; one study is 4-arm.
   The <b>παραλληλόγραφος</b> keeps the rods parallel ⇒ one shared tilt = <b>β</b>. β settles by <b>torque balance</b> (lever = covariate height) — no algebra, just forces.
+  <b>Exchangeable</b> adds a <b style="color:#e65100">slope-spring</b> (hardness 1/σ_B²) pulling each rod's tilt toward a common B — the <i>same</i> kind of spring as the study springs (a tau-group). Slide σ_B²: →0 recovers <b>Shared</b> (rigid, identical tilt), →∞ recovers <b>Unrelated</b> (free).
 </div>
 
 <div class="ctrl-row">
   <button class="mode" id="mPooled">Pooled (β=0)</button>
   <button class="mode active" id="mShared">Shared β</button>
+  <button class="mode" id="mExch">Exchangeable β<sub>t</sub></button>
   <button class="mode" id="mUnrel">Unrelated β<sub>t</sub></button>
   <span class="pill" id="betaDisplay">β = 0.000</span>
+</div>
+<div class="ctrl-row" id="sigRow" style="opacity:0.4">
+  <span style="font-size:12px;color:#b35a00">slope-spring σ<sub>B</sub>²</span>
+  <input id="sigSlider" type="range" min="-4" max="1" step="0.05" value="-1.4" style="width:240px">
+  <span class="pill" id="sigDisplay">σ_B² = 0.040</span>
 </div>
 <div class="ctrl-row">
   <button id="btnPlay">▶ Relax linkage</button>
@@ -68,11 +75,20 @@ const studyList=[
 const T=4, nd=T-1;
 const obs=studyList.flatMap((s,si)=>s.arms.filter(a=>a.t>0).map(a=>({t:a.t,x:s.x,y:a.y,v:s.v,si})));
 const xbar=studyList.reduce((s,a)=>s+a.x,0)/studyList.length;
-let mode='shared', cur=null, playing=false, raf=0;
+let mode='shared', cur=null, playing=false, raf=0, sigmaB2=0.04;
 
-function betaInfo(){ if(mode==='pooled')return{nB:0,idx:()=>-1}; if(mode==='shared')return{nB:1,idx:()=>nd}; return{nB:nd,idx:t=>nd+(t-1)}; }
 function linSolve(A,b){const n=b.length,M=A.map((r,i)=>[...r,b[i]]);for(let c=0;c<n;c++){let mx=Math.abs(M[c][c]),mr=c;for(let r=c+1;r<n;r++)if(Math.abs(M[r][c])>mx){mx=Math.abs(M[r][c]);mr=r;}[M[c],M[mr]]=[M[mr],M[c]];for(let r=c+1;r<n;r++){const f=M[r][c]/M[c][c];for(let k=c;k<=n;k++)M[r][k]-=f*M[c][k];}}const x=new Float64Array(n);for(let i=n-1;i>=0;i--){let s=M[i][n];for(let j=i+1;j<n;j++)s-=M[i][j]*x[j];x[i]=s/M[i][i];}return x;}
-function solve(){const bi=betaInfo(),N=nd+bi.nB,A=Array.from({length:N},()=>new Float64Array(N)),b=new Float64Array(N);
+function solve(){
+  // exchangeable: coords d_1..d_nd, beta_1..beta_nd, B ; slope-springs (1/sigmaB2)(beta_t-B)^2
+  if(mode==='exchangeable'){const N=2*nd+1,A=Array.from({length:N},()=>new Float64Array(N)),b=new Float64Array(N);
+    const bIdx=t=>nd+(t-1), Bi=2*nd;
+    for(const s of obs){const w=1/s.v,a={};a[s.t-1]=1;a[bIdx(s.t)]=(a[bIdx(s.t)]||0)+(s.x-xbar);
+      for(const i in a){b[i]+=w*a[i]*s.y;for(const j in a)A[i][j]+=w*a[i]*a[j];}}
+    const is=1/sigmaB2; for(let t=1;t<T;t++){const k=bIdx(t);A[k][k]+=is;A[Bi][Bi]+=is;A[k][Bi]-=is;A[Bi][k]-=is;}
+    const x=linSolve(A,b),d=[0];for(let t=1;t<T;t++)d[t]=x[t-1];
+    return {d,betaOf:t=>t===0?0:x[bIdx(t)],betaShared:x[Bi]};}
+  const bi = mode==='pooled'?{nB:0,idx:()=>-1}: mode==='shared'?{nB:1,idx:()=>nd}:{nB:nd,idx:t=>nd+(t-1)};
+  const N=nd+bi.nB,A=Array.from({length:N},()=>new Float64Array(N)),b=new Float64Array(N);
   for(const s of obs){const w=1/s.v,a={};a[s.t-1]=1;if(bi.nB>0)a[bi.idx(s.t)]=(a[bi.idx(s.t)]||0)+(s.x-xbar);
     for(const i in a){b[i]+=w*a[i]*s.y;for(const j in a)A[i][j]+=w*a[i]*a[j];}}
   const x=linSolve(A,b),d=[0];for(let t=1;t<T;t++)d[t]=x[t-1];
@@ -132,8 +148,8 @@ function draw(){
     svg.appendChild(el('line',{x1:xs(xLo),y1:ys(cMin),x2:xs(xHi),y2:ys(cMax),stroke:col,['stroke-width']:2.4,opacity:0.9}));
     svg.appendChild(tx(xs(effAt(sol,t,cMax))+4,ys(cMax)+4,treatments[t],{['font-size']:12,fill:col,['font-weight']:700}));
     // slope label
-    const sl=sol.betaOf(t);
-    svg.appendChild(tx(xs(effAt(sol,t,2))-22,ys(2),'β'+(mode==='unrelated'?'_'+treatments[t]:'')+'='+sl.toFixed(3),{['text-anchor']:'end',['font-size']:9.5,fill:col,['font-weight']:600}));
+    const sl=sol.betaOf(t), perTrt=(mode==='unrelated'||mode==='exchangeable');
+    svg.appendChild(tx(xs(effAt(sol,t,2))-22,ys(2),'β'+(perTrt?'_'+treatments[t]:'')+'='+sl.toFixed(3),{['text-anchor']:'end',['font-size']:9.5,fill:col,['font-weight']:600}));
   }
   // STANDARD NMA structure: one STUDY NODE (spindle) per study at its covariate height,
   // and ONE SPRING PER ARM from the study node to that arm's TREATMENT NODE (the point on the
@@ -149,14 +165,23 @@ function draw(){
     svg.appendChild(tx(xcen,cy-11,'S'+(i+1),{['text-anchor']:'middle',['font-size']:8,fill:'#c2410c',['font-weight']:600}));
   });
 
-  document.getElementById('betaDisplay').innerHTML='β = '+(mode==='pooled'?'0':(mode==='shared'?sol.betaShared.toFixed(4):`B:${sol.betaOf(1).toFixed(3)} C:${sol.betaOf(2).toFixed(3)} D:${sol.betaOf(3).toFixed(3)}`));
+  document.getElementById('betaDisplay').innerHTML='β = '+(
+    mode==='pooled'?'0':
+    mode==='shared'?sol.betaShared.toFixed(4):
+    mode==='exchangeable'?`B=${sol.betaShared.toFixed(3)} | ${sol.betaOf(1).toFixed(2)},${sol.betaOf(2).toFixed(2)},${sol.betaOf(3).toFixed(2)}`:
+    `B:${sol.betaOf(1).toFixed(3)} C:${sol.betaOf(2).toFixed(3)} D:${sol.betaOf(3).toFixed(3)}`);
 }
 
 function stopPlay(){playing=false;cancelAnimationFrame(raf);document.getElementById('btnPlay').textContent='▶ Relax linkage';}
-function setMode(m,btn){mode=m;stopPlay();cur=null;['mPooled','mShared','mUnrel'].forEach(id=>document.getElementById(id).classList.remove('active'));btn.classList.add('active');draw();}
+function setMode(m,btn){mode=m;stopPlay();cur=null;['mPooled','mShared','mExch','mUnrel'].forEach(id=>document.getElementById(id).classList.remove('active'));btn.classList.add('active');
+  document.getElementById('sigRow').style.opacity=(m==='exchangeable')?'1':'0.4';draw();}
 document.getElementById('mPooled').onclick=function(){setMode('pooled',this);};
 document.getElementById('mShared').onclick=function(){setMode('shared',this);};
+document.getElementById('mExch').onclick  =function(){setMode('exchangeable',this);};
 document.getElementById('mUnrel').onclick =function(){setMode('unrelated',this);};
+document.getElementById('sigSlider').oninput=function(){sigmaB2=Math.pow(10,parseFloat(this.value));
+  document.getElementById('sigDisplay').innerHTML='σ_B² = '+sigmaB2.toFixed(sigmaB2<0.01?4:3);
+  if(mode!=='exchangeable'){setMode('exchangeable',document.getElementById('mExch'));} else draw();};
 document.getElementById('btnPlay').onclick=function(){
   if(mode!=='shared'){setMode('shared',document.getElementById('mShared'));}
   if(playing){stopPlay();return;}
