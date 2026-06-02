@@ -32,3 +32,5 @@ test/nmr_sim_results.rds
 test/nmr_sim_log.txt
 test/nmr_continuous_sim_results.rds
 test/nmr_continuous_sim_log.txt
+test/nmr_multipkg_results.rds
+test/nmr_multipkg_log.txt
