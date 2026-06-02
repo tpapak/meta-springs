@@ -2,19 +2,20 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Network Meta-Regression — the spring network (binary covariate)</title>
+<title>NMR spring network — true solution (effect × covariate)</title>
 <style>
   * { margin:0; padding:0; box-sizing:border-box; }
   body { font-family:'Helvetica Neue',Helvetica,Arial,sans-serif; background:#fafafa; color:#222;
     display:flex; flex-direction:column; align-items:center; padding:18px; }
   h1 { font-size:18px; font-weight:600; margin-bottom:4px; }
-  .subtitle { font-size:13px; color:#666; margin-bottom:12px; max-width:900px; text-align:center; line-height:1.5; }
+  .subtitle { font-size:13px; color:#666; margin-bottom:12px; max-width:920px; text-align:center; line-height:1.5; }
   .ctrl-row { display:flex; gap:10px; align-items:center; margin-bottom:8px; flex-wrap:wrap; justify-content:center; }
   button { padding:5px 14px; border:1px solid #aaa; border-radius:4px; background:#fff; cursor:pointer; font-size:13px; }
   button:hover { background:#eee; }
-  button.active { background:#333; color:#fff; border-color:#333; }
   button.mode { background:#fff7ed; border-color:#fb8c00; color:#b35a00; }
   button.mode.active { background:#e65100; color:#fff; border-color:#e65100; }
+  .pill { font-family:'SF Mono',Consolas,monospace; font-size:13px; background:#fff3e0; border:1px solid #f0b27a;
+    border-radius:4px; padding:3px 10px; color:#b35a00; font-weight:600; }
   svg { border:1px solid #ddd; border-radius:6px; background:#fff; }
   .legend { margin-top:10px; font-size:12px; color:#777; max-width:920px; text-align:center; line-height:1.6; }
   .legend b { color:#555; }
@@ -22,127 +23,120 @@
 </head>
 <body>
 
-<h1>Network Meta-Regression: the spring network</h1>
+<h1>NMR spring network — true solution</h1>
 <div class="subtitle">
-  The actual node-link spring system (force-directed). <b style="color:#1e40af">Treatment nodes</b> A, B, C;
-  small <b>covariate-level nodes</b> b₀,b₁,c₀,c₁; the shared <b style="color:#e65100">β node</b>; and
-  <b style="color:#c2410c">study nodes</b> S<sub>i</sub>. <b style="color:#1a73e8">Obs springs</b> tie studies to their arms;
-  <b style="color:#e65100">β springs</b> tie every covariate-level node to the one β node (so one β node serves all levels).
+  Every node at its <b>solved coordinates</b>: horizontal = effect (log-OR vs A), vertical = covariate level.
+  <b style="color:#1a73e8">Study springs</b> are the real network edges (natural length = observed contrast, so stretch = residual);
+  <b style="color:#e65100">β springs</b> join each treatment's two covariate-level nodes — their horizontal span <b>is β</b>.
 </div>
 
 <div class="ctrl-row">
-  <button class="mode" id="mPooled">Pooled (no covariate)</button>
+  <button class="mode" id="mPooled">Pooled (β=0)</button>
   <button class="mode active" id="mShared">Shared β</button>
   <button class="mode" id="mUnrel">Unrelated β<sub>t</sub></button>
-</div>
-<div class="ctrl-row">
-  <button id="btnPlay">Pause</button>
-  <button id="btnReset">Reshuffle</button>
+  <span class="pill" id="betaDisplay">β = 0.000</span>
 </div>
 
-<svg id="canvas" width="900" height="600"></svg>
+<svg id="canvas" width="900" height="560"></svg>
 
 <div class="legend">
-  Drag-free force layout: springs pull connected nodes together, all nodes repel so the wiring spreads out.
-  See how each <b>study</b> connects to its two arms (reference A, and a covariate-level node for the active arm),
-  how each level node hangs off its <b>treatment</b>, and how all level nodes converge on the single
-  <b style="color:#e65100">β node</b> — that hub <i>is</i> the shared regression coefficient. <b>Unrelated</b> splits it into one β node per treatment; <b>Pooled</b> drops the covariate nodes entirely.
+  Reference <b>A</b> is the vertical line at effect 0 (no covariate effect). Within each covariate row the treatments sit at
+  their true effect <i>at that level</i>; a study connects the two treatments it compared (horizontal spring, same row).
+  The <b style="color:#e65100">β springs</b> are parallel in <b>Shared</b> mode (one slope), independent in <b>Unrelated</b>,
+  and vertical in <b>Pooled</b> (β=0, the rows line up).
 </div>
 
 <script>
 "use strict";
-const studies = [
-  { id:'S1', x:0, arms:['A','B'] }, { id:'S2', x:1, arms:['A','B'] },
-  { id:'S3', x:0, arms:['A','C'] }, { id:'S4', x:1, arms:['A','C'] },
-  { id:'S5', x:0, arms:['B','C'] }, { id:'S6', x:1, arms:['B','C'] },
+// arm-level data: y = mu_i + d_t + beta*(x-xbar) + delta  (truth d_B=1.0,d_C=1.4,beta=1.0)
+const treatNames=['A','B','C'], treatColor=['#1e40af','#1b9e77','#d95f02'];
+const studies=[
+  {id:'S1',from:0,to:1,x:0,arms:[{t:0,y:0.00,v:0.05},{t:1,y:1.03,v:0.05}]},
+  {id:'S2',from:0,to:1,x:1,arms:[{t:0,y:0.20,v:0.05},{t:1,y:2.18,v:0.05}]},
+  {id:'S3',from:0,to:2,x:0,arms:[{t:0,y:-0.10,v:0.06},{t:2,y:1.26,v:0.06}]},
+  {id:'S4',from:0,to:2,x:1,arms:[{t:0,y:0.10,v:0.06},{t:2,y:2.57,v:0.06}]},
+  {id:'S5',from:1,to:2,x:0,arms:[{t:1,y:1.30,v:0.05},{t:2,y:1.72,v:0.05}]},
+  {id:'S6',from:1,to:2,x:1,arms:[{t:1,y:2.25,v:0.05},{t:2,y:2.64,v:0.05}]},
 ];
-const treatColor = { A:'#1e40af', B:'#1b9e77', C:'#d95f02' };
-const svg = document.getElementById('canvas');
-const W=900, H=600, CX=W/2, CY=H/2;
-let mode='shared', running=true, nodes=[], edges=[], byId={};
-
-function el(t,a){ const e=document.createElementNS('http://www.w3.org/2000/svg',t); for(const k in a) e.setAttribute(k,a[k]); return e; }
-function coilPath(x1,y1,x2,y2,coils){
-  const dx=x2-x1,dy=y2-y1,len=Math.hypot(dx,dy); if(len<1) return `M${x1},${y1}L${x2},${y2}`;
-  const ux=dx/len,uy=dy/len,px=-uy,py=ux,lead=Math.min(14,len*0.18),amp=5,body=Math.max(len-2*lead,0),seg=body/(coils*2);
-  let d=`M${x1.toFixed(1)},${y1.toFixed(1)} L${(x1+ux*lead).toFixed(1)},${(y1+uy*lead).toFixed(1)}`;
-  let cx=x1+ux*lead,cy=y1+uy*lead;
-  for(let i=0;i<coils*2;i++){const s=(i%2===0)?1:-1;cx+=ux*seg+px*amp*s;cy+=uy*seg+py*amp*s;d+=` L${cx.toFixed(1)},${cy.toFixed(1)}`;}
-  return d+` L${x2.toFixed(1)},${y2.toFixed(1)}`;
+const T=3, S=studies.length, nD=T-1, nMu=S, xbar=studies.reduce((s,st)=>s+st.x,0)/S;
+let mode='shared';
+function betaInfo(){ if(mode==='pooled')return{nB:0,idx:()=>-1}; if(mode==='shared')return{nB:1,idx:()=>nD+nMu}; return{nB:2,idx:t=>nD+nMu+(t-1)}; }
+function linSolve(A,b){const n=b.length,M=A.map((r,i)=>[...r,b[i]]);
+ for(let c=0;c<n;c++){let mx=Math.abs(M[c][c]),mr=c;for(let r=c+1;r<n;r++)if(Math.abs(M[r][c])>mx){mx=Math.abs(M[r][c]);mr=r;}[M[c],M[mr]]=[M[mr],M[c]];for(let r=c+1;r<n;r++){const f=M[r][c]/M[c][c];for(let k=c;k<=n;k++)M[r][k]-=f*M[c][k];}}
+ const x=new Float64Array(n);for(let i=n-1;i>=0;i--){let s=M[i][n];for(let j=i+1;j<n;j++)s-=M[i][j]*x[j];x[i]=s/M[i][i];}return x;}
+function solve(){
+  const bi=betaInfo(), N=nD+nMu+bi.nB, A=Array.from({length:N},()=>new Float64Array(N)), b=new Float64Array(N);
+  studies.forEach((st,si)=>st.arms.forEach(a=>{const k=1/a.v, co={};
+    if(a.t!==0)co[a.t-1]=(co[a.t-1]||0)+1; co[nD+si]=(co[nD+si]||0)+1;
+    if(a.t!==0&&bi.nB>0)co[bi.idx(a.t)]=(co[bi.idx(a.t)]||0)+(st.x-xbar);
+    for(const i in co){b[i]+=k*co[i]*a.y;for(const j in co)A[i][j]+=k*co[i]*co[j];}}));
+  const x=linSolve(A,b), d=[0]; for(let t=1;t<T;t++)d[t]=x[t-1];
+  const betaOf=t=>(t===0||bi.nB===0)?0:x[bi.idx(t)];
+  return {d, betaOf, betaShared:(mode==='shared')?x[nD+nMu]:0};
 }
 
-function build(){
-  nodes=[]; edges=[]; byId={};
-  const add=(id,o)=>{ const n=Object.assign({id,x:CX+(Math.cos(nodes.length)*180),y:CY+(Math.sin(nodes.length*1.7)*150),vx:0,vy:0},o); nodes.push(n); byId[id]=n; return n; };
-  // treatments
-  ['A','B','C'].forEach(t=>add(t,{type:'trt',label:t,r:22,col:treatColor[t]}));
-  const hasCov = mode!=='pooled';
-  if(hasCov){
-    ['B','C'].forEach(t=>[0,1].forEach(l=>add(t+l,{type:'lev',label:t.toLowerCase()+(l===0?'₀':'₁'),r:12,col:treatColor[t],trt:t})));
-    if(mode==='shared') add('beta',{type:'beta',label:'β',r:15,col:'#e65100'});
-    else { add('betaB',{type:'beta',label:'β_B',r:13,col:treatColor.B}); add('betaC',{type:'beta',label:'β_C',r:13,col:treatColor.C}); }
-  }
-  studies.forEach(s=>add(s.id,{type:'study',label:s.id,r:10,col:'#c2410c'}));
-  // edges
-  const E=(a,b,L,kind)=>edges.push({a,b,L,kind});
-  studies.forEach(s=>s.arms.forEach(t=>{
-    if(t==='A') E(s.id,'A',120,'obs');
-    else if(!hasCov) E(s.id,t,120,'obs');
-    else E(s.id, t+s.x, 110,'obs');
-  }));
-  if(hasCov){
-    ['B','C'].forEach(t=>[0,1].forEach(l=>{
-      E(t+l, t, 70,'lev');                                   // level node hangs off its treatment
-      E(t+l, mode==='shared'?'beta':'beta'+t, 95,'beta');    // ... and ties to the (shared) beta node
-    }));
-  }
-  // pin reference A near left-centre as an anchor
-  byId['A'].fx=200; byId['A'].fy=CY;
-}
+const svg=document.getElementById('canvas'), W=900,H=560;
+const mar={l:70,r:60,t:60,b:64}, pw=W-mar.l-mar.r;
+const xMin=-0.4, xMax=3.0;
+const xs=v=>mar.l+(v-xMin)/(xMax-xMin)*pw;
+const yRow={0:430, 1:170};                       // covariate level -> y (x=0 bottom, x=1 top)
+function el(t,a){const e=document.createElementNS('http://www.w3.org/2000/svg',t);for(const k in a)e.setAttribute(k,a[k]);return e;}
+function tx(x,y,s,o){const e=el('text',Object.assign({x,y},o));e.textContent=s;svg.appendChild(e);return e;}
+function coil(x1,y1,x2,y2,c,col,sw){const dx=x2-x1,dy=y2-y1,len=Math.hypot(dx,dy);if(len<1)return el('line',{x1,y1,x2,y2,stroke:col,['stroke-width']:sw});
+ const ux=dx/len,uy=dy/len,px=-uy,py=ux,lead=Math.min(12,len*0.2),amp=6,body=Math.max(len-2*lead,0),seg=body/(c*2);
+ let d=`M${x1},${y1} L${(x1+ux*lead).toFixed(1)},${(y1+uy*lead).toFixed(1)}`,cx=x1+ux*lead,cy=y1+uy*lead;
+ for(let i=0;i<c*2;i++){const s=(i%2===0)?1:-1;cx+=ux*seg+px*amp*s;cy+=uy*seg+py*amp*s;d+=` L${cx.toFixed(1)},${cy.toFixed(1)}`;}
+ d+=` L${x2},${y2}`;return el('path',{d,fill:'none',stroke:col,['stroke-width']:sw});}
 
-function step(){
-  // spring forces
-  for(const e of edges){ const a=byId[e.a], b=byId[e.b]; let dx=b.x-a.x, dy=b.y-a.y, d=Math.hypot(dx,dy)||0.01;
-    const f=0.02*(d-e.L)/d; a.vx+=f*dx; a.vy+=f*dy; b.vx-=f*dx; b.vy-=f*dy; }
-  // repulsion
-  for(let i=0;i<nodes.length;i++) for(let j=i+1;j<nodes.length;j++){ const a=nodes[i],b=nodes[j];
-    let dx=b.x-a.x, dy=b.y-a.y, d2=dx*dx+dy*dy+25, d=Math.sqrt(d2); const f=2600/d2/d;
-    a.vx-=f*dx; a.vy-=f*dy; b.vx+=f*dx; b.vy+=f*dy; }
-  for(const n of nodes){ n.vx+=(CX-n.x)*0.001; n.vy+=(CY-n.y)*0.001;       // gentle centring
-    n.vx*=0.86; n.vy*=0.86;
-    if(n.fx!=null){ n.x=n.fx; n.y=n.fy; n.vx=n.vy=0; } else { n.x+=n.vx; n.y+=n.vy; }
-    n.x=Math.max(30,Math.min(W-30,n.x)); n.y=Math.max(30,Math.min(H-30,n.y)); }
-}
+function effAt(sol,t,lvl){ return t===0?0 : sol.d[t]+sol.betaOf(t)*(lvl-xbar); }
 
 function draw(){
-  while(svg.firstChild) svg.removeChild(svg.firstChild);
-  for(const e of edges){ const a=byId[e.a], b=byId[e.b];
-    const col = e.kind==='obs'?'#1a73e8' : e.kind==='beta'?'#e65100' : a.col;
-    const sw = e.kind==='lev'?1.4:2, op = e.kind==='lev'?0.4:0.8, coils = e.kind==='lev'?3:5;
-    svg.appendChild(el('path',{d:coilPath(a.x,a.y,b.x,b.y,coils),fill:'none',stroke:col,['stroke-width']:sw,opacity:op})); }
-  for(const n of nodes){
-    if(n.type==='beta'){
-      svg.appendChild(el('rect',{x:n.x-n.r,y:n.y-n.r,width:2*n.r,height:2*n.r,transform:`rotate(45 ${n.x} ${n.y})`,fill:n.col,stroke:'#fff',['stroke-width']:2}));
-      svg.appendChild(Object.assign(el('text',{x:n.x,y:n.y+4,['text-anchor']:'middle',['font-size']:11,fill:'#fff',['font-weight']:700}),{textContent:n.label}));
-    } else {
-      const fill = n.type==='trt'?'#dbeafe' : n.type==='study'?'#fed7aa' : '#fff';
-      const dash = n.type==='lev'?'4,3':'none';
-      svg.appendChild(el('circle',{cx:n.x,cy:n.y,r:n.r,fill:fill,stroke:n.col,['stroke-width']:n.type==='lev'?1.6:2,['stroke-dasharray']:dash}));
-      svg.appendChild(Object.assign(el('text',{x:n.x,y:n.y+4,['text-anchor']:'middle',['font-size']:n.type==='trt'?14:11,fill:n.type==='trt'?'#1e3a8a':n.col,['font-weight']:700}),{textContent:n.label}));
-    }
+  const sol=solve(); while(svg.firstChild)svg.removeChild(svg.firstChild);
+  // effect-axis gridlines + ruler
+  for(let v=0;v<=3;v++){ svg.appendChild(el('line',{x1:xs(v),y1:mar.t-10,x2:xs(v),y2:H-mar.b,stroke:'#f0f0f0'}));
+    tx(xs(v),H-mar.b+18,v.toFixed(0),{['text-anchor']:'middle',['font-size']:11,fill:'#aaa'}); }
+  tx(mar.l+pw/2,H-12,'effect axis  (log-OR vs A)',{['text-anchor']:'middle',['font-size']:12,fill:'#888'});
+  // covariate rows
+  for(const lvl of [0,1]){ svg.appendChild(el('line',{x1:mar.l,y1:yRow[lvl],x2:mar.l+pw,y2:yRow[lvl],stroke:'#f4f4f4'}));
+    tx(20,yRow[lvl]+4,'x = '+lvl,{['font-size']:12,fill:'#555',['font-weight']:600});
+    tx(20,yRow[lvl]+19,lvl?'long':'short',{['font-size']:10,fill:'#aaa'}); }
+  tx(20,mar.t-24,'covariate',{['font-size']:11,fill:'#888',['font-weight']:600});
+  // reference A: vertical line at effect 0
+  svg.appendChild(el('line',{x1:xs(0),y1:mar.t-6,x2:xs(0),y2:H-mar.b,stroke:'#1e40af',['stroke-width']:1.6,opacity:0.5,['stroke-dasharray']:'4,4'}));
+
+  // study springs (within their covariate row; natural length = observed contrast)
+  studies.forEach(st=>{ const lvl=st.x, y=yRow[lvl];
+    const ef=effAt(sol,st.from,lvl), et=effAt(sol,st.to,lvl);
+    const xf=xs(ef), xt=xs(et);
+    svg.appendChild(coil(xf,y,xt,y,Math.max(4,Math.round(Math.abs(xt-xf)/16)),'#1a73e8',2));
+    const res=(et-ef)-(st.arms.find(a=>a.t===st.to).y - st.arms.find(a=>a.t===st.from).y);
+    tx((xf+xt)/2,y-10,`${st.id}  r=${res>=0?'+':''}${res.toFixed(2)}`,{['text-anchor']:'middle',['font-size']:9,fill:'#1a73e8',opacity:0.8}); });
+
+  // beta springs: connect each treatment's two covariate-level nodes (horizontal span = beta)
+  if(mode!=='pooled') for(let t=1;t<T;t++){
+    const x0=xs(effAt(sol,t,0)), x1=xs(effAt(sol,t,1));
+    svg.appendChild(coil(x0,yRow[0],x1,yRow[1],6,mode==='shared'?'#e65100':treatColor[t],2.2));
+    const bt = mode==='shared'?sol.betaShared:sol.betaOf(t);
+    tx((x0+x1)/2+18,(yRow[0]+yRow[1])/2,(mode==='shared'?'β':'β_'+treatNames[t])+'='+bt.toFixed(2),
+       {['font-size']:11,fill:mode==='shared'?'#e65100':treatColor[t],['font-weight']:700}); }
+
+  // nodes: treatment at each covariate level, placed at true effect
+  for(const lvl of [0,1]) for(let t=0;t<T;t++){
+    const cx=xs(effAt(sol,t,lvl)), cy=yRow[lvl];
+    const isBase=(t===0);
+    svg.appendChild(el('circle',{cx,cy,r:t===0?13:12,fill:t===0?'#dbeafe':'#fff',stroke:treatColor[t],['stroke-width']:2,
+      ['stroke-dasharray']:t===0?'none':'4,3'}));
+    const lab = t===0 ? 'A' : treatNames[t].toLowerCase()+(lvl?'₁':'₀');
+    tx(cx,cy+4,lab,{['text-anchor']:'middle',['font-size']:t===0?13:11,fill:treatColor[t],['font-weight']:700});
+    tx(cx,cy-(lvl?16:0)+(lvl?0:18),effAt(sol,t,lvl).toFixed(2),{['text-anchor']:'middle',['font-size']:8.5,fill:'#999'});
   }
-  if(byId['A']) svg.appendChild(Object.assign(el('text',{x:byId['A'].x,y:byId['A'].y-30,['text-anchor']:'middle',['font-size']:10,fill:'#a00'}),{textContent:'⚓ reference'}));
+  document.getElementById('betaDisplay').innerHTML = 'β = '+(mode==='pooled'?'0':(mode==='shared'?sol.betaShared.toFixed(3):`B:${sol.betaOf(1).toFixed(2)} C:${sol.betaOf(2).toFixed(2)}`));
 }
-function loop(){ if(running){ for(let i=0;i<3;i++) step(); } draw(); requestAnimationFrame(loop); }
-
-function setMode(m,btn){ mode=m; ['mPooled','mShared','mUnrel'].forEach(id=>document.getElementById(id).classList.remove('active')); btn.classList.add('active'); build(); }
-document.getElementById('mPooled').onclick=function(){ setMode('pooled',this); };
-document.getElementById('mShared').onclick=function(){ setMode('shared',this); };
-document.getElementById('mUnrel').onclick =function(){ setMode('unrelated',this); };
-document.getElementById('btnPlay').onclick=function(){ running=!running; this.textContent=running?'Pause':'Play'; };
-document.getElementById('btnReset').onclick=()=>build();
-
-build(); loop();
+function setMode(m,btn){mode=m;['mPooled','mShared','mUnrel'].forEach(id=>document.getElementById(id).classList.remove('active'));btn.classList.add('active');draw();}
+document.getElementById('mPooled').onclick=function(){setMode('pooled',this);};
+document.getElementById('mShared').onclick=function(){setMode('shared',this);};
+document.getElementById('mUnrel').onclick =function(){setMode('unrelated',this);};
+draw();
 </script>
 </body>
 </html>

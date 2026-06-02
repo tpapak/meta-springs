@@ -8,9 +8,10 @@ coefficient** model — the simplest case and the one in the toy.
 Toy / spec demo: [`test/nmr_binary_covariate_springs.html`](nmr_binary_covariate_springs.html)
 — the arm-level effect-axis ledger (xi_animation grammar).
 Spring-network graph: [`test/nmr_binary_covariate_network.html`](nmr_binary_covariate_network.html)
-— the force-directed node-link view: treatment nodes, covariate-level nodes,
-study nodes, and the shared β node that every level node ties to (so one β node
-serves all covariate levels). Both self-contained, no build.
+— the **true-solution** node-link view on two axes (x = effect / log-OR vs A,
+y = covariate level): every node at its solved effect, study springs as the
+real edges (stretch = residual), and β springs whose horizontal span *is* β
+(parallel = shared coefficient). Both self-contained, no build.
 
 ## Model — real nodes, a load-bearing covariate spring
 
