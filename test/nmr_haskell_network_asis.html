@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Data.Meta.NMA.makeSprings — the network as is</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { font-family:'Helvetica Neue',Helvetica,Arial,sans-serif; background:#fafafa; color:#222;
+    display:flex; flex-direction:column; align-items:center; padding:18px; }
+  h1 { font-size:18px; font-weight:600; margin-bottom:4px; }
+  .subtitle { font-size:13px; color:#666; margin-bottom:10px; max-width:900px; text-align:center; line-height:1.5; }
+  code { font-family:'SF Mono',Consolas,monospace; background:#eef; padding:0 3px; border-radius:3px; }
+  .ctrl-row { display:flex; gap:10px; margin-bottom:10px; }
+  button { padding:5px 14px; border:1px solid #aaa; border-radius:4px; background:#fff; cursor:pointer; font-size:13px; }
+  button.active { background:#1a73e8; color:#fff; border-color:#1a73e8; }
+  svg { border:1px solid #ddd; border-radius:6px; background:#fff; }
+  .legend { margin-top:10px; font-size:12px; color:#777; max-width:900px; text-align:center; line-height:1.6; }
+  .legend b { color:#555; }
+</style>
+</head>
+<body>
+
+<h1>The <code>makeSprings</code> spring network — as is</h1>
+<div class="subtitle">
+  Verbatim from the running Haskell <code>Data.Meta.NMA.makeSprings</code> on
+  S1:(A=0.40, B=1.80), S2:(A=−0.80, C=1.20), S3:(B=0.90, C=2.10), all sd=2, n=100 (⇒ 1/v = 25).
+  Node IDs, edges, hardness <b>k</b> and natural length <b>ℓ₀</b> are exactly what the library produced.
+</div>
+
+<div class="ctrl-row">
+  <button id="bFE" class="active">Fixed effect (no τ)</button>
+  <button id="bRE">Random effects (τ²=0.5)</button>
+</div>
+
+<svg id="canvas" width="900" height="560"></svg>
+
+<div class="legend">
+  <b style="color:#c2410c">StudyEnd</b> (μ<sub>i</sub>), <b style="color:#1e40af">TreatmentEnd</b> (every treatment incl. reference), <b style="color:#444">TauEnd</b> (one per arm, τ&gt;0 only).
+  Each edge is a <code>Spring k ℓ₀ ℓ</code>: <b>FE</b> = one obs spring per arm <code>StudyEnd→TreatmentEnd</code> (k=1/v, ℓ₀=arm mean);
+  <b>RE</b> = <code>StudyEnd→TauEnd</code> (k=2/τ², ℓ₀=0) then <code>TauEnd→TreatmentEnd</code> (k=1/v, ℓ₀=arm mean). ⚓ = pinned vertex (gauge).
+</div>
+
+<script>
+"use strict";
+// ===== verbatim from the Haskell dump =====
+const treatColor={A:'#1e40af',B:'#1b9e77',C:'#d95f02'};
+const studyPos={S1:[150,120],S2:[150,290],S3:[150,460]};
+const trtPos  ={A:[720,120],B:[720,290],C:[720,460]};
+// FE springs: study -> treatment, [k, naturalLength]
+const feSprings=[
+ {s:'S1',t:'A',k:25,nl:0.4},{s:'S1',t:'B',k:25,nl:1.8},
+ {s:'S2',t:'A',k:25,nl:-0.8},{s:'S2',t:'C',k:25,nl:1.2},
+ {s:'S3',t:'B',k:25,nl:0.9},{s:'S3',t:'C',k:25,nl:2.1},
+];
+const pinnedNode='S1';   // makeSprings pinned = vertex 1 = StudyEnd S1
+let mode='FE';
+const svg=document.getElementById('canvas');
+function el(t,a){const e=document.createElementNS('http://www.w3.org/2000/svg',t);for(const k in a)e.setAttribute(k,a[k]);return e;}
+function tx(x,y,s,o){const e=el('text',Object.assign({x,y},o));e.textContent=s;return e;}
+function coil(x1,y1,x2,y2,col,turns){const dx=x2-x1,dy=y2-y1,len=Math.hypot(dx,dy);if(len<1)return el('line',{x1,y1,x2,y2,stroke:col});
+ const ux=dx/len,uy=dy/len,px=-uy,py=ux,lead=14,amp=5,body=Math.max(len-2*lead,0),seg=body/(turns*2);
+ let d=`M${x1},${y1} L${(x1+ux*lead).toFixed(1)},${(y1+uy*lead).toFixed(1)}`,cx=x1+ux*lead,cy=y1+uy*lead;
+ for(let i=0;i<turns*2;i++){const sgn=(i%2===0)?1:-1;cx+=ux*seg+px*amp*sgn;cy+=uy*seg+py*amp*sgn;d+=` L${cx.toFixed(1)},${cy.toFixed(1)}`;}
+ d+=` L${x2},${y2}`;return el('path',{d,fill:'none',stroke:col,['stroke-width']:1.8});}
+function node(x,y,r,fill,stroke,label,sub,pinned){
+ svg.appendChild(el('circle',{cx:x,cy:y,r,fill,stroke,['stroke-width']:2}));
+ svg.appendChild(tx(x,y+4,label,{['text-anchor']:'middle',['font-size']:12,fill:stroke,['font-weight']:700}));
+ if(sub) svg.appendChild(tx(x,y-r-5,sub,{['text-anchor']:'middle',['font-size']:9.5,fill:'#888'}));
+ if(pinned) svg.appendChild(tx(x,y+r+13,'⚓ pinned',{['text-anchor']:'middle',['font-size']:9,fill:'#a00'}));
+}
+function springLabel(x1,y1,x2,y2,k,nl){
+ const mx=(x1+x2)/2,my=(y1+y2)/2-7;
+ svg.appendChild(tx(mx,my,`k=${k}`,{['text-anchor']:'middle',['font-size']:9,fill:'#555'}));
+ svg.appendChild(tx(mx,my+11,`ℓ₀=${nl}`,{['text-anchor']:'middle',['font-size']:9,fill:'#999'}));
+}
+function draw(){
+ while(svg.firstChild)svg.removeChild(svg.firstChild);
+ svg.appendChild(tx(150,40,'StudyEnd',{['text-anchor']:'middle',['font-size']:12,fill:'#c2410c',['font-weight']:700}));
+ svg.appendChild(tx(720,40,'TreatmentEnd',{['text-anchor']:'middle',['font-size']:12,fill:'#1e40af',['font-weight']:700}));
+ if(mode==='RE') svg.appendChild(tx(435,40,'TauEnd (per arm)',{['text-anchor']:'middle',['font-size']:12,fill:'#444',['font-weight']:700}));
+
+ // springs first (behind nodes)
+ feSprings.forEach((sp,i)=>{const [sx,sy]=studyPos[sp.s], [tx2,ty2]=trtPos[sp.t], col=treatColor[sp.t];
+   if(mode==='FE'){
+     svg.appendChild(coil(sx,sy,tx2,ty2,col,Math.max(6,Math.round(Math.hypot(tx2-sx,ty2-sy)/22))));
+     springLabel(sx,sy,tx2,ty2,sp.k,sp.nl);
+   } else {
+     // tau node at 62% from study toward treatment, with small vertical spread to avoid overlap
+     const f=0.6, jit=(i%2===0?-14:14);
+     const tax=sx+f*(tx2-sx), tay=sy+f*(ty2-sy)+jit;
+     svg.appendChild(coil(sx,sy,tax,tay,'#999',5));                    // tau spring (k=2/tau2)
+     springLabel(sx,sy,tax,tay,4,0);
+     svg.appendChild(coil(tax,tay,tx2,ty2,col,5));                     // obs spring (k=1/v)
+     springLabel(tax,tay,tx2,ty2,sp.k,sp.nl);
+     svg.appendChild(el('circle',{cx:tax,cy:tay,r:9,fill:'#eee',stroke:'#444',['stroke-width']:1.5}));
+     svg.appendChild(tx(tax,tay+3,'τ',{['text-anchor']:'middle',['font-size']:10,fill:'#444'}));
+   }
+ });
+ // nodes
+ for(const s in studyPos){const [x,y]=studyPos[s]; node(x,y,20,'#fed7aa','#c2410c',s,'μ',s===pinnedNode);}
+ for(const t in trtPos){const [x,y]=trtPos[t]; node(x,y,20,'#dbeafe',treatColor[t],t,'d');}
+}
+document.getElementById('bFE').onclick=function(){mode='FE';this.classList.add('active');document.getElementById('bRE').classList.remove('active');draw();};
+document.getElementById('bRE').onclick=function(){mode='RE';this.classList.add('active');document.getElementById('bFE').classList.remove('active');draw();};
+draw();
+</script>
+</body>
+</html>
