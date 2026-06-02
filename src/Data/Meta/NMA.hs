@@ -27,6 +27,7 @@ module Data.Meta.NMA
     nmaRegressionRE,
     nmaRegressionPosterior,
     nmaRegressionPosteriorB,
+    nmaRegressionGroupedREML,
     RegPosterior (..),
     RegPosteriorB (..),
     BetaModel (..),
@@ -806,6 +807,90 @@ nmaRegressionPosteriorB studies covmap nGrid bmodel prior slopePrior armEffect =
                         _ -> Nothing
         return RegPosteriorB { rpbBetas=betas, rpbCommonB=commonB
                              , rpbTau2=tau2summ, rpbSigmaB2=sigSumm }
+
+-- | Grouped-τ² REML for exchangeable-β network meta-regression: estimates the
+-- heterogeneity τ² (tau-group 0) and the slope-dispersion σ_B² (tau-group 1) in
+-- ONE grouped EM, sharing the heterogeneity machinery. σ_B² folds in exactly as a
+-- second tau-group — the slope-springs β_t↔B are tau edges like the StudyEnd↔TauEnd
+-- heterogeneity springs (see test/nmr_gc_beta_model.md, test/nmr_exchangeable_springs.hs).
+-- (The covariate lever β_t·x_i is a non-±1 incidence, so the solve is dense rather
+-- than the spanning-tree 'nma'.) Returns (τ² per group, common slope B, per-treatment
+-- slopes, contrasts at x=0).
+nmaRegressionGroupedREML ::
+  (ArmEffect a b, Gaussian a, Gaussian b) =>
+  [Study] ->
+  Map.Map StudyId Double ->
+  (Arm -> Either String a) ->
+  Either String ( Map.Map TauGroup TauSquare      -- ^ 0 ↦ τ² (heterogeneity), 1 ↦ σ_B²
+                , Double                           -- ^ common slope B
+                , Map.Map TreatmentId Double       -- ^ per-treatment slopes β_t
+                , Map.Map TreatmentId (Map.Map TreatmentId Double) )  -- ^ contrasts at x=0
+nmaRegressionGroupedREML studies covmap armEffect =
+  let treatments = sort $ nub $ concatMap (map tidOfArm . getStudyArms) studies
+      ref    = head treatments
+      nonref = filter (/= ref) treatments
+      nT     = length nonref
+      sids   = map getStudyId studies
+      nS     = length sids
+      sidx   = Map.fromList (zip sids [0 ..])
+      tidx   = Map.fromList (zip nonref [0 ..])
+      betaBase = nS + nT
+      dCol t   = nS + tidx Map.! t
+      bCol t   = betaBase + tidx Map.! t
+      commonCol = betaBase + nT
+      nP = nS + 2*nT + 1
+      setAt xs i v = take i xs ++ [v] ++ drop (i+1) xs
+      armInfo study a = do
+        ef <- armEffect a
+        let rel = relatedRelative ef; y = expectation rel; v = variance rel; t = tidOfArm a
+            si = sidx Map.! getStudyId study
+            x  = Map.findWithDefault 0 (getStudyId study) covmap
+            base = setAt (replicate nP 0) si (-1)
+            row | t == ref  = base
+                | otherwise = setAt (setAt base (dCol t) 1) (bCol t) x
+        return (row, y, v)
+   in do
+        arms <- concat <$> mapM (\s -> mapM (armInfo s) (getStudyArms s)) studies
+        let nArm = fromIntegral (length arms)
+            addM m i j d = [ [ if r==i && c==j then (m!!r!!c)+d else m!!r!!c | c<-[0..nP-1] ] | r<-[0..nP-1] ]
+            solve t0 t1 =
+              let t2arm = t0/2
+                  a0 = [ [ sum [ (r!!i)*(r!!j)/(v+t2arm) | (r,_,v)<-arms ] | j<-[0..nP-1] ] | i<-[0..nP-1] ]
+                  invSig = 1/t1
+                  aMat = foldl' (\m t -> let bt=bCol t; bb=commonCol in
+                            addM (addM (addM (addM m bt bt invSig) bb bb invSig) bt bb (negate invSig)) bb bt (negate invSig))
+                          a0 nonref
+                  bVec = [ sum [ (r!!i)*y/(v+t2arm) | (r,y,v)<-arms ] | i<-[0..nP-1] ]
+                  cov  = matInv aMat
+              in (matVec cov bVec, cov)
+            emStep (t0, t1) =
+              let t2arm = t0/2
+                  (theta, cov) = solve t0 t1
+                  -- heterogeneity (group 0): per-arm BLUP δ̂ = b·resid
+                  perArm (r,y,v) =
+                    let fitted = sum (zipWith (*) r theta); resid = y - fitted
+                        b = (1/v)*t2arm/(1 + (1/v)*t2arm)
+                        varST = quadForm r cov
+                    in ((b*resid)^2, (1-b)*t2arm + b*b*varST)
+                  ms = map perArm arms
+                  t0' = max 1e-8 $ 2*(sum (map fst ms)/nArm + sum (map snd ms)/nArm)
+                  -- slope dispersion (group 1): per-treatment BLUP (β_t − B)
+                  perT t = let m = theta!!bCol t - theta!!commonCol
+                               vv = cov!!(bCol t)!!(bCol t) + cov!!commonCol!!commonCol
+                                    - 2*cov!!(bCol t)!!commonCol
+                           in m*m + vv
+                  t1' = max 1e-8 $ sum (map perT nonref) / fromIntegral nT
+              in (t0', t1')
+            loop p it | it > (500::Int) = p
+                      | abs (a'-a)<1e-7 && abs (b'-b)<1e-7 = (a',b')
+                      | otherwise = loop (a',b') (it+1)
+              where (a,b)=p; (a',b')=emStep p
+            (tau2, sigB2) = loop (0.1, 0.1) 0
+            (theta, _) = solve tau2 sigB2
+            dOf t = if t==ref then 0 else theta!!dCol t
+            betaMap = Map.fromList [ (t, theta!!bCol t) | t<-nonref ]
+            contrasts = Map.fromList [ (t1, Map.fromList [ (t2, dOf t2 - dOf t1) | t2<-treatments ]) | t1<-treatments ]
+        return ( Map.fromList [(0,tau2),(1,sigB2)], theta!!commonCol, betaMap, contrasts )
 
 -- | makeBinomialSprings constructs a spring network using exact binomial
 -- springs for binary arm data, instead of Gaussian inverse-variance springs.

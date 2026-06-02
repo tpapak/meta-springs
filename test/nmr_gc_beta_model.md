@@ -102,6 +102,19 @@ So `exchangeable` β is just the heterogeneity mechanism applied to the slope co
 with σ_B² a *second fugacity* the GC integrates over alongside τ². shared = infinitely
 stiff slope springs (σ_B²→0, β_t pinned to B); unrelated = no slope springs (σ_B²→∞).
 
+**Folded into the tau-group machinery** (`nmaRegressionGroupedREML`,
+`test/nmr_grouped_reml.hs`): σ_B² is estimated as a *second tau-group* alongside the
+heterogeneity τ², in one grouped EM that returns `tau2s :: Map TauGroup TauSquare`
+(`0 ↦ τ²`, `1 ↦ σ_B²`) — the same `Map TauGroup TauSquare` representation `makeSprings`
+already carries. The slope-springs β_t↔B are tau edges of group 1, exactly like the
+StudyEnd↔TauEnd heterogeneity edges are group 0. (The covariate **lever** β_t·x_i is a
+non-±1 incidence, so the solve is the dense Gaussian one, not the spanning-tree `nma`.)
+On the 5-treatment network: `tau2s = {0 ↦ 0.0545, 1 ↦ 0.0000}` — the REML point estimate
+of σ_B² is **0** (the 4 true slopes are equal), so the slope-springs go rigid and β_t
+collapse to B = 0.235 = the shared estimate (the σ_B²→0 limit). That is the slope analog
+of REML τ²=0; gemtc's σ_B² *mode* is likewise ≈0 (its 0.022 is the right-skewed posterior
+*mean*).
+
 **Wired explicitly** (`test/nmr_exchangeable_springs.hs`): the whole exchangeable-β model
 is built as ONE spring list over (μ_i, d_t, β_t, B, δ_a) where every entry is
 `½·k·(Σ coef·coord − ℓ₀)²` — obs springs (k=1/v), heterogeneity τ-springs (k=2/τ², δ_a→0),
