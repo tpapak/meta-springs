@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>NMR — β as a slope on the covariate axis (grand-canonical example)</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { font-family:'Helvetica Neue',Helvetica,Arial,sans-serif; background:#fafafa; color:#222;
+    display:flex; flex-direction:column; align-items:center; padding:18px; }
+  h1 { font-size:18px; font-weight:600; margin-bottom:4px; }
+  .subtitle { font-size:13px; color:#666; margin-bottom:12px; max-width:940px; text-align:center; line-height:1.5; }
+  .ctrl-row { display:flex; gap:10px; align-items:center; margin-bottom:8px; flex-wrap:wrap; justify-content:center; }
+  button { padding:5px 14px; border:1px solid #aaa; border-radius:4px; background:#fff; cursor:pointer; font-size:13px; }
+  button:hover { background:#eee; }
+  button.mode { background:#fff7ed; border-color:#fb8c00; color:#b35a00; }
+  button.mode.active { background:#e65100; color:#fff; border-color:#e65100; }
+  .pill { font-family:'SF Mono',Consolas,monospace; font-size:13px; background:#fff3e0; border:1px solid #f0b27a;
+    border-radius:4px; padding:3px 10px; color:#b35a00; font-weight:600; }
+  svg { border:1px solid #ddd; border-radius:6px; background:#fff; }
+  .legend { margin-top:10px; font-size:12px; color:#777; max-width:940px; text-align:center; line-height:1.6; }
+  .legend b { color:#555; }
+</style>
+</head>
+<body>
+
+<h1>β as a slope on the covariate axis</h1>
+<div class="subtitle">
+  Two axes: <b>x = effect</b> (log-OR vs A), <b>y = covariate</b>. Each treatment is a <b>line</b> through its two level
+  nodes (b₀ at x=0, b₁ at x=1); the line's horizontal <b>rise per unit covariate is β</b>. Study springs (horizontal) hold the
+  nodes to the data at each covariate height. <b>Shared β = parallel lines.</b> Binary covariate ⇒ two pinned points ⇒ no torque.
+</div>
+
+<div class="ctrl-row">
+  <button class="mode" id="mPooled">Pooled (β=0)</button>
+  <button class="mode active" id="mShared">Shared β</button>
+  <button class="mode" id="mUnrel">Unrelated β<sub>t</sub></button>
+  <span class="pill" id="betaDisplay">β = 0.000</span>
+</div>
+
+<svg id="canvas" width="980" height="600"></svg>
+
+<div class="legend">
+  Reference <b>A</b> is the vertical line at effect 0 (flat — no covariate effect). Each other treatment's line passes through its
+  two <b>level nodes</b>; its <b style="color:#e65100">slope</b> (rise Δeffect over Δcovariate = 1) is β. <b>Shared</b> ⇒ all lines parallel;
+  <b>Unrelated</b> ⇒ each its own slope; <b>Pooled</b> ⇒ vertical lines (β=0). β is read off the geometry — the tilt of data-pinned lines — not a separate spring.
+</div>
+
+<script>
+"use strict";
+const treatments=['A','B','C','D'], treatColor=['#1e40af','#1b9e77','#d95f02','#7570b3'];
+const studies=[
+  {id:'S1',x:0,arms:[{t:0,y:0.40,v:0.20},{t:1,y:1.80,v:0.20}]},
+  {id:'S2',x:1,arms:[{t:0,y:-0.80,v:0.20},{t:1,y:1.00,v:0.20},{t:2,y:2.20,v:0.20}]},
+  {id:'S3',x:0,arms:[{t:0,y:0.60,v:0.30},{t:1,y:0.80,v:0.30},{t:2,y:2.00,v:0.30},{t:3,y:2.40,v:0.30}]},
+  {id:'S4',x:1,arms:[{t:2,y:1.20,v:0.20},{t:3,y:4.00,v:0.20}]},
+];
+const T=treatments.length,S=studies.length,nD=T-1,nMu=S;
+let mode='shared';
+function betaInfo(){ if(mode==='pooled')return{nB:0,idx:()=>-1}; if(mode==='shared')return{nB:1,idx:()=>nD+nMu}; return{nB:T-1,idx:t=>nD+nMu+(t-1)}; }
+function linSolve(A,b){const n=b.length,M=A.map((r,i)=>[...r,b[i]]);for(let c=0;c<n;c++){let mx=Math.abs(M[c][c]),mr=c;for(let r=c+1;r<n;r++)if(Math.abs(M[r][c])>mx){mx=Math.abs(M[r][c]);mr=r;}[M[c],M[mr]]=[M[mr],M[c]];for(let r=c+1;r<n;r++){const f=M[r][c]/M[c][c];for(let k=c;k<=n;k++)M[r][k]-=f*M[c][k];}}const x=new Float64Array(n);for(let i=n-1;i>=0;i--){let s=M[i][n];for(let j=i+1;j<n;j++)s-=M[i][j]*x[j];x[i]=s/M[i][i];}return x;}
+function solve(){const bi=betaInfo(),N=nD+nMu+bi.nB,A=Array.from({length:N},()=>new Float64Array(N)),b=new Float64Array(N);
+  studies.forEach((st,si)=>st.arms.forEach(a=>{const k=1/a.v,co={};if(a.t!==0)co[a.t-1]=(co[a.t-1]||0)+1;co[nD+si]=(co[nD+si]||0)+1;if(a.t!==0&&bi.nB>0)co[bi.idx(a.t)]=(co[bi.idx(a.t)]||0)+st.x;for(const i in co){b[i]+=k*co[i]*a.y;for(const j in co)A[i][j]+=k*co[i]*co[j];}}));
+  const x=linSolve(A,b),d=[0];for(let t=1;t<T;t++)d[t]=x[t-1];
+  const betaOf=t=>(t===0||bi.nB===0)?0:x[bi.idx(t)];
+  return {d,betaOf,betaShared:(mode==='shared')?x[nD+nMu]:0};}
+function effAt(sol,t,l){return t===0?0:sol.d[t]+sol.betaOf(t)*l;}
+
+const svg=document.getElementById('canvas'),W=980,H=600,mar={l:60,r:60,t:70,b:60};
+const plotW=W-mar.l-mar.r, plotH=H-mar.t-mar.b, xMin=-0.6,xMax=4.8, cMin=-0.35,cMax=1.35;
+const xs=v=>mar.l+(v-xMin)/(xMax-xMin)*plotW;
+const ys=c=>mar.t+(cMax-c)/(cMax-cMin)*plotH;
+function el(t,a){const e=document.createElementNS('http://www.w3.org/2000/svg',t);for(const k in a)e.setAttribute(k,a[k]);return e;}
+function tx(x,y,s,o){const e=el('text',Object.assign({x,y},o));e.textContent=s;return e;}
+function coil(x1,y1,x2,y2,c,col,sw){const dx=x2-x1,dy=y2-y1,len=Math.hypot(dx,dy);if(len<1)return el('line',{x1,y1,x2,y2,stroke:col,['stroke-width']:sw});
+ const ux=dx/len,uy=dy/len,px=-uy,py=ux,lead=Math.min(9,len*0.2),amp=4,body=Math.max(len-2*lead,0),seg=body/(c*2);
+ let d=`M${x1},${y1} L${(x1+ux*lead).toFixed(1)},${(y1+uy*lead).toFixed(1)}`,cx=x1+ux*lead,cy=y1+uy*lead;
+ for(let i=0;i<c*2;i++){const s=(i%2===0)?1:-1;cx+=ux*seg+px*amp*s;cy+=uy*seg+py*amp*s;d+=` L${cx.toFixed(1)},${cy.toFixed(1)}`;}
+ d+=` L${x2},${y2}`;return el('path',{d,fill:'none',stroke:col,['stroke-width']:sw});}
+
+function draw(){
+  const sol=solve(),hasCov=mode!=='pooled';while(svg.firstChild)svg.removeChild(svg.firstChild);
+  // axes
+  for(let v=0;v<=4;v++){svg.appendChild(el('line',{x1:xs(v),y1:mar.t-6,x2:xs(v),y2:mar.t+plotH,stroke:'#f1f1f1'}));
+    svg.appendChild(tx(xs(v),mar.t+plotH+18,v.toFixed(0),{['text-anchor']:'middle',['font-size']:11,fill:'#aaa'}));}
+  svg.appendChild(tx(mar.l+plotW/2,H-12,'effect axis (log-OR vs A)',{['text-anchor']:'middle',['font-size']:12,fill:'#888'}));
+  for(const c of [0,1]){svg.appendChild(el('line',{x1:mar.l,y1:ys(c),x2:mar.l+plotW,y2:ys(c),stroke:'#f4f4f4'}));
+    svg.appendChild(tx(28,ys(c)+4,'x='+c,{['font-size']:12,fill:'#555',['font-weight']:600}));}
+  svg.appendChild(tx(20,mar.t-26,'covariate',{['font-size']:11,fill:'#888',['font-weight']:600}));
+  // reference A: vertical line at effect 0
+  svg.appendChild(el('line',{x1:xs(0),y1:ys(cMax),x2:xs(0),y2:ys(cMin),stroke:treatColor[0],['stroke-width']:1.8,opacity:0.55,['stroke-dasharray']:'4,4'}));
+  svg.appendChild(tx(xs(0),ys(cMax)-6,'A (ref)',{['text-anchor']:'middle',['font-size']:11,fill:treatColor[0],['font-weight']:700}));
+
+  // study springs: horizontal, within the study's covariate height
+  studies.forEach(st=>{const cy=ys(st.x);
+    const xsc=st.arms.map(a=>xs(effAt(sol,a.t,st.x))).reduce((s,x)=>s+x,0)/st.arms.length;
+    svg.appendChild(el('rect',{x:xsc-2.5,y:cy-9,width:5,height:18,fill:'#fed7aa',stroke:'#c2410c',['stroke-width']:1.2,rx:2}));
+    st.arms.forEach(a=>{const xn=xs(effAt(sol,a.t,st.x));
+      const fit=effAt(sol,a.t,st.x), res=(fit) - (a.y - (st.arms.find(z=>z.t===0)?st.arms.find(z=>z.t===0).y:0)); // rough
+      svg.appendChild(coil(xsc,cy,xn,cy,Math.max(3,Math.round(Math.abs(xn-xsc)/16)),'#1a73e8',1.5));});
+    svg.appendChild(tx(xsc,cy-13,st.id,{['text-anchor']:'middle',['font-size']:9,fill:'#c2410c',['font-weight']:600}));
+  });
+
+  // treatment lines (the regression lines): slope = beta
+  for(let t=1;t<T;t++){
+    const x0=effAt(sol,t,0), x1=effAt(sol,t,1);
+    // extend the line beyond the data covariate range
+    const slope=x1-x0;                       // = beta per unit covariate
+    const xLo=x0+slope*(cMin-0), xHi=x0+slope*(cMax-0);
+    const col=treatColor[t];
+    svg.appendChild(el('line',{x1:xs(xLo),y1:ys(cMin),x2:xs(xHi),y2:ys(cMax),stroke:col,['stroke-width']:2.4,opacity:0.9}));
+    // level nodes
+    [[x0,0,'₀'],[x1,1,'₁']].forEach(([xx,c,sub])=>{
+      svg.appendChild(el('circle',{cx:xs(xx),cy:ys(c),r:11,fill:'#fff',stroke:col,['stroke-width']:1.8}));
+      svg.appendChild(tx(xs(xx),ys(c)+4,treatments[t].toLowerCase()+sub,{['text-anchor']:'middle',['font-size']:10,fill:col,['font-weight']:600}));});
+    // slope label
+    svg.appendChild(tx(xs((x0+x1)/2)+ (hasCov?16:0), ys(0.5), 'β'+(mode==='unrelated'?'_'+treatments[t]:'')+'='+slope.toFixed(2),
+      {['font-size']:10.5,fill:col,['font-weight']:700}));
+  }
+
+  // beta "rise" indicator on treatment B: horizontal rise over one covariate unit
+  if(hasCov){const x0=effAt(sol,1,0),x1=effAt(sol,1,1);
+    const yMid=ys(1)-30;
+    svg.appendChild(el('line',{x1:xs(x0),y1:yMid,x2:xs(x1),y2:yMid,stroke:'#e65100',['stroke-width']:1.5,['marker-end']:'url(#ah)'}));
+    svg.appendChild(el('line',{x1:xs(x0),y1:yMid-5,x2:xs(x0),y2:yMid+5,stroke:'#e65100',['stroke-width']:1.5}));
+    svg.appendChild(tx(xs((x0+x1)/2),yMid-6,'rise = β = '+(x1-x0).toFixed(2),{['text-anchor']:'middle',['font-size']:11,fill:'#e65100',['font-weight']:700}));
+    const defs=el('defs',{}),m=el('marker',{id:'ah',markerWidth:8,markerHeight:8,refX:6,refY:3,orient:'auto'});
+    m.appendChild(el('path',{d:'M0,0 L6,3 L0,6 Z',fill:'#e65100'}));defs.appendChild(m);svg.appendChild(defs);}
+
+  document.getElementById('betaDisplay').innerHTML='β = '+(mode==='pooled'?'0':(mode==='shared'?sol.betaShared.toFixed(3):`B:${sol.betaOf(1).toFixed(2)} C:${sol.betaOf(2).toFixed(2)} D:${sol.betaOf(3).toFixed(2)}`));
+}
+function setMode(m,btn){mode=m;['mPooled','mShared','mUnrel'].forEach(id=>document.getElementById(id).classList.remove('active'));btn.classList.add('active');draw();}
+document.getElementById('mPooled').onclick=function(){setMode('pooled',this);};
+document.getElementById('mShared').onclick=function(){setMode('shared',this);};
+document.getElementById('mUnrel').onclick =function(){setMode('unrelated',this);};
+draw();
+</script>
+</body>
+</html>
