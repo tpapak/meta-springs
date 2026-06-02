@@ -30,3 +30,5 @@ test/contribution/fallers/payload.json
 test/contribution/fallers/iv_weights_netmeta.json
 test/nmr_sim_results.rds
 test/nmr_sim_log.txt
+test/nmr_continuous_sim_results.rds
+test/nmr_continuous_sim_log.txt
