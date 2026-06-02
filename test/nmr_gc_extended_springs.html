@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Extended spring network — grand-canonical example + covariate (no tau)</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { font-family:'Helvetica Neue',Helvetica,Arial,sans-serif; background:#fafafa; color:#222;
+    display:flex; flex-direction:column; align-items:center; padding:18px; }
+  h1 { font-size:18px; font-weight:600; margin-bottom:4px; }
+  .subtitle { font-size:13px; color:#666; margin-bottom:12px; max-width:1000px; text-align:center; line-height:1.5; }
+  .ctrl-row { display:flex; gap:10px; align-items:center; margin-bottom:8px; flex-wrap:wrap; justify-content:center; }
+  button { padding:5px 14px; border:1px solid #aaa; border-radius:4px; background:#fff; cursor:pointer; font-size:13px; }
+  button:hover { background:#eee; }
+  button.mode { background:#fff7ed; border-color:#fb8c00; color:#b35a00; }
+  button.mode.active { background:#e65100; color:#fff; border-color:#e65100; }
+  .pill { font-family:'SF Mono',Consolas,monospace; font-size:13px; background:#fff3e0; border:1px solid #f0b27a;
+    border-radius:4px; padding:3px 10px; color:#b35a00; font-weight:600; }
+  svg { border:1px solid #ddd; border-radius:6px; background:#fff; }
+  .legend { margin-top:10px; font-size:12px; color:#777; max-width:1000px; text-align:center; line-height:1.6; }
+  .legend b { color:#555; }
+</style>
+</head>
+<body>
+
+<h1>Extended spring network: grand-canonical example + covariate</h1>
+<div class="subtitle">
+  The Ξ-animation network (4 treatments A–D; 2-, 3- and 4-arm studies), <b>extended</b> with a binary covariate and
+  drawn <b>fixed-effect</b> (tau springs omitted). Convention y<sub>ij</sub> = μ<sub>i</sub> + (d<sub>j</sub> + β·x<sub>i</sub>).
+  Each arm's <b style="color:#1a73e8">obs spring</b> runs from its study spindle to its treatment base column; for
+  active arms a <b style="color:#e65100">β spring</b> carries it on to the covariate node d<sub>j</sub>±β/2. No tau node — residuals show as obs-spring stretch.
+</div>
+
+<div class="ctrl-row">
+  <button class="mode" id="mPooled">Pooled (β=0)</button>
+  <button class="mode active" id="mShared">Shared β</button>
+  <button class="mode" id="mUnrel">Unrelated β<sub>t</sub></button>
+  <span class="pill" id="betaDisplay">β = 0.000</span>
+</div>
+
+<svg id="canvas" width="1120" height="680"></svg>
+
+<div class="legend">
+  <b>Solid columns</b> = base treatment effect d<sub>j</sub> (at mean covariate); <b>small dashed nodes</b> = covariate levels d<sub>j</sub>∓β/2.
+  Reference A is pinned at 0. The shared <b style="color:#e65100">β node</b> (top) sets the length of every β spring.
+  Tau springs are left out — add them back and each arm would gain a τ-chain to a BLUP node (heterogeneity).
+</div>
+
+<script>
+"use strict";
+// ===== grand-canonical example (xi_animation data) + a binary covariate x per study =====
+const treatments=['A','B','C','D'];
+const treatColor=['#1e40af','#1b9e77','#d95f02','#7570b3'];
+const studies=[
+  {id:'S1',x:0,arms:[{t:0,y:0.40,v:0.20},{t:1,y:1.80,v:0.20}]},
+  {id:'S2',x:1,arms:[{t:0,y:-0.80,v:0.20},{t:1,y:1.00,v:0.20},{t:2,y:2.20,v:0.20}]},
+  {id:'S3',x:0,arms:[{t:0,y:0.60,v:0.30},{t:1,y:0.80,v:0.30},{t:2,y:2.00,v:0.30},{t:3,y:2.40,v:0.30}]},
+  {id:'S4',x:1,arms:[{t:2,y:1.20,v:0.20},{t:3,y:4.00,v:0.20}]},
+];
+const T=treatments.length, S=studies.length, nD=T-1, nMu=S, xbar=studies.reduce((s,st)=>s+st.x,0)/S;
+let mode='shared';
+function betaInfo(){ if(mode==='pooled')return{nB:0,idx:()=>-1}; if(mode==='shared')return{nB:1,idx:()=>nD+nMu}; return{nB:T-1,idx:t=>nD+nMu+(t-1)}; }
+function linSolve(A,b){const n=b.length,M=A.map((r,i)=>[...r,b[i]]);
+ for(let c=0;c<n;c++){let mx=Math.abs(M[c][c]),mr=c;for(let r=c+1;r<n;r++)if(Math.abs(M[r][c])>mx){mx=Math.abs(M[r][c]);mr=r;}[M[c],M[mr]]=[M[mr],M[c]];for(let r=c+1;r<n;r++){const f=M[r][c]/M[c][c];for(let k=c;k<=n;k++)M[r][k]-=f*M[c][k];}}
+ const x=new Float64Array(n);for(let i=n-1;i>=0;i--){let s=M[i][n];for(let j=i+1;j<n;j++)s-=M[i][j]*x[j];x[i]=s/M[i][i];}return x;}
+function solve(){
+  const bi=betaInfo(), N=nD+nMu+bi.nB, A=Array.from({length:N},()=>new Float64Array(N)), b=new Float64Array(N);
+  studies.forEach((st,si)=>st.arms.forEach(a=>{const k=1/a.v,co={};
+    if(a.t!==0)co[a.t-1]=(co[a.t-1]||0)+1; co[nD+si]=(co[nD+si]||0)+1;
+    if(a.t!==0&&bi.nB>0)co[bi.idx(a.t)]=(co[bi.idx(a.t)]||0)+(st.x-xbar);
+    for(const i in co){b[i]+=k*co[i]*a.y;for(const j in co)A[i][j]+=k*co[i]*co[j];}}));
+  const x=linSolve(A,b), d=[0]; for(let t=1;t<T;t++)d[t]=x[t-1];
+  const mu=[]; for(let si=0;si<S;si++)mu[si]=x[nD+si];
+  const betaOf=t=>(t===0||bi.nB===0)?0:x[bi.idx(t)];
+  let varBeta=null; if(mode==='shared'){const e=new Float64Array(N);e[nD+nMu]=1;varBeta=linSolve(A,e)[nD+nMu];}
+  return {d,mu,betaOf,betaShared:(mode==='shared')?x[nD+nMu]:0,varBeta};
+}
+
+const svg=document.getElementById('canvas'), W=1120,H=680;
+const baseX=200, scale=100, trtY=92, yBetaRow=40;
+const xMin=-0.6, xMax=4.8;
+function fmt(v,n){return Number(v).toFixed(n);}
+function el(t,a){const e=document.createElementNS('http://www.w3.org/2000/svg',t);for(const k in a)e.setAttribute(k,a[k]);return e;}
+function tx(x,y,s,o){const e=el('text',Object.assign({x,y},o));e.textContent=s;return e;}
+function coil(x1,y1,x2,y2,c,col,sw){const dx=x2-x1,dy=y2-y1,len=Math.hypot(dx,dy);if(len<1)return el('line',{x1,y1,x2,y2,stroke:col,['stroke-width']:sw});
+ const ux=dx/len,uy=dy/len,px=-uy,py=ux,lead=Math.min(10,len*0.2),amp=5,body=Math.max(len-2*lead,0),seg=body/(c*2);
+ let d=`M${x1.toFixed(1)},${y1.toFixed(1)} L${(x1+ux*lead).toFixed(1)},${(y1+uy*lead).toFixed(1)}`,cx=x1+ux*lead,cy=y1+uy*lead;
+ for(let i=0;i<c*2;i++){const s=(i%2===0)?1:-1;cx+=ux*seg+px*amp*s;cy+=uy*seg+py*amp*s;d+=` L${cx.toFixed(1)},${cy.toFixed(1)}`;}
+ d+=` L${x2.toFixed(1)},${y2.toFixed(1)}`;return el('path',{d,fill:'none',stroke:col,['stroke-width']:sw});}
+
+// layout: one row per arm
+const armGap=27, studyGap=18, armOffset=14; let _y=160;
+const layouts=studies.map(st=>{const yTop=_y,armYs=st.arms.map((_,k)=>yTop+armOffset+k*armGap),yBot=armYs[armYs.length-1]+10;_y=yBot+studyGap;return{yTop,yBot,armYs};});
+const axisYbot=_y+2;
+const xs=v=>baseX+(v-xMin)/(xMax-xMin)*(scale*(xMax-xMin));   // = baseX + scale*v
+function effAt(sol,t,x){return t===0?0:sol.d[t]+sol.betaOf(t)*(x-xbar);}
+
+function draw(){
+  const sol=solve(); while(svg.firstChild)svg.removeChild(svg.firstChild);
+  const hasCov=mode!=='pooled';
+  // base treatment columns
+  for(let t=0;t<T;t++){const bx=baseX+scale*sol.d[t];
+    svg.appendChild(el('line',{x1:bx,y1:trtY+22,x2:bx,y2:axisYbot,stroke:treatColor[t],['stroke-width']:2,opacity:0.85}));}
+  // effect ruler
+  svg.appendChild(el('line',{x1:baseX-40,y1:axisYbot+20,x2:baseX+scale*4.6,y2:axisYbot+20,stroke:'#888'}));
+  for(let v=0;v<=4.5;v+=0.5){const x=baseX+scale*v;svg.appendChild(el('line',{x1:x,y1:axisYbot+16,x2:x,y2:axisYbot+24,stroke:'#888'}));
+    if(Math.abs(v-Math.round(v))<0.01)svg.appendChild(tx(x,axisYbot+37,v.toFixed(0),{['text-anchor']:'middle',['font-size']:10,fill:'#666'}));}
+  svg.appendChild(tx(baseX+scale*4.6+10,axisYbot+24,'effect axis (vs A)',{['font-size']:11,fill:'#444'}));
+
+  // beta node (shared) — header
+  svg.appendChild(tx(30,yBetaRow+4,'β node',{['font-size']:12,fill:'#e65100',['font-weight']:700}));
+  if(mode==='shared'){const bx=baseX+scale*sol.betaShared;
+    svg.appendChild(coil(baseX,yBetaRow,bx,yBetaRow,Math.max(2,Math.round(scale*sol.betaShared/26)),'#e65100',2.2));
+    svg.appendChild(el('rect',{x:bx-9,y:yBetaRow-9,width:18,height:18,transform:`rotate(45 ${bx} ${yBetaRow})`,fill:'#e65100',stroke:'#fff',['stroke-width']:2}));
+    svg.appendChild(tx(bx,yBetaRow-15,'β='+fmt(sol.betaShared,2),{['text-anchor']:'middle',['font-size']:12,fill:'#e65100',['font-weight']:700}));
+    svg.appendChild(el('circle',{cx:baseX,cy:yBetaRow,r:3,fill:'#999'}));
+  } else if(mode==='unrelated'){ svg.appendChild(tx(baseX,yBetaRow+4,'each treatment keeps its own βₜ',{['font-size']:12,fill:'#999'}));
+  } else { svg.appendChild(tx(baseX,yBetaRow+4,'β ≡ 0 — covariate nodes fall onto the base nodes',{['font-size']:12,fill:'#b35a00',['font-weight']:600})); }
+
+  // study rows: spindle + per-arm obs spring (no tau chain) + beta spring
+  studies.forEach((st,si)=>{const lay=layouts[si];
+    const xsCentroid=st.arms.map(a=>baseX+scale*sol.d[a.t]).reduce((s,x)=>s+x,0)/st.arms.length;
+    const barTop=lay.armYs[0]-8,barBot=lay.armYs[lay.armYs.length-1]+8;
+    svg.appendChild(el('rect',{x:xsCentroid-3,y:barTop,width:6,height:barBot-barTop,fill:'#fed7aa',stroke:'#c2410c',['stroke-width']:1.5,rx:3}));
+    svg.appendChild(tx(xsCentroid,barTop-6,st.id,{['text-anchor']:'middle',['font-size']:10.5,fill:'#c2410c',['font-weight']:600}));
+    const midY=(lay.armYs[0]+lay.armYs[lay.armYs.length-1])/2;
+    svg.appendChild(tx(baseX-150,midY-3,st.id+' (x='+st.x+')',{['font-size']:11.5,fill:'#c2410c',['font-weight']:600}));
+    svg.appendChild(tx(baseX-150,midY+11,'μ̂='+fmt(sol.mu[si],2),{['font-size']:10,fill:'#888'}));
+    st.arms.forEach((a,k)=>{const armY=lay.armYs[k];
+      const xbase=baseX+scale*sol.d[a.t], xlev=baseX+scale*effAt(sol,a.t,st.x);
+      // obs spring: spindle -> base column (fixed-effect; no tau node)
+      const fit=sol.mu[si]+sol.d[a.t]+(a.t!==0?sol.betaOf(a.t)*(st.x-xbar):0), res=fit-a.y;
+      const obsCol = Math.abs(res)>0.25?'#dc2626':'#1a73e8';
+      svg.appendChild(coil(xsCentroid,armY,xbase,armY,Math.max(2,Math.round(Math.abs(xbase-xsCentroid)/24)),obsCol,1.7));
+      svg.appendChild(el('circle',{cx:xsCentroid,cy:armY,r:2.6,fill:'#c2410c'}));
+      let xend=xbase;
+      if(hasCov && a.t!==0){const bcol=mode==='shared'?'#e65100':treatColor[a.t];
+        svg.appendChild(coil(xbase,armY,xlev,armY,Math.max(2,Math.round(Math.abs(xlev-xbase)/18)),bcol,1.6));
+        svg.appendChild(el('circle',{cx:xlev,cy:armY,r:3,fill:'none',stroke:bcol,['stroke-width']:1.4,['stroke-dasharray']:'3,2'})); xend=xlev;}
+      svg.appendChild(tx(xend, armY+13, treatments[a.t]+(hasCov&&a.t!==0?(st.x?'₁':'₀'):'')+' y='+fmt(a.y,2)+(Math.abs(res)>0.005?' r='+(res>=0?'+':'')+fmt(res,2):''),
+        {['text-anchor']:'middle',['font-size']:8.5,fill:'#777'}));
+    });
+  });
+
+  // treatment nodes (top): base + small covariate satellites
+  for(let t=0;t<T;t++){const bx=baseX+scale*sol.d[t];
+    svg.appendChild(el('circle',{cx:bx,cy:trtY,r:18,fill:'#dbeafe',stroke:treatColor[t],['stroke-width']:2}));
+    svg.appendChild(tx(bx,trtY+5,treatments[t],{['text-anchor']:'middle',['font-size']:13,fill:treatColor[t],['font-weight']:700}));
+    svg.appendChild(tx(bx,trtY-24,'d='+fmt(sol.d[t],2),{['text-anchor']:'middle',['font-size']:9,fill:'#444'}));
+    if(hasCov&&t!==0)[0,1].forEach(l=>{const cx=baseX+scale*effAt(sol,t,l);
+      svg.appendChild(el('circle',{cx,cy:trtY,r:8,fill:'#fff',stroke:treatColor[t],['stroke-width']:1.3,['stroke-dasharray']:'3,2'}));
+      svg.appendChild(tx(cx,trtY+3,treatments[t].toLowerCase()+(l?'₁':'₀'),{['text-anchor']:'middle',['font-size']:8,fill:treatColor[t]}));});
+  }
+  svg.appendChild(tx(baseX,trtY+34,'⚓ d_A=0',{['text-anchor']:'middle',['font-size']:9,fill:'#a00'}));
+
+  svg.appendChild(betaPanel(sol.betaShared, sol.varBeta));
+  document.getElementById('betaDisplay').innerHTML='β = '+(mode==='pooled'?'0':(mode==='shared'?fmt(sol.betaShared,3):`B:${fmt(sol.betaOf(1),2)} C:${fmt(sol.betaOf(2),2)} D:${fmt(sol.betaOf(3),2)}`));
+}
+
+function betaPanel(bhat,varB){
+  const px=820,py=150,pw=280,ph=250;
+  const g=el('g',{});
+  g.appendChild(el('rect',{x:px,y:py,width:pw,height:ph,fill:'#fcfcfc',stroke:'#bbb',rx:4}));
+  g.appendChild(tx(px+pw/2,py-8,'Maximum-likelihood β',{['text-anchor']:'middle',['font-size']:12,['font-weight']:600,fill:'#333'}));
+  if(varB==null||!(varB>0)){g.appendChild(tx(px+pw/2,py+ph/2,'Shared β mode only',{['text-anchor']:'middle',['font-size']:11,fill:'#999'}));return g;}
+  const se=Math.sqrt(varB),lo=Math.min(0,bhat-3.5*se)-0.1,hi=Math.max(bhat+3.5*se,0)+0.1;
+  const x0=px+18,y0=py+18,w0=pw-36,h0=ph-66,bx=v=>x0+(v-lo)/(hi-lo)*w0;
+  const ciL=bhat-1.96*se,ciH=bhat+1.96*se;
+  g.appendChild(el('rect',{x:bx(ciL),y:y0,width:bx(ciH)-bx(ciL),height:h0,fill:'#fde9d6'}));
+  let pts='';for(let i=0;i<=120;i++){const v=lo+(hi-lo)*i/120,L=Math.exp(-0.5*((v-bhat)/se)**2);pts+=`${bx(v).toFixed(1)},${(y0+h0-L*(h0-4)).toFixed(1)} `;}
+  g.appendChild(el('polyline',{points:pts.trim(),fill:'none',stroke:'#e65100',['stroke-width']:2}));
+  g.appendChild(el('line',{x1:x0,y1:y0+h0,x2:x0+w0,y2:y0+h0,stroke:'#888'}));
+  for(let v=Math.ceil(lo*2)/2;v<=hi;v+=0.5){const x=bx(v);g.appendChild(el('line',{x1:x,y1:y0+h0,x2:x,y2:y0+h0+4,stroke:'#888'}));g.appendChild(tx(x,y0+h0+15,v.toFixed(1),{['text-anchor']:'middle',['font-size']:9,fill:'#666'}));}
+  if(0>=lo&&0<=hi){const z=bx(0);g.appendChild(el('line',{x1:z,y1:y0,x2:z,y2:y0+h0,stroke:'#7c3aed',['stroke-width']:1,['stroke-dasharray']:'3,3'}));g.appendChild(tx(z,y0-3,'β=0',{['text-anchor']:'middle',['font-size']:9,fill:'#7c3aed'}));}
+  const m=bx(bhat);g.appendChild(el('line',{x1:m,y1:y0,x2:m,y2:y0+h0,stroke:'#e65100',['stroke-width']:1.5}));
+  g.appendChild(tx(m,y0-3,'β̂='+bhat.toFixed(2),{['text-anchor']:'middle',['font-size']:10,fill:'#e65100',['font-weight']:700}));
+  g.appendChild(tx(px+pw/2,py+ph+16,`β̂=${bhat.toFixed(3)}  SE ${se.toFixed(3)}  95% CI [${ciL.toFixed(2)}, ${ciH.toFixed(2)}]`,{['text-anchor']:'middle',['font-size']:10.5,fill:'#444'}));
+  return g;
+}
+
+function setMode(m,btn){mode=m;['mPooled','mShared','mUnrel'].forEach(id=>document.getElementById(id).classList.remove('active'));btn.classList.add('active');draw();}
+document.getElementById('mPooled').onclick=function(){setMode('pooled',this);};
+document.getElementById('mShared').onclick=function(){setMode('shared',this);};
+document.getElementById('mUnrel').onclick =function(){setMode('unrelated',this);};
+draw();
+</script>
+</body>
+</html>

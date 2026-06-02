@@ -7,11 +7,12 @@ coefficient** model — the simplest case and the one in the toy.
 
 Toy / spec demo: [`test/nmr_binary_covariate_springs.html`](nmr_binary_covariate_springs.html)
 — the arm-level effect-axis ledger (xi_animation grammar).
-Spring-network graph: [`test/nmr_binary_covariate_network.html`](nmr_binary_covariate_network.html)
-— the **true-solution** node-link view on two axes (x = effect / log-OR vs A,
-y = covariate level): every node at its solved effect, study springs as the
-real edges (stretch = residual), and β springs whose horizontal span *is* β
-(parallel = shared coefficient). Both self-contained, no build.
+Extended GC example: [`test/nmr_gc_extended_springs.html`](nmr_gc_extended_springs.html)
+— the Ξ-animation (grand-canonical) network (4 treatments, 2-/3-/4-arm studies)
+**extended** with the covariate, drawn **fixed-effect (tau springs omitted)**:
+study spindles, obs springs to base columns, β springs to covariate nodes, the
+shared β node, and the ML-β panel. Residuals appear as obs-spring stretch.
+All self-contained, no build.
 
 ## Model — real nodes, a load-bearing covariate spring
 
