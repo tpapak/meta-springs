@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>NMR — continuous covariate as a παραλληλόγραφος (rods + springs)</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { font-family:'Helvetica Neue',Helvetica,Arial,sans-serif; background:#fafafa; color:#222;
+    display:flex; flex-direction:column; align-items:center; padding:18px; }
+  h1 { font-size:18px; font-weight:600; margin-bottom:4px; }
+  .subtitle { font-size:13px; color:#666; margin-bottom:12px; max-width:960px; text-align:center; line-height:1.5; }
+  .ctrl-row { display:flex; gap:10px; align-items:center; margin-bottom:8px; flex-wrap:wrap; justify-content:center; }
+  button { padding:5px 14px; border:1px solid #aaa; border-radius:4px; background:#fff; cursor:pointer; font-size:13px; }
+  button:hover { background:#eee; }
+  button.mode { background:#fff7ed; border-color:#fb8c00; color:#b35a00; }
+  button.mode.active { background:#e65100; color:#fff; border-color:#e65100; }
+  .pill { font-family:'SF Mono',Consolas,monospace; font-size:13px; background:#fff3e0; border:1px solid #f0b27a;
+    border-radius:4px; padding:3px 10px; color:#b35a00; font-weight:600; }
+  svg { border:1px solid #ddd; border-radius:6px; background:#fff; }
+  .legend { margin-top:10px; font-size:12px; color:#777; max-width:960px; text-align:center; line-height:1.6; }
+  .legend b { color:#555; }
+</style>
+</head>
+<body>
+
+<h1>Continuous covariate: rods held by a παραλληλόγραφος</h1>
+<div class="subtitle">
+  <b>x = effect</b> (vs A), <b>y = continuous covariate</b>. Each treatment is a <b>rigid rod</b> (its regression line);
+  studies sit at their own covariate height and pull the rod horizontally with a <b style="color:#1a73e8">spring</b> (natural length = observed contrast).
+  The <b>παραλληλόγραφος</b> keeps the rods parallel ⇒ one shared tilt = <b>β</b>. β settles by <b>torque balance</b> (lever = covariate height) — no algebra, just forces.
+</div>
+
+<div class="ctrl-row">
+  <button class="mode" id="mPooled">Pooled (β=0)</button>
+  <button class="mode active" id="mShared">Shared β</button>
+  <button class="mode" id="mUnrel">Unrelated β<sub>t</sub></button>
+  <span class="pill" id="betaDisplay">β = 0.000</span>
+</div>
+<div class="ctrl-row">
+  <button id="btnPlay">▶ Relax linkage</button>
+  <button id="btnSnap">Snap to fit</button>
+</div>
+
+<svg id="canvas" width="940" height="600"></svg>
+
+<div class="legend">
+  Reference <b>A</b> = vertical line at effect 0. Each rod is <b>effect = d<sub>t</sub> + β·(x−x̄)</b>; its <b style="color:#e65100">slope</b> is β.
+  A study (dot) at height x<sub>i</sub> pulls its rod toward the observed contrast; the rod's <b>torque balance</b> (Σ w·residual·(x−x̄)=0) sets β, lever = covariate offset.
+  <b>Shared</b> = parallel rods (παραλληλόγραφος); <b>Unrelated</b> = each rod free; <b>Pooled</b> = vertical rods (β=0). Continuous ⇒ many points per rod ⇒ genuine torque (binary was the 2-point case).
+</div>
+
+<script>
+"use strict";
+const treatments=['A','B','C','D'], treatColor=['#1e40af','#1b9e77','#d95f02','#7570b3'];
+// contrast-level star: (treatment t vs A) at covariate x, observed contrast y, variance v
+const studies=[
+ {t:1,x:1,y:-0.05,v:0.05},{t:1,x:4,y:0.40,v:0.05},{t:1,x:8,y:0.90,v:0.05},{t:1,x:10,y:1.30,v:0.06},
+ {t:2,x:0,y:0.40,v:0.05},{t:2,x:2,y:0.80,v:0.05},{t:2,x:5,y:1.15,v:0.05},{t:2,x:9,y:1.85,v:0.06},
+ {t:3,x:0,y:1.30,v:0.06},{t:3,x:3,y:1.75,v:0.05},{t:3,x:6,y:2.10,v:0.05},{t:3,x:10,y:2.80,v:0.06},
+];
+const T=4, nd=T-1, xbar=studies.reduce((s,a)=>s+a.x,0)/studies.length;
+let mode='shared', cur=null, playing=false, raf=0;
+
+function betaInfo(){ if(mode==='pooled')return{nB:0,idx:()=>-1}; if(mode==='shared')return{nB:1,idx:()=>nd}; return{nB:nd,idx:t=>nd+(t-1)}; }
+function linSolve(A,b){const n=b.length,M=A.map((r,i)=>[...r,b[i]]);for(let c=0;c<n;c++){let mx=Math.abs(M[c][c]),mr=c;for(let r=c+1;r<n;r++)if(Math.abs(M[r][c])>mx){mx=Math.abs(M[r][c]);mr=r;}[M[c],M[mr]]=[M[mr],M[c]];for(let r=c+1;r<n;r++){const f=M[r][c]/M[c][c];for(let k=c;k<=n;k++)M[r][k]-=f*M[c][k];}}const x=new Float64Array(n);for(let i=n-1;i>=0;i--){let s=M[i][n];for(let j=i+1;j<n;j++)s-=M[i][j]*x[j];x[i]=s/M[i][i];}return x;}
+function solve(){const bi=betaInfo(),N=nd+bi.nB,A=Array.from({length:N},()=>new Float64Array(N)),b=new Float64Array(N);
+  for(const s of studies){const w=1/s.v,a={};a[s.t-1]=1;if(bi.nB>0)a[bi.idx(s.t)]=(a[bi.idx(s.t)]||0)+(s.x-xbar);
+    for(const i in a){b[i]+=w*a[i]*s.y;for(const j in a)A[i][j]+=w*a[i]*a[j];}}
+  const x=linSolve(A,b),d=[0];for(let t=1;t<T;t++)d[t]=x[t-1];
+  const betaOf=t=>bi.nB===0?0:x[bi.idx(t)];
+  return {d,betaOf,betaShared:(mode==='shared')?x[nd]:0};}
+function effAt(sol,t,x){return t===0?0:sol.d[t]+sol.betaOf(t)*(x-xbar);}
+
+// relaxation (shared): coords d_B,d_C,d_D, beta ; gradient = spring forces / torques
+function curSol(st){return {d:st.d, betaOf:()=>st.beta, betaShared:st.beta};}
+// diagonal stiffnesses (force constants) for damped-Jacobi relaxation -- genuine force/torque relaxation, well-scaled
+const Hd=[0,0,0,0]; let Hb=0;
+for(const s of studies){const w=1/s.v; Hd[s.t]+=w; Hb+=w*(s.x-xbar)*(s.x-xbar);}
+function gradStep(st){const gd=[0,0,0,0]; let gb=0;
+  for(const s of studies){const w=1/s.v, r=st.d[s.t]+st.beta*(s.x-xbar)-s.y;
+    gd[s.t]+=w*r; gb+=w*r*(s.x-xbar);}            // gd = net force per rod; gb = net torque on the shared tilt
+  const lr=0.5; for(let t=1;t<T;t++) st.d[t]-=lr*gd[t]/Hd[t]; st.beta-=lr*gb/Hb;
+  return Math.abs(gb)+gd.reduce((s,g)=>s+Math.abs(g),0);}
+
+const svg=document.getElementById('canvas'),W=940,H=600,mar={l:64,r:60,t:64,b:56};
+const plotW=W-mar.l-mar.r, plotH=H-mar.t-mar.b, xMin=-0.5,xMax=3.2, cMin=-0.6,cMax=10.6;
+const xs=v=>mar.l+(v-xMin)/(xMax-xMin)*plotW;
+const ys=c=>mar.t+(cMax-c)/(cMax-cMin)*plotH;
+function el(t,a){const e=document.createElementNS('http://www.w3.org/2000/svg',t);for(const k in a)e.setAttribute(k,a[k]);return e;}
+function tx(x,y,s,o){const e=el('text',Object.assign({x,y},o));e.textContent=s;return e;}
+function coil(x1,y1,x2,y2,c,col,sw){const dx=x2-x1,dy=y2-y1,len=Math.hypot(dx,dy);if(len<1)return el('line',{x1,y1,x2,y2,stroke:col,['stroke-width']:sw});
+ const ux=dx/len,uy=dy/len,px=-uy,py=ux,lead=Math.min(7,len*0.2),amp=3.5,body=Math.max(len-2*lead,0),seg=body/(c*2);
+ let d=`M${x1},${y1} L${(x1+ux*lead).toFixed(1)},${(y1+uy*lead).toFixed(1)}`,cx=x1+ux*lead,cy=y1+uy*lead;
+ for(let i=0;i<c*2;i++){const s=(i%2===0)?1:-1;cx+=ux*seg+px*amp*s;cy+=uy*seg+py*amp*s;d+=` L${cx.toFixed(1)},${cy.toFixed(1)}`;}
+ d+=` L${x2},${y2}`;return el('path',{d,fill:'none',stroke:col,['stroke-width']:sw});}
+
+function draw(){
+  const sol=(cur&&mode==='shared')?curSol(cur):solve(), hasCov=mode!=='pooled';
+  while(svg.firstChild)svg.removeChild(svg.firstChild);
+  // axes
+  for(let v=0;v<=3;v++){svg.appendChild(el('line',{x1:xs(v),y1:mar.t-6,x2:xs(v),y2:mar.t+plotH,stroke:'#f1f1f1'}));
+    svg.appendChild(tx(xs(v),mar.t+plotH+18,v.toFixed(0),{['text-anchor']:'middle',['font-size']:11,fill:'#aaa'}));}
+  svg.appendChild(tx(mar.l+plotW/2,H-10,'effect axis (vs A)',{['text-anchor']:'middle',['font-size']:12,fill:'#888'}));
+  for(let c=0;c<=10;c+=2){svg.appendChild(el('line',{x1:mar.l,y1:ys(c),x2:mar.l+plotW,y2:ys(c),stroke:'#f6f6f6'}));
+    svg.appendChild(tx(mar.l-10,ys(c)+4,c.toFixed(0),{['text-anchor']:'end',['font-size']:10,fill:'#bbb'}));}
+  svg.appendChild(tx(18,mar.t-24,'covariate x',{['font-size']:11,fill:'#888',['font-weight']:600}));
+  svg.appendChild(el('line',{x1:mar.l,y1:ys(xbar),x2:mar.l+plotW,y2:ys(xbar),stroke:'#ddd',['stroke-dasharray']:'3,3'}));
+  svg.appendChild(tx(mar.l+plotW,ys(xbar)-3,'x̄',{['text-anchor']:'end',['font-size']:9,fill:'#aaa'}));
+  // reference A
+  svg.appendChild(el('line',{x1:xs(0),y1:ys(cMax),x2:xs(0),y2:ys(cMin),stroke:treatColor[0],['stroke-width']:1.8,opacity:0.55,['stroke-dasharray']:'4,4'}));
+  svg.appendChild(tx(xs(0),ys(cMax)-6,'A (ref)',{['text-anchor']:'middle',['font-size']:11,fill:treatColor[0],['font-weight']:700}));
+
+  // parallelograph: shade the parallel band between rod B and rod C (constant horizontal gap)
+  if(mode==='shared'){
+    const bxLo=xs(effAt(sol,1,cMin)),bxHi=xs(effAt(sol,1,cMax)),cxLo=xs(effAt(sol,2,cMin)),cxHi=xs(effAt(sol,2,cMax));
+    svg.appendChild(el('path',{d:`M${bxLo},${ys(cMin)} L${bxHi},${ys(cMax)} L${cxHi},${ys(cMax)} L${cxLo},${ys(cMin)} Z`,fill:'#e65100',opacity:0.05}));
+    svg.appendChild(tx(24,(ys(cMin)+ys(cMax))/2,'παραλληλό-',{['font-size']:9.5,fill:'#bbb'}));
+    svg.appendChild(tx(24,(ys(cMin)+ys(cMax))/2+12,'γραφος',{['font-size']:9.5,fill:'#bbb'}));
+  }
+
+  // treatment rods + study springs
+  for(let t=1;t<T;t++){const col=treatColor[t], xLo=effAt(sol,t,cMin), xHi=effAt(sol,t,cMax);
+    svg.appendChild(el('line',{x1:xs(xLo),y1:ys(cMin),x2:xs(xHi),y2:ys(cMax),stroke:col,['stroke-width']:2.4,opacity:0.9}));
+    svg.appendChild(tx(xs(effAt(sol,t,cMax))+4,ys(cMax)+4,treatments[t],{['font-size']:12,fill:col,['font-weight']:700}));
+    // slope label
+    const sl=sol.betaOf(t);
+    svg.appendChild(tx(xs(effAt(sol,t,2))-22,ys(2),'β'+(mode==='unrelated'?'_'+treatments[t]:'')+'='+sl.toFixed(3),{['text-anchor']:'end',['font-size']:9.5,fill:col,['font-weight']:600}));
+  }
+  // study springs: horizontal, from rod-point at the study's height to the data point
+  for(const s of studies){const cy=ys(s.x), xrod=xs(effAt(sol,s.t,s.x)), xdat=xs(s.y), col=treatColor[s.t];
+    const res=effAt(sol,s.t,s.x)-s.y;
+    svg.appendChild(coil(xrod,cy,xdat,cy,Math.max(2,Math.round(Math.abs(xdat-xrod)/12)),Math.abs(res)>0.18?'#dc2626':'#1a73e8',1.4));
+    svg.appendChild(el('circle',{cx:xdat,cy,r:3.4,fill:col,stroke:'#fff',['stroke-width']:1}));   // observed contrast
+    svg.appendChild(el('circle',{cx:xrod,cy,r:2.2,fill:'#fff',stroke:col,['stroke-width']:1.2})); // rod attachment
+  }
+
+  document.getElementById('betaDisplay').innerHTML='β = '+(mode==='pooled'?'0':(mode==='shared'?sol.betaShared.toFixed(4):`B:${sol.betaOf(1).toFixed(3)} C:${sol.betaOf(2).toFixed(3)} D:${sol.betaOf(3).toFixed(3)}`));
+}
+
+function stopPlay(){playing=false;cancelAnimationFrame(raf);document.getElementById('btnPlay').textContent='▶ Relax linkage';}
+function setMode(m,btn){mode=m;stopPlay();cur=null;['mPooled','mShared','mUnrel'].forEach(id=>document.getElementById(id).classList.remove('active'));btn.classList.add('active');draw();}
+document.getElementById('mPooled').onclick=function(){setMode('pooled',this);};
+document.getElementById('mShared').onclick=function(){setMode('shared',this);};
+document.getElementById('mUnrel').onclick =function(){setMode('unrelated',this);};
+document.getElementById('btnPlay').onclick=function(){
+  if(mode!=='shared'){setMode('shared',document.getElementById('mShared'));}
+  if(playing){stopPlay();return;}
+  cur={d:[0,0,0,0],beta:0}; playing=true; this.textContent='⏸ Pause';
+  (function loop(){ if(!playing) return; let g=0; for(let i=0;i<4;i++) g=gradStep(cur); draw();
+    if(g<1e-4){stopPlay();} else raf=requestAnimationFrame(loop); })();
+};
+document.getElementById('btnSnap').onclick=function(){stopPlay();if(mode==='shared'){const e=solve();cur={d:e.d.slice(),beta:e.betaShared};}else cur=null;draw();};
+draw();
+</script>
+</body>
+</html>
