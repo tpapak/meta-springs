@@ -26,7 +26,7 @@
 <h1>Continuous covariate: rods held by a παραλληλόγραφος</h1>
 <div class="subtitle">
   <b>x = effect</b> (vs A), <b>y = continuous covariate</b>. Each treatment is a <b>rigid rod</b> (its regression line);
-  each <b style="color:#c2410c">study S<sub>i</sub></b> (at its covariate height) has a <b>reference arm A</b> (on the A line) plus its <b>active arm(s)</b> (orange), each pulled to its rod by an <b style="color:#1a73e8">obs spring</b> — one study is 4-arm.
+  each <b style="color:#c2410c">study node S<sub>i</sub></b> (spindle, at its covariate height) sends <b>one <span style="color:#1a73e8">spring per arm</span></b> to that arm's <b>treatment node</b> (point on the treatment's rod) — including the reference A — exactly as in standard NMA; one study is 4-arm.
   The <b>παραλληλόγραφος</b> keeps the rods parallel ⇒ one shared tilt = <b>β</b>. β settles by <b>torque balance</b> (lever = covariate height) — no algebra, just forces.
 </div>
 
@@ -135,19 +135,18 @@ function draw(){
     const sl=sol.betaOf(t);
     svg.appendChild(tx(xs(effAt(sol,t,2))-22,ys(2),'β'+(mode==='unrelated'?'_'+treatments[t]:'')+'='+sl.toFixed(3),{['text-anchor']:'end',['font-size']:9.5,fill:col,['font-weight']:600}));
   }
-  // each STUDY (S_i) shown with all its arms at its covariate height: reference arm A on the A line,
-  // active arm(s) as data nodes pulled to their rods by obs springs. A horizontal "study bar" joins the arms.
-  studyList.forEach((s,i)=>{const cy=ys(s.x); const dxs=s.arms.map(a=>xs(a.y));
-    svg.appendChild(el('line',{x1:Math.min(...dxs),y1:cy,x2:Math.max(...dxs),y2:cy,stroke:'#c2410c',['stroke-width']:1.4,opacity:0.45}));  // study bar (within-study comparison)
-    svg.appendChild(tx(Math.min(...dxs)-6,cy+3,'S'+(i+1),{['text-anchor']:'end',['font-size']:8.5,fill:'#c2410c',['font-weight']:600}));
-    s.arms.forEach(a=>{const xdat=xs(a.y);
-      if(a.t===0){ svg.appendChild(el('circle',{cx:xdat,cy,r:3.2,fill:'#dbeafe',stroke:treatColor[0],['stroke-width']:1.4})); } // reference arm A
-      else { const xrod=xs(effAt(sol,a.t,s.x)), res=effAt(sol,a.t,s.x)-a.y;
-        svg.appendChild(coil(xdat,cy,xrod,cy,Math.max(2,Math.round(Math.abs(xrod-xdat)/12)),Math.abs(res)>0.18?'#dc2626':'#1a73e8',1.4)); // obs spring -> rod
-        svg.appendChild(el('circle',{cx:xrod,cy,r:2.2,fill:'#fff',stroke:treatColor[a.t],['stroke-width']:1.1}));                          // rod attachment
-        svg.appendChild(el('rect',{x:xdat-2.4,y:cy-6,width:4.8,height:12,fill:'#fed7aa',stroke:'#c2410c',['stroke-width']:1.2,rx:2}));     // active-arm data node
-        svg.appendChild(tx(xdat,cy-9,treatments[a.t].toLowerCase(),{['text-anchor']:'middle',['font-size']:7.5,fill:'#c2410c'})); }
-    });
+  // STANDARD NMA structure: one STUDY NODE (spindle) per study at its covariate height,
+  // and ONE SPRING PER ARM from the study node to that arm's TREATMENT NODE (the point on the
+  // treatment's rod at this study's covariate). Reference A's node is on the A line (effect 0).
+  studyList.forEach((s,i)=>{const cy=ys(s.x);
+    const arms=s.arms.map(a=>({t:a.t, xeff:effAt(sol,a.t,s.x), yobs:a.y}));
+    const xcen=arms.reduce((acc,a)=>acc+xs(a.xeff),0)/arms.length;        // study node = centroid of its arms' treatment nodes
+    arms.forEach(a=>{const xt=xs(a.xeff), res=a.xeff-a.yobs;             // treatment node on the rod; residual = fitted - observed
+      svg.appendChild(coil(xcen,cy,xt,cy,Math.max(2,Math.round(Math.abs(xt-xcen)/12)),Math.abs(res)>0.18?'#dc2626':'#1a73e8',1.4)); // arm spring: study node -> treatment node
+      svg.appendChild(el('circle',{cx:xt,cy,r:2.6,fill:'#fff',stroke:treatColor[a.t],['stroke-width']:1.2}));                        // treatment node
+      svg.appendChild(el('circle',{cx:xs(a.yobs),cy,r:1.5,fill:'#999'})); });                                                       // observed arm value
+    svg.appendChild(el('rect',{x:xcen-2.6,y:cy-8,width:5.2,height:16,fill:'#fed7aa',stroke:'#c2410c',['stroke-width']:1.4,rx:2}));   // study node (spindle)
+    svg.appendChild(tx(xcen,cy-11,'S'+(i+1),{['text-anchor']:'middle',['font-size']:8,fill:'#c2410c',['font-weight']:600}));
   });
 
   document.getElementById('betaDisplay').innerHTML='β = '+(mode==='pooled'?'0':(mode==='shared'?sol.betaShared.toFixed(4):`B:${sol.betaOf(1).toFixed(3)} C:${sol.betaOf(2).toFixed(3)} D:${sol.betaOf(3).toFixed(3)}`));
