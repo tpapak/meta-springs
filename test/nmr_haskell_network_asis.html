@@ -20,11 +20,12 @@
 </head>
 <body>
 
-<h1>The <code>makeSprings</code> spring network — as is</h1>
+<h1>The <code>makeSprings</code> network + the β extension (<code>nmaRegression</code>)</h1>
 <div class="subtitle">
-  Verbatim from the running Haskell <code>Data.Meta.NMA.makeSprings</code> on
-  S1:(A=0.40, B=1.80), S2:(A=−0.80, C=1.20), S3:(B=0.90, C=2.10), all sd=2, n=100 (⇒ 1/v = 25).
-  Node IDs, edges, hardness <b>k</b> and natural length <b>ℓ₀</b> are exactly what the library produced.
+  Base network verbatim from <code>Data.Meta.NMA.makeSprings</code> (S1:(A=0.40,B=1.80,x=1), S2:(A=−0.80,C=1.20,x=2),
+  S3:(B=0.90,C=2.10,x=3); sd=2,n=100 ⇒ 1/v=25). The <b style="color:#e65100">β node</b> is the network meta-regression
+  extension now implemented in <code>nmaRegression</code>: each <b>non-reference</b> arm couples to β with lever <b>×xᵢ</b>
+  (the study covariate), i.e. its treatment end sits at d<sub>t</sub>+β·xᵢ. Reference (A) arms have no β coupling.
 </div>
 
 <div class="ctrl-row">
@@ -53,6 +54,8 @@ const feSprings=[
  {s:'S3',t:'B',k:25,nl:0.9},{s:'S3',t:'C',k:25,nl:2.1},
 ];
 const pinnedNode='S1';   // makeSprings pinned = vertex 1 = StudyEnd S1
+const studyCov={S1:1,S2:2,S3:3};   // study-level covariate x_i
+const betaPos=[435,510];           // the β node
 let mode='FE';
 const svg=document.getElementById('canvas');
 function el(t,a){const e=document.createElementNS('http://www.w3.org/2000/svg',t);for(const k in a)e.setAttribute(k,a[k]);return e;}
@@ -81,11 +84,11 @@ function draw(){
 
  // springs first (behind nodes)
  feSprings.forEach((sp,i)=>{const [sx,sy]=studyPos[sp.s], [tx2,ty2]=trtPos[sp.t], col=treatColor[sp.t];
+   let mx,my;   // obs-spring midpoint (for the β lever)
    if(mode==='FE'){
      svg.appendChild(coil(sx,sy,tx2,ty2,col,Math.max(6,Math.round(Math.hypot(tx2-sx,ty2-sy)/22))));
-     springLabel(sx,sy,tx2,ty2,sp.k,sp.nl);
+     springLabel(sx,sy,tx2,ty2,sp.k,sp.nl); mx=(sx+tx2)/2; my=(sy+ty2)/2;
    } else {
-     // tau node at 62% from study toward treatment, with small vertical spread to avoid overlap
      const f=0.6, jit=(i%2===0?-14:14);
      const tax=sx+f*(tx2-sx), tay=sy+f*(ty2-sy)+jit;
      svg.appendChild(coil(sx,sy,tax,tay,'#999',5));                    // tau spring (k=2/tau2)
@@ -94,10 +97,20 @@ function draw(){
      springLabel(tax,tay,tx2,ty2,sp.k,sp.nl);
      svg.appendChild(el('circle',{cx:tax,cy:tay,r:9,fill:'#eee',stroke:'#444',['stroke-width']:1.5}));
      svg.appendChild(tx(tax,tay+3,'τ',{['text-anchor']:'middle',['font-size']:10,fill:'#444'}));
+     mx=(tax+tx2)/2; my=(tay+ty2)/2;
+   }
+   // β coupling for NON-REFERENCE arms (lever = study covariate x_i)
+   if(sp.t!=='A'){
+     svg.appendChild(el('line',{x1:mx,y1:my,x2:betaPos[0],y2:betaPos[1],stroke:'#e65100',['stroke-width']:1.2,['stroke-dasharray']:'3,3',opacity:0.6}));
+     svg.appendChild(tx((mx+betaPos[0])/2,(my+betaPos[1])/2,'×'+studyCov[sp.s],{['text-anchor']:'middle',['font-size']:9,fill:'#e65100',['font-weight']:600}));
    }
  });
+ // β node
+ svg.appendChild(el('rect',{x:betaPos[0]-11,y:betaPos[1]-11,width:22,height:22,transform:`rotate(45 ${betaPos[0]} ${betaPos[1]})`,fill:'#e65100',stroke:'#fff',['stroke-width']:2}));
+ svg.appendChild(tx(betaPos[0],betaPos[1]+4,'β',{['text-anchor']:'middle',['font-size']:13,fill:'#fff',['font-weight']:700}));
+ svg.appendChild(tx(betaPos[0],betaPos[1]+26,'covariate slope (×xᵢ on non-ref arms)',{['text-anchor']:'middle',['font-size']:9.5,fill:'#e65100'}));
  // nodes
- for(const s in studyPos){const [x,y]=studyPos[s]; node(x,y,20,'#fed7aa','#c2410c',s,'μ',s===pinnedNode);}
+ for(const s in studyPos){const [x,y]=studyPos[s]; node(x,y,20,'#fed7aa','#c2410c',s,'x='+studyCov[s],s===pinnedNode);}
  for(const t in trtPos){const [x,y]=trtPos[t]; node(x,y,20,'#dbeafe',treatColor[t],t,'d');}
 }
 document.getElementById('bFE').onclick=function(){mode='FE';this.classList.add('active');document.getElementById('bRE').classList.remove('active');draw();};
