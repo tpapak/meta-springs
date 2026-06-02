@@ -81,3 +81,17 @@ spring RE/GC. On the 5-treatment binary RE dataset:
 
 Rust = Haskell to ~4 dp (same IRLS+spring), matches gemtc; timing: linearise 0.08 ms,
 RE 0.58 ms, GC 2.18 ms. So Rust now covers FE / RE / GC × continuous / binary.
+
+## Exchangeable binary in Rust (`gc-rust/examples/nmr_bin_exch.rs`)
+IRLS linearisation + the full exchangeable GC (2-D grid over τ² and σ_B², slope-springs
+β_t↔B). 5-treatment binary, matched `UniformSD 0.9612`:
+
+| quantity | Rust | Haskell | gemtc |
+|---|---|---|---|
+| common B | 0.2478 | 0.248 | 0.242 |
+| β_B,β_C,β_D,β_E | 0.279,0.338,0.194,0.180 | 0.279,0.338,0.194,0.180 | 0.270,0.327,0.196,0.185 |
+| τ² mean | 0.0954 | 0.095 | 0.083 |
+| σ_B² mean | 0.0728 | 0.073 | 0.067 |
+
+Rust = Haskell to 4 dp; σ_B² integrated (off the boundary) matches gemtc's posterior mean.
+**Rust now covers the full grid: FE/RE/GC × continuous/binary × shared/exchangeable.**
