@@ -1,0 +1,25 @@
+Package: springs
+Type: Package
+Title: gemtc-Compatible Network Meta-Analysis via the Spring/Grand-Canonical Engine
+Version: 0.1.0
+Authors@R: person("Thodoris", "Papakonstantinou", role = c("aut", "cre"),
+    email = "antrcl@tpapak.com")
+Description: A drop-in replacement for the Bayesian network meta-analysis API of
+    'gemtc', backed by the verified spring / Grand-Canonical (GC) engine
+    (Rust). Provides mtc.network(), mtc.model(), mtc.run() and the result
+    accessors relative.effect(), relative.effect.table(), summary() and
+    rank.probability(), returning objects shaped like 'gemtc''s so that
+    consumers such as MetaInsight work by swapping the 'gemtc::' namespace for
+    'springs::'. The engine produces a closed-form joint posterior (no MCMC) of
+    the basic treatment contrasts and the heterogeneity SD; this package samples
+    that posterior to reproduce all-pairwise league tables and rank
+    probabilities the way 'gemtc' derives them from chains.
+License: AGPL-3
+Encoding: UTF-8
+Depends: R (>= 4.0)
+Imports:
+    jsonlite
+Suggests:
+    gemtc,
+    testthat (>= 3.0.0)
+RoxygenNote: 7.3.1

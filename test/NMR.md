@@ -54,6 +54,7 @@ GC integrates over. shared / unrelated are the σ_B²→0 / →∞ stiffness lim
 | RE shared β | `nmaRegressionRE` | `nmaRegressionBinRE` |
 | GC joint posterior (shared/unrel/exch) | `nmaRegressionPosterior(B)` | `nmaRegressionBinPosteriorB` |
 | exchangeable as tau-group (point) | `nmaRegressionGroupedREML` | `nmaRegressionBinGroupedREML` |
+| **baseline-risk** regression (shared/unrel/exch, FE+RE) | `nmaRegressionBaselineRiskMD(B)` | `nmaRegressionBaselineRiskBin(RE/B)` |
 
 `Tau2PriorR = FlatT2 | HalfNormalTauR σ | UniformSD u`. `linearizeBinaryRegression` is the
 IRLS bridge (binomial → Gaussian working response) that lets every continuous function
@@ -61,8 +62,9 @@ serve binary.
 
 **Rust** (`gc-rust/examples/`): `nmr_fe.rs` (FE), `nmr_re_gc.rs` (RE + GC, shared/exch),
 `nmr_bin.rs` (binary RE+GC), `nmr_bin_exch.rs` (exchangeable binary GC),
-`nmr_post_dump.rs` (posterior densities → JSON). nalgebra (Cholesky). **Covers the full
-grid: FE/RE/GC × continuous/binary × shared/exchangeable.**
+`nmr_post_dump.rs` (posterior densities → JSON), **`nmr_brisk.rs` (baseline-risk Fisher
+scoring) and `nmr_brisk_gc.rs` (baseline-risk 2-D GC Ξ(τ²,σ_B²))**. nalgebra (Cholesky).
+**Covers the full grid: FE/RE/GC × continuous/binary × shared/exchangeable, incl. baseline-risk.**
 
 ---
 
@@ -84,10 +86,39 @@ its regression is identified from IPD/ML-NMR, not study-level means. Documented,
 **Rust == Haskell** — to 4–5 dp on every path (RE β 0.40375/τ² 0.10351; GC β mean 0.40375,
 95% [0.2748,0.5327]; binary RE β 0.25637/τ² 0.08288; exch binary β_t identical).
 
+**vs bnma** (baseline-risk, the MetaInsight engine) — `nmaRegressionBaselineRiskBin`
+== exact MLE (R `optim`, identical point estimates *and* observed-info SEs to 4–5 dp) on
+both certolizumab and a known-truth simulation; ≈ bnma to ~0.02 on a dense network (both
+recover truth), with the expected mode-vs-mean gap (~0.1) on sparse certolizumab's skewed
+slope posterior. RE recovers τ²≈0 on a fixed-effect DGP. **Exchangeable: a 2-D grand-canonical
+Ξ(τ²,σ_B²)** (`nmaRegressionBaselineRiskBinExchGC`) integrates the slope dispersion σ_B² — the
+β slope-springs "coming and going" like the τ-springs, not maximised — lifting σ_B² off the
+REML boundary (sim 0.00004→0.030, ≈ bnma 0.044) and matching bnma's per-treatment slopes and
+SDs. (`nmr_baseline_risk.md`.)
+
+**Monte-Carlo verification** (`nmr_baseline_risk_montecarlo.md`) — 200 reps, FE shared: the
+slope **B is unbiased (bias −0.002), 96% coverage**, observed-info SE = empirical sd, 200/200
+converged; d_t carry the usual small finite-sample logistic-MLE bias. Exchangeable σ_B² (80
+reps × 2 regimes, true σ_B²=0.06): σ_B² point estimation is weakly identified (EM unbiased-on-
+average but collapses to the boundary 9%/35% of reps; GC never collapses but prior-biased high;
+neither wins on point RMSE). **But the GC wins decisively on slope-SD calibration** — true-b_t
+95% coverage **0.94/0.97 (GC) vs 0.87/0.82 (EM point)** over 600 slope estimates: the EM collapse
+welds the slopes with false-precision SEs, the GC propagates σ_B² uncertainty into calibrated
+slope intervals. **Rust**
+`nmr_brisk` == Haskell == exact MLE to 5 dp (point + SE), 0.16 ms (cert) / 0.29 ms (sim,
+np=52) vs ~30–60 s Haskell; `nmr_brisk_gc` matches the Haskell GC and runs in 4 ms (vs ~30 s).
+
 **We solve the GC *spring* system** (`nmr_gc_spring_verify.hs`): the GC solution is the
 force-balance **equilibrium** of the explicit spring network (μ,d,β,δ-per-arm),
 max|net force| = 1.8e-12; δ-integration is exact (β identical); the τ² posterior is the
 normalized spring **partition function Z(τ²)**.
+
+**Baseline-risk IS the spring system too** (`nmr_baseline_risk_spring_verify.hs`): a binomial
+spring network (η_i, d, B) whose `springEnergy = −logLik` and `springForce = score`, so its
+force-balance equilibrium (max|net force| ≈ 3e-12) is the MLE, == the library to 6 dp. Its
+new feature: a **self-referential coupled rod** — the active-arm spring grips its *own*
+baseline node (`∂L/∂η_i = 1+B`) with length tied to that node (`∂L/∂B = η_i−mx`), and both
+arms share one η_i node = **randomization made explicit**. (`nmr_baseline_risk.md`.)
 
 ---
 
@@ -127,11 +158,16 @@ Rust/nalgebra is the performant path. (`nmr_benchmark.md`.)
 | RE (single τ²) / FE | ✓ | ✓ |
 | continuous (MD) / binary (OR/RR) | ✓ | ✓ |
 | covariate regression | ✓ | ✓ |
-| baseline-risk regression | ✓ | ✗ (not implemented) |
+| baseline-risk regression | ✓ (bnma) | ✓ (shared/unrel/exch β, FE+RE, binary OR + continuous MD; Laplace) |
 | 2·SD covariate scaling | ✓ (auto) | by config (prior-matchable) |
 
 Plus meta-springs adds a **closed-form joint (β, τ²) posterior** (no MCMC) and the unifying
-spring/GC picture. Remaining gap: **baseline-risk regression**.
+spring/GC picture. **Baseline-risk** regression now closed (shared β, FE+RE, binary):
+Achana/bnma model `logit(p)=η_i+d_t+B·(η_i−mx)` regressing on the *latent* baseline η_i,
+solved by damped Fisher scoring = exact MLE, validated == R `optim` MLE and ≈ bnma — the
+actual MetaInsight engine. shared/unrelated/exchangeable slopes, binary (OR) **and continuous
+(MD)**, FE+RE — the full MetaInsight baseline-risk grid, all bnma-checked
+(`nmr_baseline_risk.md`). **Baseline-risk is now closed.**
 
 ---
 
@@ -155,8 +191,14 @@ spring/GC picture. Remaining gap: **baseline-risk regression**.
 # Rust:               cd gc-rust && cargo run --release --example nmr_re_gc -- data.json cov.json [exch]
 # References (R):     Rscript test/nmr_*_gen.R / *_ref.R / *_netmetareg.R   (needs netmeta, metafor, gemtc, multinma)
 # Spring-system check: stack runghc -- test/nmr_gc_spring_verify.hs
+# Baseline-risk:      Rscript test/nmr_baseline_risk_{mle,bnma,sim}.R  (needs bnma = the MetaInsight engine)
+#                     stack runghc -- test/nmr_baseline_risk.hs test/nmr_certolizumab.json Placebo
 ```
 
 Detailed write-ups: `nmr_gc_beta_model.md`, `nmr_gc_reml_simulation.md`,
 `nmr_joint_posterior.md`, `nmr_re_verification.md`, `nmr_benchmark.md`,
-`nmr_haskell_arm_spec.md`.
+`nmr_haskell_arm_spec.md`, `nmr_baseline_risk.md`.
+
+Detailed write-ups: `nmr_gc_beta_model.md`, `nmr_gc_reml_simulation.md`,
+`nmr_joint_posterior.md`, `nmr_re_verification.md`, `nmr_benchmark.md`,
+`nmr_haskell_arm_spec.md`, `nmr_baseline_risk.md`.

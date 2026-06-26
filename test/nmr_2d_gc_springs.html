@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>2-D grand canonical — exchangeable baseline-risk (data-driven)</title>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box;}
+  body{font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;background:#fafafa;color:#222;display:flex;flex-direction:column;align-items:center;padding:18px;}
+  h1{font-size:18px;text-align:center;} .sub{font-size:12.5px;color:#666;max-width:1050px;text-align:center;margin:6px auto 8px;line-height:1.5;}
+  .sub code{background:#eee;padding:0 3px;border-radius:3px;}
+  .row{display:flex;gap:14px;align-items:flex-start;flex-wrap:wrap;justify-content:center;}
+  .panel{background:#fff;border:1px solid #ddd;border-radius:8px;padding:8px 10px;}
+  .panel h3{font-size:12px;color:#888;text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px;text-align:center;}
+  svg{display:block;}
+  .read{font-family:'SF Mono',monospace;font-size:12px;color:#444;margin-top:6px;line-height:1.6;}
+  .read .em{color:#b00;} .read .gc{color:#2e7d32;font-weight:600;}
+  .hint{font-size:11.5px;color:#888;text-align:center;margin-top:6px;}
+  b.s{color:#2e7d32;} b.t{color:#5b3fa0;} b.r{color:#c0392b;}
+</style>
+</head>
+<body>
+<h1>2-D grand canonical spring network — exchangeable baseline-risk <span style="font-size:12px;color:#999">(data-driven: real solve per cell)</span></h1>
+<div class="sub">
+  Every cell of the lattice is the <b>actual spring solve</b> at that <code>(τ²,σ_B²)</code>: the working springs are
+  assembled into <code>A=JᵀW_eff J + R/σ_B²</code>, solved for the equilibrium <code>θ̂=A⁻¹b</code>, and scored by the exact
+  <code>log Z</code> — the same computation the Haskell GC runs, in your browser. Cells are coloured by posterior mass
+  <code>∝ Z·π·π</code>. Hover the lattice: the <b class="s">slope nodes</b> move to their <i>solved</i> positions
+  (welded at small σ_B², spread at large σ_B²) and the <b class="t">τ-chain</b> grows with τ². Dataset: certolizumab.
+</div>
+
+<div class="row">
+  <div class="panel"><h3>Ξ lattice — posterior mass</h3><svg id="lat" width="300" height="300"></svg>
+    <div class="hint">hover a cell · ● = posterior mode</div></div>
+  <div class="panel"><h3>spring network at the selected (τ²,σ_B²)</h3><svg id="net" width="430" height="360"></svg></div>
+  <div class="panel"><h3>marginal posteriors</h3><svg id="marg" width="300" height="360"></svg>
+    <div class="read" id="readout"></div></div>
+</div>
+<div class="hint" id="cellinfo" style="margin-top:8px"></div>
+
+<script>
+const NS='http://www.w3.org/2000/svg';
+function el(t,a){const e=document.createElementNS(NS,t);for(const k in a)e.setAttribute(k,a[k]);return e;}
+function txt(svg,x,y,s,o){const e=el('text',Object.assign({x,y},o||{}));e.textContent=s;svg.appendChild(e);return e;}
+function clr(svg){while(svg.firstChild)svg.removeChild(svg.firstChild);}
+function coil(svg,x1,y1,x2,y2,col,turns,amp){
+  const dx=x2-x1,dy=y2-y1,L=Math.hypot(dx,dy)||1,ux=dx/L,uy=dy/L,px=-uy,py=ux,lead=Math.min(7,L*0.2),body=L-2*lead,seg=body/(turns*2);
+  let d=`M ${x1} ${y1} L ${x1+ux*lead} ${y1+uy*lead}`;
+  for(let i=0;i<turns*2;i++){const t=lead+seg*(i+0.5),s=(i%2?-1:1)*amp;d+=` L ${x1+ux*t+px*s} ${y1+uy*t+py*s}`;}
+  d+=` L ${x2-ux*lead} ${y2-uy*lead} L ${x2} ${y2}`;svg.appendChild(el('path',{d,fill:'none',stroke:col,'stroke-width':1.4}));
+}
+
+// ---------- the real solve (mirrors the Haskell GC) ----------
+let D=null, T,S,nt,ns, lp,W,TH, Wtot, marT,marS, gcSig,gcB,gcBt, modeI,modeJ, slopeLo,slopeHi;
+function buildA(t2,s2){
+  const nP=D.nP, A=Array.from({length:nP},()=>new Float64Array(nP)), b=new Float64Array(nP);
+  let sumLogV=0,zWz=0;
+  for(const a of D.arms){ const we=1/(1/a.w+t2/2); sumLogV+=Math.log(1/a.w+t2/2); zWz+=we*a.z*a.z;
+    const J=a.J;
+    for(let i=0;i<nP;i++){ if(J[i]===0)continue; const wi=we*J[i]; b[i]+=wi*a.z;
+      for(let j=0;j<nP;j++){ if(J[j]!==0) A[i][j]+=wi*J[j]; } } }
+  const inv=1/s2, cc=D.commonCol;
+  for(const sc of D.slopeCols){ A[sc][sc]+=inv; A[cc][cc]+=inv; A[sc][cc]-=inv; A[cc][sc]-=inv; }
+  return {A,b,sumLogV,zWz};
+}
+function solveLogDet(A,b){
+  const n=b.length, M=A.map(r=>Float64Array.from(r)), y=Float64Array.from(b); let ld=0;
+  for(let c=0;c<n;c++){ let p=c; for(let r=c+1;r<n;r++) if(Math.abs(M[r][c])>Math.abs(M[p][c]))p=r;
+    if(p!==c){const tm=M[c];M[c]=M[p];M[p]=tm; const ty=y[c];y[c]=y[p];y[p]=ty;}
+    const d=M[c][c]; ld+=Math.log(Math.abs(d)||1e-300);
+    for(let r=c+1;r<n;r++){const f=M[r][c]/d; if(f===0)continue; for(let k=c;k<n;k++) M[r][k]-=f*M[c][k]; y[r]-=f*y[c];} }
+  const x=new Float64Array(n);
+  for(let i=n-1;i>=0;i--){let s=y[i]; for(let j=i+1;j<n;j++) s-=M[i][j]*x[j]; x[i]=s/M[i][i];}
+  return {x,ld};
+}
+function cell(t2,s2){const {A,b,sumLogV,zWz}=buildA(t2,s2); const {x,ld}=solveLogDet(A,b);
+  let bx=0; for(let i=0;i<b.length;i++) bx+=b[i]*x[i];
+  return {logZ:-0.5*(sumLogV+ld+(zWz-bx)), theta:x};}
+
+function compute(){
+  T=D.tauGrid; S=D.sigGrid; nt=T.length; ns=S.length;
+  lp=[]; TH=[]; let mx=-1e300;
+  for(let i=0;i<nt;i++){lp[i]=[];TH[i]=[]; for(let j=0;j<ns;j++){const c=cell(T[i],S[j]);
+    lp[i][j]=c.logZ+D.tauW[i]+D.sigW[j]; TH[i][j]=c.theta; if(lp[i][j]>mx){mx=lp[i][j];modeI=i;modeJ=j;}}}
+  W=[];Wtot=0; for(let i=0;i<nt;i++){W[i]=[];for(let j=0;j<ns;j++){W[i][j]=Math.exp(lp[i][j]-mx);Wtot+=W[i][j];}}
+  marT=new Array(nt).fill(0); marS=new Array(ns).fill(0);
+  for(let i=0;i<nt;i++)for(let j=0;j<ns;j++){marT[i]+=W[i][j];marS[j]+=W[i][j];}
+  // integrated (posterior-mean) summaries
+  gcSig=0; let mTau=0; for(let i=0;i<nt;i++)mTau+=T[i]*marT[i]/Wtot; for(let j=0;j<ns;j++)gcSig+=S[j]*marS[j]/Wtot;
+  gcB=0; gcBt=D.slopeCols.map(()=>0);
+  for(let i=0;i<nt;i++)for(let j=0;j<ns;j++){const p=W[i][j]/Wtot,th=TH[i][j];
+    gcB+=p*th[D.commonCol]; D.slopeCols.forEach((sc,k)=>gcBt[k]+=p*th[sc]);}
+  window._mTau=mTau;
+  // slope axis range
+  slopeLo=1e9;slopeHi=-1e9;
+  for(let i=0;i<nt;i++)for(let j=0;j<ns;j++){const th=TH[i][j];
+    [D.commonCol,...D.slopeCols].forEach(c=>{slopeLo=Math.min(slopeLo,th[c]);slopeHi=Math.max(slopeHi,th[c]);});}
+  const pad=(slopeHi-slopeLo)*0.12||0.1; slopeLo-=pad; slopeHi+=pad;
+}
+
+// ---------- rendering ----------
+const lat=document.getElementById('lat'),net=document.getElementById('net'),marg=document.getElementById('marg');
+function drawLattice(selI,selJ){
+  clr(lat); const x0=46,y0=250,w=230,h=222, cw=w/ns, ch=h/nt;
+  let wmax=0; for(let i=0;i<nt;i++)for(let j=0;j<ns;j++)wmax=Math.max(wmax,W[i][j]);
+  for(let i=0;i<nt;i++)for(let j=0;j<ns;j++){const v=W[i][j]/wmax;
+    lat.appendChild(el('rect',{x:x0+j*cw,y:y0-(i+1)*ch,width:cw+0.5,height:ch+0.5,
+      fill:`rgba(230,85,13,${Math.pow(v,0.55)})`,stroke:'none'}));}
+  // mode + selected
+  lat.appendChild(el('circle',{cx:x0+(modeJ+0.5)*cw,cy:y0-(modeI+0.5)*ch,r:3,fill:'#111'}));
+  if(selI!=null) lat.appendChild(el('rect',{x:x0+selJ*cw,y:y0-(selI+1)*ch,width:cw,height:ch,fill:'none',stroke:'#0a4','stroke-width':2}));
+  // axes
+  lat.appendChild(el('line',{x1:x0,y1:y0,x2:x0+w,y2:y0,stroke:'#999'}));
+  lat.appendChild(el('line',{x1:x0,y1:y0,x2:x0,y2:y0-h,stroke:'#999'}));
+  txt(lat,x0+w/2,y0+22,'σ_B²  (log-spaced)',{'text-anchor':'middle','font-size':11,fill:'#2e7d32'});
+  txt(lat,14,y0-h/2,'τ²',{'text-anchor':'middle','font-size':11,fill:'#5b3fa0',transform:`rotate(-90,14,${y0-h/2})`});
+  txt(lat,x0,y0+34,S[0].toExponential(0),{'font-size':9,fill:'#999','text-anchor':'middle'});
+  txt(lat,x0+w,y0+34,S[ns-1].toFixed(2),{'font-size':9,fill:'#999','text-anchor':'middle'});
+  // interaction overlay
+  for(let i=0;i<nt;i++)for(let j=0;j<ns;j++){const r=el('rect',{x:x0+j*cw,y:y0-(i+1)*ch,width:cw,height:ch,fill:'transparent'});
+    r.addEventListener('mousemove',()=>select(i,j)); lat.appendChild(r);}
+}
+function val2px(v){return 30+(v-slopeLo)/(slopeHi-slopeLo)*360;}
+function drawNet(i,j){
+  clr(net); const th=TH[i][j], t2=T[i], s2=S[j];
+  // ---- slope ensemble (top): common B + B_t at their SOLVED values, tied by slope-springs ----
+  const axisY=70, Bx=val2px(th[D.commonCol]);
+  net.appendChild(el('line',{x1:30,y1:axisY,x2:390,y2:axisY,stroke:'#ddd'}));
+  for(let g=Math.ceil(slopeLo*4)/4;g<=slopeHi;g+=0.25){const x=val2px(g);
+    net.appendChild(el('line',{x1:x,y1:axisY-3,x2:x,y2:axisY+3,stroke:'#ccc'}));
+    txt(net,x,axisY+15,g.toFixed(2),{'font-size':8.5,fill:'#aaa','text-anchor':'middle'});}
+  txt(net,210,axisY+30,'slope value  (log-OR per unit baseline)',{'text-anchor':'middle','font-size':10,fill:'#777'});
+  D.slopeCols.forEach((sc,k)=>{const x=val2px(th[sc]), y=axisY-40-(k%3)*0; const ny=axisY-46-(k%2)*22;
+    coil(net,Bx,axisY,x,ny,'#46a35e',4,3.2);
+    net.appendChild(el('circle',{cx:x,cy:ny,r:8,fill:'#d8efd0',stroke:'#31a354','stroke-width':1.5}));
+    txt(net,x,ny+3,D.treats[k][0],{'text-anchor':'middle','font-size':9,fill:'#222'});});
+  net.appendChild(el('circle',{cx:Bx,cy:axisY,r:11,fill:'#bfe3b0',stroke:'#1a7a33','stroke-width':1.8}));
+  txt(net,Bx,axisY+4,'B',{'text-anchor':'middle','font-size':11,fill:'#222'});
+  txt(net,210,28,`σ_B² slope-springs  (σ_B²=${s2.toFixed(3)})`,{'text-anchor':'middle','font-size':11,fill:'#2e7d32','font-weight':600});
+  // ---- heterogeneity (bottom): a representative arm whose τ-chain length grows with τ² ----
+  const Ntau=Math.max(0,Math.round(t2/(window._mTau>0?window._mTau:0.03)*2));
+  const my=300, mx0=70, dx=350, dy=210;
+  net.appendChild(el('rect',{x:mx0-13,y:my-11,width:26,height:22,rx:3,fill:'#ffe6c2',stroke:'#e6550d','stroke-width':1.6}));
+  txt(net,mx0,my+4,'μ',{'text-anchor':'middle','font-size':11});
+  const tnx=(mx0+dx)/2,tny=(my+dy)/2;
+  drawChain(net,mx0,my,tnx,tny,Ntau,'#8a6fc0'); net.appendChild(el('line',{x1:tnx,y1:tny,x2:dx,y2:dy,stroke:'#888','stroke-width':1.5}));
+  net.appendChild(el('circle',{cx:dx,cy:dy,r:11,fill:'#ffe0c2',stroke:'#e6550d','stroke-width':1.6}));
+  txt(net,dx,dy+3,'d_t',{'text-anchor':'middle','font-size':10});
+  net.appendChild(el('path',{d:`M ${mx0} ${my} Q ${(mx0+dx)/2} ${Math.min(my,dy)-40} ${dx} ${dy}`,fill:'none',stroke:'#c0392b','stroke-width':1.8,'stroke-dasharray':'5 3'}));
+  txt(net,210,my+34,`τ-spring chain (τ²=${t2.toFixed(3)}, N=${Ntau})  ·  red = baseline rod`,{'text-anchor':'middle','font-size':10,fill:'#777'});
+}
+function drawChain(svg,x1,y1,x2,y2,N,col){ if(N<=0){svg.appendChild(el('line',{x1,y1,x2,y2,stroke:col,'stroke-width':2}));return;}
+  for(let i=0;i<N;i++){coil(svg,x1+(x2-x1)*i/N,y1+(y2-y1)*i/N,x1+(x2-x1)*(i+1)/N,y1+(y2-y1)*(i+1)/N,col,3,3.2);}}
+function bars(svg,vals,grid,x0,y0,w,h,col,label,logx){
+  let mx=Math.max(...vals); const n=vals.length, bw=w/n;
+  txt(svg,x0+w/2,y0-h-6,label,{'text-anchor':'middle','font-size':11,fill:col});
+  for(let k=0;k<n;k++){const bh=vals[k]/mx*h;
+    svg.appendChild(el('rect',{x:x0+k*bw,y:y0-bh,width:bw*0.85,height:bh,fill:col,opacity:0.8}));}
+  svg.appendChild(el('line',{x1:x0,y1:y0,x2:x0+w,y2:y0,stroke:'#bbb'}));
+}
+function drawMarg(){clr(marg);
+  bars(marg,marT,T,40,150,230,110,'#5b3fa0','τ² posterior',false);
+  txt(marg,40,165,T[0].toFixed(2),{'font-size':9,fill:'#999'}); txt(marg,270,165,T[nt-1].toFixed(2),{'font-size':9,fill:'#999','text-anchor':'end'});
+  bars(marg,marS,S,40,330,230,110,'#2e7d32','σ_B² posterior (log axis)',true);
+  txt(marg,40,345,S[0].toExponential(0),{'font-size':9,fill:'#999'}); txt(marg,270,345,S[ns-1].toFixed(2),{'font-size':9,fill:'#999','text-anchor':'end'});
+}
+function select(i,j){
+  drawLattice(i,j); drawNet(i,j);
+  const th=TH[i][j];
+  document.getElementById('cellinfo').innerHTML=
+    `selected cell: τ²=${T[i].toFixed(3)}, σ_B²=${S[j].toFixed(4)} — slopes at this cell: `+
+    D.slopeCols.map((sc,k)=>`${D.treats[k].slice(0,3)} ${th[sc].toFixed(2)}`).join(', ');
+}
+function init(){
+  compute(); drawMarg();
+  const emSig=+D.emSig, emB=+D.emB;
+  document.getElementById('readout').innerHTML=
+    `<b>σ_B²</b>  EM <span class="em">${emSig.toFixed(5)}</span> (boundary)<br>`+
+    `&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;GC mean <span class="gc">${gcSig.toFixed(4)}</span> (integrated)<br>`+
+    `<b>B</b>   GC mean <span class="gc">${gcB.toFixed(3)}</span><br>`+
+    `<b>τ²</b>  GC mean <span class="gc">${window._mTau.toFixed(4)}</span><br>`+
+    `<span style="color:#999">hover the lattice to move across (τ²,σ_B²)</span>`;
+  select(modeI,modeJ);
+}
+fetch('nmr_2d_gc_grid.json').then(r=>r.json()).then(j=>{
+  D=j; D.arms=D.arms.map(a=>({si:a.si,ref:a.ref,t:a.t,z:+a.z,w:+a.w,J:a.J.map(Number)}));
+  D.slopeCols=D.slopeCols.map(Number); D.commonCol=+D.commonCol;
+  D.tauGrid=D.tauGrid.map(Number); D.sigGrid=D.sigGrid.map(Number);
+  D.tauW=D.tauW.map(Number); D.sigW=D.sigW.map(Number); D.nP=+D.nP;
+  init();
+}).catch(e=>{document.getElementById('cellinfo').textContent='could not load nmr_2d_gc_grid.json: '+e;});
+</script>
+</body>
+</html>

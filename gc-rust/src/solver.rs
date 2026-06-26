@@ -453,6 +453,11 @@ pub struct GridPoint {
     pub effects: Vec<f64>,
     /// Variance of (treatment_order[t] - ref) under Laplace.
     pub eff_vars: Vec<f64>,
+    /// Full Laplace covariance of the effects-vs-ref vector, `n_t x n_t`.
+    /// Row/col 0 (the pinned ref) are zero. `eff_cov[t][t] == eff_vars[t]`.
+    /// This is the joint posterior needed for all-pairwise contrasts and
+    /// rank probabilities (the gemtc facade samples from it).
+    pub eff_cov: Vec<Vec<f64>>,
     pub iters: usize,
 }
 
@@ -516,11 +521,22 @@ pub fn eval_xi_at(topo: &Topology, tau2_contrast: f64) -> GridPoint {
         }
     }
 
+    // Full joint covariance of the effect vector (treatment block of a_inv).
+    let mut eff_cov = vec![vec![0.0_f64; n_t]; n_t];
+    for t in 1..n_t {
+        let it = n_studies + t - 1;
+        for s in 1..n_t {
+            let is = n_studies + s - 1;
+            eff_cov[t][s] = a_inv[(it, is)];
+        }
+    }
+
     GridPoint {
         tau2: solve.tau2_contrast,
         log_z,
         effects,
         eff_vars,
+        eff_cov,
         iters: solve.iters,
     }
 }

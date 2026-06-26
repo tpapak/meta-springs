@@ -1,0 +1,434 @@
+[
+  {
+    "study": "S01",
+    "treatmentA": "A",
+    "eventsA": 46,
+    "nA": 200,
+    "treatmentB": "B",
+    "eventsB": 94,
+    "nB": 200
+  },
+  {
+    "study": "S02",
+    "treatmentA": "A",
+    "eventsA": 29,
+    "nA": 200,
+    "treatmentB": "B",
+    "eventsB": 75,
+    "nB": 200
+  },
+  {
+    "study": "S03",
+    "treatmentA": "A",
+    "eventsA": 14,
+    "nA": 200,
+    "treatmentB": "B",
+    "eventsB": 68,
+    "nB": 200
+  },
+  {
+    "study": "S04",
+    "treatmentA": "A",
+    "eventsA": 33,
+    "nA": 200,
+    "treatmentB": "B",
+    "eventsB": 82,
+    "nB": 200
+  },
+  {
+    "study": "S05",
+    "treatmentA": "A",
+    "eventsA": 49,
+    "nA": 200,
+    "treatmentB": "B",
+    "eventsB": 73,
+    "nB": 200
+  },
+  {
+    "study": "S06",
+    "treatmentA": "A",
+    "eventsA": 82,
+    "nA": 200,
+    "treatmentB": "B",
+    "eventsB": 93,
+    "nB": 200
+  },
+  {
+    "study": "S07",
+    "treatmentA": "A",
+    "eventsA": 92,
+    "nA": 200,
+    "treatmentB": "B",
+    "eventsB": 111,
+    "nB": 200
+  },
+  {
+    "study": "S08",
+    "treatmentA": "A",
+    "eventsA": 53,
+    "nA": 200,
+    "treatmentB": "B",
+    "eventsB": 93,
+    "nB": 200
+  },
+  {
+    "study": "S09",
+    "treatmentA": "A",
+    "eventsA": 81,
+    "nA": 200,
+    "treatmentB": "B",
+    "eventsB": 99,
+    "nB": 200
+  },
+  {
+    "study": "S10",
+    "treatmentA": "A",
+    "eventsA": 29,
+    "nA": 200,
+    "treatmentB": "B",
+    "eventsB": 66,
+    "nB": 200
+  },
+  {
+    "study": "S11",
+    "treatmentA": "A",
+    "eventsA": 35,
+    "nA": 200,
+    "treatmentB": "B",
+    "eventsB": 75,
+    "nB": 200
+  },
+  {
+    "study": "S12",
+    "treatmentA": "A",
+    "eventsA": 22,
+    "nA": 200,
+    "treatmentB": "B",
+    "eventsB": 83,
+    "nB": 200
+  },
+  {
+    "study": "S13",
+    "treatmentA": "A",
+    "eventsA": 75,
+    "nA": 200,
+    "treatmentB": "B",
+    "eventsB": 100,
+    "nB": 200
+  },
+  {
+    "study": "S14",
+    "treatmentA": "A",
+    "eventsA": 42,
+    "nA": 200,
+    "treatmentB": "B",
+    "eventsB": 71,
+    "nB": 200
+  },
+  {
+    "study": "S15",
+    "treatmentA": "A",
+    "eventsA": 28,
+    "nA": 200,
+    "treatmentB": "B",
+    "eventsB": 74,
+    "nB": 200
+  },
+  {
+    "study": "S16",
+    "treatmentA": "A",
+    "eventsA": 52,
+    "nA": 200,
+    "treatmentB": "B",
+    "eventsB": 84,
+    "nB": 200
+  },
+  {
+    "study": "S17",
+    "treatmentA": "A",
+    "eventsA": 36,
+    "nA": 200,
+    "treatmentB": "C",
+    "eventsB": 93,
+    "nB": 200
+  },
+  {
+    "study": "S18",
+    "treatmentA": "A",
+    "eventsA": 20,
+    "nA": 200,
+    "treatmentB": "C",
+    "eventsB": 86,
+    "nB": 200
+  },
+  {
+    "study": "S19",
+    "treatmentA": "A",
+    "eventsA": 75,
+    "nA": 200,
+    "treatmentB": "C",
+    "eventsB": 113,
+    "nB": 200
+  },
+  {
+    "study": "S20",
+    "treatmentA": "A",
+    "eventsA": 43,
+    "nA": 200,
+    "treatmentB": "C",
+    "eventsB": 93,
+    "nB": 200
+  },
+  {
+    "study": "S21",
+    "treatmentA": "A",
+    "eventsA": 41,
+    "nA": 200,
+    "treatmentB": "C",
+    "eventsB": 100,
+    "nB": 200
+  },
+  {
+    "study": "S22",
+    "treatmentA": "A",
+    "eventsA": 59,
+    "nA": 200,
+    "treatmentB": "C",
+    "eventsB": 113,
+    "nB": 200
+  },
+  {
+    "study": "S23",
+    "treatmentA": "A",
+    "eventsA": 45,
+    "nA": 200,
+    "treatmentB": "C",
+    "eventsB": 112,
+    "nB": 200
+  },
+  {
+    "study": "S24",
+    "treatmentA": "A",
+    "eventsA": 32,
+    "nA": 200,
+    "treatmentB": "C",
+    "eventsB": 102,
+    "nB": 200
+  },
+  {
+    "study": "S25",
+    "treatmentA": "A",
+    "eventsA": 82,
+    "nA": 200,
+    "treatmentB": "C",
+    "eventsB": 100,
+    "nB": 200
+  },
+  {
+    "study": "S26",
+    "treatmentA": "A",
+    "eventsA": 55,
+    "nA": 200,
+    "treatmentB": "C",
+    "eventsB": 112,
+    "nB": 200
+  },
+  {
+    "study": "S27",
+    "treatmentA": "A",
+    "eventsA": 64,
+    "nA": 200,
+    "treatmentB": "C",
+    "eventsB": 106,
+    "nB": 200
+  },
+  {
+    "study": "S28",
+    "treatmentA": "A",
+    "eventsA": 53,
+    "nA": 200,
+    "treatmentB": "C",
+    "eventsB": 112,
+    "nB": 200
+  },
+  {
+    "study": "S29",
+    "treatmentA": "A",
+    "eventsA": 70,
+    "nA": 200,
+    "treatmentB": "C",
+    "eventsB": 102,
+    "nB": 200
+  },
+  {
+    "study": "S30",
+    "treatmentA": "A",
+    "eventsA": 53,
+    "nA": 200,
+    "treatmentB": "C",
+    "eventsB": 103,
+    "nB": 200
+  },
+  {
+    "study": "S31",
+    "treatmentA": "A",
+    "eventsA": 27,
+    "nA": 200,
+    "treatmentB": "C",
+    "eventsB": 94,
+    "nB": 200
+  },
+  {
+    "study": "S32",
+    "treatmentA": "A",
+    "eventsA": 70,
+    "nA": 200,
+    "treatmentB": "C",
+    "eventsB": 122,
+    "nB": 200
+  },
+  {
+    "study": "S33",
+    "treatmentA": "A",
+    "eventsA": 34,
+    "nA": 200,
+    "treatmentB": "D",
+    "eventsB": 69,
+    "nB": 200
+  },
+  {
+    "study": "S34",
+    "treatmentA": "A",
+    "eventsA": 33,
+    "nA": 200,
+    "treatmentB": "D",
+    "eventsB": 67,
+    "nB": 200
+  },
+  {
+    "study": "S35",
+    "treatmentA": "A",
+    "eventsA": 79,
+    "nA": 200,
+    "treatmentB": "D",
+    "eventsB": 85,
+    "nB": 200
+  },
+  {
+    "study": "S36",
+    "treatmentA": "A",
+    "eventsA": 120,
+    "nA": 200,
+    "treatmentB": "D",
+    "eventsB": 108,
+    "nB": 200
+  },
+  {
+    "study": "S37",
+    "treatmentA": "A",
+    "eventsA": 66,
+    "nA": 200,
+    "treatmentB": "D",
+    "eventsB": 90,
+    "nB": 200
+  },
+  {
+    "study": "S38",
+    "treatmentA": "A",
+    "eventsA": 54,
+    "nA": 200,
+    "treatmentB": "D",
+    "eventsB": 83,
+    "nB": 200
+  },
+  {
+    "study": "S39",
+    "treatmentA": "A",
+    "eventsA": 73,
+    "nA": 200,
+    "treatmentB": "D",
+    "eventsB": 89,
+    "nB": 200
+  },
+  {
+    "study": "S40",
+    "treatmentA": "A",
+    "eventsA": 122,
+    "nA": 200,
+    "treatmentB": "D",
+    "eventsB": 98,
+    "nB": 200
+  },
+  {
+    "study": "S41",
+    "treatmentA": "A",
+    "eventsA": 73,
+    "nA": 200,
+    "treatmentB": "D",
+    "eventsB": 90,
+    "nB": 200
+  },
+  {
+    "study": "S42",
+    "treatmentA": "A",
+    "eventsA": 36,
+    "nA": 200,
+    "treatmentB": "D",
+    "eventsB": 59,
+    "nB": 200
+  },
+  {
+    "study": "S43",
+    "treatmentA": "A",
+    "eventsA": 84,
+    "nA": 200,
+    "treatmentB": "D",
+    "eventsB": 79,
+    "nB": 200
+  },
+  {
+    "study": "S44",
+    "treatmentA": "A",
+    "eventsA": 92,
+    "nA": 200,
+    "treatmentB": "D",
+    "eventsB": 101,
+    "nB": 200
+  },
+  {
+    "study": "S45",
+    "treatmentA": "A",
+    "eventsA": 70,
+    "nA": 200,
+    "treatmentB": "D",
+    "eventsB": 95,
+    "nB": 200
+  },
+  {
+    "study": "S46",
+    "treatmentA": "A",
+    "eventsA": 77,
+    "nA": 200,
+    "treatmentB": "D",
+    "eventsB": 81,
+    "nB": 200
+  },
+  {
+    "study": "S47",
+    "treatmentA": "A",
+    "eventsA": 5,
+    "nA": 200,
+    "treatmentB": "D",
+    "eventsB": 44,
+    "nB": 200
+  },
+  {
+    "study": "S48",
+    "treatmentA": "A",
+    "eventsA": 18,
+    "nA": 200,
+    "treatmentB": "D",
+    "eventsB": 63,
+    "nB": 200
+  }
+]

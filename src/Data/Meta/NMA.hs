@@ -28,6 +28,15 @@ module Data.Meta.NMA
     nmaRegressionBinRE,
     nmaRegressionBinGroupedREML,
     nmaRegressionBinPosteriorB,
+    nmaRegressionBaselineRiskBin,
+    nmaRegressionBaselineRiskBinRE,
+    nmaRegressionBaselineRiskBinB,
+    nmaRegressionBaselineRiskMD,
+    nmaRegressionBaselineRiskMDB,
+    nmaRegressionBaselineRiskBinExchGC,
+    BaselineRiskFit (..),
+    BaselineExchGC (..),
+    BaselineSlopeModel (..),
     linearizeBinaryRegression,
     nmaRegressionRE,
     nmaRegressionPosterior,
@@ -995,6 +1004,537 @@ nmaRegressionBinRE studies covmap mtau0 =
             dOf t = if t == ref then 0 else thetaF !! (nS + tidx Map.! t)
             contrasts = Map.fromList [ (t1, Map.fromList [ (t2, dOf t2 - dOf t1) | t2<-treatments ]) | t1<-treatments ]
         return (beta, tau2F, contrasts)
+
+-- | Baseline-risk network meta-regression fit (shared slope). The covariate is the
+-- study's own latent baseline log-odds η_i, so the treatment effect is regressed on the
+-- *model's* baseline (not the observed control proportion) — the Achana 2013 / bnma model
+-- MetaInsight uses for baseline-risk regression, which avoids regression-to-the-mean.
+data BaselineRiskFit = BaselineRiskFit
+  { brMx   :: Double                        -- ^ centering constant mx (mean cc control log-odds)
+  , brB    :: Double                        -- ^ shared baseline-risk slope B (reference slope = 0)
+  , brBse  :: Double                        -- ^ Laplace SE of B (inverse Fisher information)
+  , brTau2 :: Double                        -- ^ heterogeneity τ² (contrast scale; 0 for FE)
+  , brD    :: Map.Map TreatmentId Double    -- ^ contrasts vs reference at baseline = mx
+  , brDse  :: Map.Map TreatmentId Double    -- ^ Laplace SE of each contrast
+  , brEta  :: Map.Map StudyId Double        -- ^ fitted latent study baselines η_i (log-odds)
+  , brBt   :: Map.Map TreatmentId Double    -- ^ per-treatment slopes (= brB for shared)
+  , brBtSe :: Map.Map TreatmentId Double    -- ^ Laplace SE of each per-treatment slope
+  , brSigmaB2 :: Maybe Double               -- ^ σ_B² slope dispersion (exchangeable only)
+  } deriving (Show)
+
+-- | Slope structure for baseline-risk regression (cf. bnma / MetaInsight):
+-- one shared slope; independent per-treatment slopes; or exchangeable slopes
+-- b_t ~ N(B, σ_B²) (a slope-spring of hardness 1/σ_B² to a common mean, σ_B² integrated).
+data BaselineSlopeModel = BLShared | BLUnrelated | BLExchangeable
+  deriving (Show, Eq)
+
+-- | mean continuity-corrected control-arm log-odds (the fixed centering mx, exactly as
+-- bnma computes it: r→0.5, n→n+1 for zero-event control arms).
+baselineMx :: [(Double, Double)] -> Double
+baselineMx ctrl =
+  let lo (r, n) = let rd = if r == 0 then 0.5 else if r == n then n - 0.5 else r
+                      nd = if r == 0 then n + 1 else n
+                      p  = rd / nd
+                  in log (p / (1 - p))
+  in sum (map lo ctrl) / fromIntegral (length ctrl)
+
+-- | FIXED-effect BINARY baseline-risk network meta-regression (logit link), the
+-- Achana 2013 / bnma model used by MetaInsight:
+--   logit(p_ik) = η_i + d_t + B·(η_i − mx),   η_i = latent study baseline (control log-odds),
+--   mx = mean continuity-corrected observed control log-odds (a FIXED data constant),
+--   B  = shared baseline-risk slope, reference slope pinned to 0, d_t = effect at baseline mx.
+-- Because the regressor is the parameter η_i itself the predictor carries the bilinear term
+-- B·η_i; this is solved by Fisher scoring (Gauss–Newton with Jacobian ∂η/∂η_i = 1+B,
+-- ∂η/∂d_t = 1, ∂η/∂B = η_i−mx), which converges to the exact MLE. The Laplace covariance
+-- (inverse Fisher information at the mode) gives the SEs. The reference treatment is the
+-- control and must appear in every study.
+nmaRegressionBaselineRiskBin ::
+  [Study] -> TreatmentId -> Either String BaselineRiskFit
+nmaRegressionBaselineRiskBin studies ref =
+  baselineRiskCoreB studies ref BLShared Nothing
+
+-- | General BINARY baseline-risk regression under any slope structure (shared / unrelated /
+-- exchangeable) and FE (Nothing) or RE (Just τ²₀). Unrelated gives an independent slope per
+-- treatment; exchangeable shrinks the per-treatment slopes toward a common mean B with
+-- dispersion σ_B² (a slope-spring of hardness 1/σ_B², σ_B² estimated by EM) — the bnma
+-- coefficient="independent"/"exchangeable" variants.
+nmaRegressionBaselineRiskBinB ::
+  [Study] -> TreatmentId -> BaselineSlopeModel -> Maybe TauSquare -> Either String BaselineRiskFit
+nmaRegressionBaselineRiskBinB studies ref model mtau0 =
+  baselineRiskCoreB studies ref model (fmap (\t -> if t <= 0 then 0.1 else t) mtau0)
+
+-- | RANDOM-effects BINARY baseline-risk network meta-regression by PQL: the Fisher-scoring
+-- baseline-risk solve interleaved with the REML/EM heterogeneity update (τ²/2 per arm in
+-- series, BLUP shrinkage), the baseline-risk analogue of 'nmaRegressionBinRE'. Returns the
+-- same 'BaselineRiskFit' with brTau2 the contrast-scale heterogeneity.
+nmaRegressionBaselineRiskBinRE ::
+  [Study] -> TreatmentId -> Maybe TauSquare -> Either String BaselineRiskFit
+nmaRegressionBaselineRiskBinRE studies ref mtau0 =
+  baselineRiskCoreB studies ref BLShared (Just (fromMaybe 0.1 mtau0))
+
+-- | General core for shared / unrelated / exchangeable baseline-risk regression,
+-- FE (Nothing) or RE (Just τ²₀). Coordinates: η_i (baselines), d_t (contrasts), and slopes —
+-- one B (shared), nT independent b_t (unrelated), or nT b_t + common B (exchangeable, with a
+-- 1/σ_B² slope-spring tying each b_t to B). Solved by damped Fisher scoring on the bilinear
+-- predictor; σ_B² and τ² updated by EM.
+baselineRiskCoreB ::
+  [Study] -> TreatmentId -> BaselineSlopeModel -> Maybe Double -> Either String BaselineRiskFit
+baselineRiskCoreB studies ref model mInitTau =
+  let treatments = sort $ nub $ concatMap (map tidOfArm . getStudyArms) studies
+      nonref = filter (/= ref) treatments
+      nT     = length nonref
+      sids   = map getStudyId studies
+      nS     = length sids
+      sidx   = Map.fromList (zip sids [0 ..])
+      tidx   = Map.fromList (zip nonref [0 ..])
+      exch   = model == BLExchangeable
+      slopeBase = nS + nT
+      dCol t  = nS + tidx Map.! t
+      slopeCol t = case model of BLShared -> slopeBase; _ -> slopeBase + tidx Map.! t
+      commonCol = slopeBase + nT                    -- exchangeable common mean B
+      nP = case model of
+             BLShared       -> nS + nT + 1
+             BLUnrelated    -> nS + nT + nT
+             BLExchangeable -> nS + nT + nT + 1
+      setAt xs i v = take i xs ++ [v] ++ drop (i + 1) xs
+      armRec study a = case a of
+        BinaryArm t ev ns ->
+          let si = sidx Map.! getStudyId study
+          in Right (si, t == ref, t, fromIntegral ev, fromIntegral ns)
+        _ -> Left "nmaRegressionBaselineRiskBin: expects binary arms"
+   in if ref `notElem` treatments
+        then Left "nmaRegressionBaselineRiskBin: reference treatment absent"
+      else do
+        arms <- concat <$> mapM (\s -> mapM (armRec s) (getStudyArms s)) studies
+        -- control-arm (events,n) per study for the centering constant
+        ctrl <- mapM (\s -> case filter (\a -> tidOfArm a == ref) (getStudyArms s) of
+                              (BinaryArm _ ev ns : _) -> Right (fromIntegral ev, fromIntegral ns)
+                              _ -> Left ("nmaRegressionBaselineRiskBin: study " ++ show (getStudyId s)
+                                         ++ " lacks the reference arm")) studies
+        let mx = baselineMx ctrl
+            nArm = fromIntegral (length arms)
+            -- linear predictor, p, weight, Jacobian row, and working response for one arm.
+            -- Active arm of treatment t uses its own slope column (slopeCol t); the bilinear
+            -- term couples it to the baseline node (∂η/∂η_i = 1+b_t, ∂η/∂b_t = η_i−mx).
+            pieces theta (si, isRef, t, e, n) =
+              let etaI = theta !! si
+                  bT   = if isRef then 0 else theta !! slopeCol t
+                  eta  | isRef     = etaI
+                       | otherwise = etaI + (theta !! dCol t) + bT * (etaI - mx)
+                  p    = sigmoid eta
+                  w    = max 1e-9 (n * p * (1 - p))
+                  jac  | isRef     = setAt (replicate nP 0) si 1
+                       | otherwise = setAt (setAt (setAt (replicate nP 0) si (1 + bT)) (dCol t) 1)
+                                           (slopeCol t) (etaI - mx)
+                  jtheta = sum (zipWith (*) jac theta)
+                  zz     = jtheta + (e - n * p) / w
+              in (jac, zz, w, e, n)
+            -- exchangeable slope-springs: ridge 1/σ_B² tying each b_t to the common mean B
+            addAt m i j d = [ [ if r == i && c == j then (m !! r !! c) + d else m !! r !! c
+                              | c <- [0 .. nP - 1] ] | r <- [0 .. nP - 1] ]
+            -- Exchangeable: slope-spring 1/σ_B² tying each b_t to the common mean B.
+            -- Unrelated: a weak ridge (prec 1e-4, SD 100) on each independent slope so an
+            -- under-identified treatment (e.g. one appearing in a single study, where a
+            -- baseline-risk slope is not identified) yields a large SE rather than a singular
+            -- collapse. Negligible for well-identified slopes; for shared there is no ridge.
+            ridge invSig a0 = case model of
+              BLExchangeable -> foldl' (\m t -> let bt = slopeCol t; bb = commonCol
+                                                in addAt (addAt (addAt (addAt m bt bt invSig) bb bb invSig)
+                                                                bt bb (negate invSig)) bb bt (negate invSig))
+                                       a0 nonref
+              BLUnrelated    -> foldl' (\m t -> addAt m (slopeCol t) (slopeCol t) 1e-4) a0 nonref
+              BLShared       -> a0
+            -- one Fisher-scoring step at heterogeneity t2 (t2=0 FE) and slope dispersion σ_B²
+            scoreStep t2 sigB2 theta =
+              let t2arm = t2 / 2
+                  ps    = map (pieces theta) arms
+                  wEff w = if t2 > 0 then 1 / (1 / w + t2arm) else w
+                  a0   = [ [ sum [ wEff w * (jac !! i) * (jac !! j) | (jac, _, w, _, _) <- ps ]
+                           | j <- [0 .. nP - 1] ] | i <- [0 .. nP - 1] ]
+                  aMat = ridge (1 / sigB2) a0
+                  bVec = [ sum [ wEff w * (jac !! i) * zz | (jac, zz, w, _, _) <- ps ] | i <- [0 .. nP - 1] ]
+                  cov  = matInv aMat
+              in (matVec cov bVec, cov, ps)
+            -- EM update of τ² from the per-arm BLUPs (contrast scale ⇒ factor 2)
+            emTau t2 theta cov ps =
+              let t2arm = t2 / 2
+                  per (jac, zz, w, _, _) =
+                    let resid = zz - sum (zipWith (*) jac theta)
+                        b     = w * t2arm / (1 + w * t2arm)
+                    in ((b * resid) ^ (2 :: Int), (1 - b) * t2arm + b * b * quadForm jac cov)
+                  ms = map per ps
+              in max 1e-8 $ 2 * (sum (map fst ms) / nArm + sum (map snd ms) / nArm)
+            -- EM update of σ_B² (exchangeable): mean shrunk squared slope-deviation + variance
+            emSig theta cov =
+              let perT t = let m = (theta !! slopeCol t) - (theta !! commonCol)
+                           in m * m + cov !! slopeCol t !! slopeCol t
+                                + cov !! commonCol !! commonCol - 2 * cov !! slopeCol t !! commonCol
+              in max 1e-8 $ sum (map perT nonref) / fromIntegral nT
+            -- joint loop over (θ, τ², σ_B²)
+            ctrlLo i = let (e, n) = ctrl !! i
+                           rd = if e == 0 then 0.5 else e
+                           nd = if e == 0 then n + 1 else n
+                           pp = rd / nd
+                       in log (pp / (1 - pp))
+            theta0 = [ if i < nS then ctrlLo i else 0 | i <- [0 .. nP - 1] ]
+            finite x = not (isNaN x || isInfinite x)
+            -- binomial log-likelihood of the mean structure
+            logLik theta = sum
+              [ let etaI = theta !! si
+                    eta  | isRef     = etaI
+                         | otherwise = etaI + (theta !! dCol t) + (theta !! slopeCol t) * (etaI - mx)
+                    p = min (1 - 1e-12) (max 1e-12 (sigmoid eta))
+                in e * log p + (n - e) * log (1 - p)
+              | (si, isRef, t, e, n) <- arms ]
+            -- penalised objective for the line search: logLik − ½·(slope-spring energy)/σ_B².
+            -- (For shared/unrelated the ridge is absent, so this is exactly logLik.)
+            penOf sigB2 theta = logLik theta - if exch
+              then 0.5 / sigB2 * sum [ (theta !! slopeCol t - theta !! commonCol) ^ (2 :: Int) | t <- nonref ]
+              else 0
+            -- damped Fisher scoring: the bilinear b_t·η_i term makes raw Newton steps
+            -- overshoot (esp. near 1+b_t≈0), so backtrack along the Newton direction until
+            -- the penalised objective does not decrease.
+            loop theta t2 sigB2 it
+              | it > (200 :: Int) = (theta, t2, sigB2)
+              | converged         = (thetaNext, t2', sigB2')
+              | otherwise         = loop thetaNext t2' sigB2' (it + 1)
+              where (thetaNewton, _, _) = scoreStep t2 sigB2 theta
+                    dir    = zipWith (-) thetaNewton theta
+                    penCur = penOf sigB2 theta
+                    damp a k
+                      | k <= (0 :: Int)                        = theta
+                      | finite pTry && pTry >= penCur - 1e-6   = cand
+                      | otherwise                              = damp (a / 2) (k - 1)
+                      where cand = zipWith (\x dx -> x + a * dx) theta dir
+                            pTry = penOf sigB2 cand
+                    thetaNext = damp 1.0 40
+                    (_, covN, psN) = scoreStep t2 sigB2 thetaNext
+                    t2'    = case mInitTau of Nothing -> 0; Just _ -> emTau t2 thetaNext covN psN
+                    sigB2' = if exch then emSig thetaNext covN else sigB2
+                    converged = maximum (zipWith (\a b -> abs (a - b)) theta thetaNext) < 1e-9
+                                  && abs (t2 - t2') < 1e-9 && abs (sigB2 - sigB2') < 1e-9
+            (thetaF, tau2F, sigB2F) = loop theta0 (fromMaybe 0 mInitTau) 0.1 0
+            -- SEs from the OBSERVED information (Laplace curvature of the log-posterior at
+            -- the mode). The bilinear term ∂²η/∂B∂η_i = 1 contributes a residual-weighted
+            -- cross term that the expected (Fisher) information drops; including it matches
+            -- the exact observed-information SE (e.g. R optim's Hessian).
+            (_, fisherCov, _) = scoreStep tau2F sigB2F thetaF
+            iFisher = matInv fisherCov                       -- expected info JᵀWJ (+ ridge/heterogeneity)
+            -- residual (e − n·p) per active arm; the bilinear cross term ∂²η/∂b_t∂η_i = 1
+            -- lands at (si, slopeCol t).
+            crossAt = [ (si, slopeCol t, e - n * sigmoid eta)
+                      | (si, isRef, t, e, n) <- arms, not isRef
+                      , let eta = (thetaF !! si) + (thetaF !! dCol t)
+                                    + (thetaF !! slopeCol t) * (thetaF !! si - mx) ]
+            iObs = [ [ iFisher !! i !! j
+                         - sum [ r | (s, sc, r) <- crossAt, (i == s && j == sc) || (i == sc && j == s) ]
+                     | j <- [0 .. nP - 1] ] | i <- [0 .. nP - 1] ]
+            covObs = matInv iObs
+            seOf i = sqrt (max 0 (covObs !! i !! i))
+            dMap  = Map.fromList [ (t, thetaF !! dCol t) | t <- nonref ]
+            dSe   = Map.fromList [ (t, seOf (dCol t))    | t <- nonref ]
+            etaMap = Map.fromList (zip sids [ thetaF !! i | i <- [0 .. nS - 1] ])
+            btMap = Map.fromList [ (t, thetaF !! slopeCol t) | t <- nonref ]
+            btSe  = Map.fromList [ (t, seOf (slopeCol t))    | t <- nonref ]
+            -- headline slope: the single B (shared), common mean B (exch), or the mean of the
+            -- independent slopes (unrelated, with the proper SE of that mean from covObs).
+            (bMain, bMainSe) = case model of
+              BLShared       -> (thetaF !! slopeBase, seOf slopeBase)
+              BLExchangeable -> (thetaF !! commonCol, seOf commonCol)
+              BLUnrelated    ->
+                let m  = sum [ thetaF !! slopeCol t | t <- nonref ] / fromIntegral nT
+                    v  = sum [ covObs !! slopeCol s !! slopeCol t | s <- nonref, t <- nonref ]
+                           / fromIntegral (nT * nT)
+                in (m, sqrt (max 0 v))
+        return BaselineRiskFit
+                 { brMx = mx, brB = bMain, brBse = bMainSe
+                 , brTau2 = tau2F, brD = dMap, brDse = dSe, brEta = etaMap
+                 , brBt = btMap, brBtSe = btSe
+                 , brSigmaB2 = if exch then Just sigB2F else Nothing }
+
+-- | CONTINUOUS (mean-difference, identity link) baseline-risk network meta-regression, the
+-- Achana / bnma (response="normal") model: y_ik = η_i + d_t + B·(η_i − mx) + ε,
+-- η_i = latent study baseline (control-arm mean), mx = mean observed control mean. The
+-- regressor is the parameter η_i, so the predictor keeps the bilinear term B·η_i (unlike
+-- external-covariate continuous NMR, which is linear); solved by Gauss–Newton (Fisher
+-- scoring with weight 1/v), the identity-link analogue of 'nmaRegressionBaselineRiskBin'.
+nmaRegressionBaselineRiskMD ::
+  [Study] -> TreatmentId -> Either String BaselineRiskFit
+nmaRegressionBaselineRiskMD studies ref = baselineRiskCoreMD studies ref BLShared Nothing
+
+-- | General CONTINUOUS baseline-risk regression: any slope structure, FE (Nothing) or
+-- RE (Just τ²₀). The identity-link analogue of 'nmaRegressionBaselineRiskBinB'.
+nmaRegressionBaselineRiskMDB ::
+  [Study] -> TreatmentId -> BaselineSlopeModel -> Maybe TauSquare -> Either String BaselineRiskFit
+nmaRegressionBaselineRiskMDB studies ref model mtau0 =
+  baselineRiskCoreMD studies ref model (fmap (\t -> if t <= 0 then 0.1 else t) mtau0)
+
+-- | General continuous (identity-link) baseline-risk core. Same coordinate layout, slope
+-- structures, damped Gauss–Newton, observed-information SEs, EM for τ²/σ_B² as the binary
+-- core 'baselineRiskCoreB'; only the per-arm likelihood differs (Gaussian weight 1/v and
+-- working residual y−μ, vs binomial). mx = unweighted mean of the control-arm means.
+baselineRiskCoreMD ::
+  [Study] -> TreatmentId -> BaselineSlopeModel -> Maybe Double -> Either String BaselineRiskFit
+baselineRiskCoreMD studies ref model mInitTau =
+  let treatments = sort $ nub $ concatMap (map tidOfArm . getStudyArms) studies
+      nonref = filter (/= ref) treatments
+      nT     = length nonref
+      sids   = map getStudyId studies
+      nS     = length sids
+      sidx   = Map.fromList (zip sids [0 ..])
+      tidx   = Map.fromList (zip nonref [0 ..])
+      exch   = model == BLExchangeable
+      slopeBase = nS + nT
+      dCol t  = nS + tidx Map.! t
+      slopeCol t = case model of BLShared -> slopeBase; _ -> slopeBase + tidx Map.! t
+      commonCol = slopeBase + nT
+      nP = case model of
+             BLShared       -> nS + nT + 1
+             BLUnrelated    -> nS + nT + nT
+             BLExchangeable -> nS + nT + nT + 1
+      setAt xs i v = take i xs ++ [v] ++ drop (i + 1) xs
+      armRec study a = case a of
+        ContinuousArm t m sd n ->
+          let si = sidx Map.! getStudyId study
+              v  = sd * sd / fromIntegral n
+          in Right (si, t == ref, t, m, max 1e-12 v)
+        _ -> Left "nmaRegressionBaselineRiskMD: expects continuous arms"
+   in if ref `notElem` treatments
+        then Left "nmaRegressionBaselineRiskMD: reference treatment absent"
+      else do
+        arms <- concat <$> mapM (\s -> mapM (armRec s) (getStudyArms s)) studies
+        ctrl <- mapM (\s -> case filter (\a -> tidOfArm a == ref) (getStudyArms s) of
+                              (ContinuousArm _ m _ _ : _) -> Right m
+                              _ -> Left ("nmaRegressionBaselineRiskMD: study " ++ show (getStudyId s)
+                                         ++ " lacks the reference arm")) studies
+        let mx = sum ctrl / fromIntegral (length ctrl)
+            nArm = fromIntegral (length arms)
+            -- linear predictor μ, Gaussian weight 1/v, Jacobian, working response (Gauss–Newton)
+            pieces theta (si, isRef, t, y, v) =
+              let etaI = theta !! si
+                  bT   = if isRef then 0 else theta !! slopeCol t
+                  mu   | isRef     = etaI
+                       | otherwise = etaI + (theta !! dCol t) + bT * (etaI - mx)
+                  w    = 1 / v
+                  jac  | isRef     = setAt (replicate nP 0) si 1
+                       | otherwise = setAt (setAt (setAt (replicate nP 0) si (1 + bT)) (dCol t) 1)
+                                           (slopeCol t) (etaI - mx)
+                  jtheta = sum (zipWith (*) jac theta)
+                  zz     = jtheta + (y - mu)           -- identity link ⇒ working residual = y−μ
+              in (jac, zz, w, y, mu)
+            addAt m i j d = [ [ if r == i && c == j then (m !! r !! c) + d else m !! r !! c
+                              | c <- [0 .. nP - 1] ] | r <- [0 .. nP - 1] ]
+            ridge invSig a0 = case model of
+              BLExchangeable -> foldl' (\m t -> let bt = slopeCol t; bb = commonCol
+                                                in addAt (addAt (addAt (addAt m bt bt invSig) bb bb invSig)
+                                                                bt bb (negate invSig)) bb bt (negate invSig))
+                                       a0 nonref
+              BLUnrelated    -> foldl' (\m t -> addAt m (slopeCol t) (slopeCol t) 1e-4) a0 nonref
+              BLShared       -> a0
+            scoreStep t2 sigB2 theta =
+              let t2arm = t2 / 2
+                  ps    = map (pieces theta) arms
+                  wEff w = if t2 > 0 then 1 / (1 / w + t2arm) else w
+                  a0   = [ [ sum [ wEff w * (jac !! i) * (jac !! j) | (jac, _, w, _, _) <- ps ]
+                           | j <- [0 .. nP - 1] ] | i <- [0 .. nP - 1] ]
+                  aMat = ridge (1 / sigB2) a0
+                  bVec = [ sum [ wEff w * (jac !! i) * zz | (jac, zz, w, _, _) <- ps ] | i <- [0 .. nP - 1] ]
+                  cov  = matInv aMat
+              in (matVec cov bVec, cov, ps)
+            emTau t2 theta cov ps =
+              let t2arm = t2 / 2
+                  per (jac, zz, w, _, _) =
+                    let resid = zz - sum (zipWith (*) jac theta)
+                        b     = w * t2arm / (1 + w * t2arm)
+                    in ((b * resid) ^ (2 :: Int), (1 - b) * t2arm + b * b * quadForm jac cov)
+                  ms = map per ps
+              in max 1e-8 $ 2 * (sum (map fst ms) / nArm + sum (map snd ms) / nArm)
+            emSig theta cov =
+              let perT t = let m = (theta !! slopeCol t) - (theta !! commonCol)
+                           in m * m + cov !! slopeCol t !! slopeCol t
+                                + cov !! commonCol !! commonCol - 2 * cov !! slopeCol t !! commonCol
+              in max 1e-8 $ sum (map perT nonref) / fromIntegral nT
+            theta0 = [ if i < nS then ctrl !! i else 0 | i <- [0 .. nP - 1] ]
+            finite x = not (isNaN x || isInfinite x)
+            -- Gaussian log-likelihood (−½ Σ (y−μ)²/v); line-search criterion
+            logLik theta = sum
+              [ let etaI = theta !! si
+                    mu   | isRef     = etaI
+                         | otherwise = etaI + (theta !! dCol t) + (theta !! slopeCol t) * (etaI - mx)
+                in negate (0.5 * (y - mu) ^ (2 :: Int) / v)
+              | (si, isRef, t, y, v) <- arms ]
+            penOf sigB2 theta = logLik theta - if exch
+              then 0.5 / sigB2 * sum [ (theta !! slopeCol t - theta !! commonCol) ^ (2 :: Int) | t <- nonref ]
+              else 0
+            loop theta t2 sigB2 it
+              | it > (200 :: Int) = (theta, t2, sigB2)
+              | converged         = (thetaNext, t2', sigB2')
+              | otherwise         = loop thetaNext t2' sigB2' (it + 1)
+              where (thetaNewton, _, _) = scoreStep t2 sigB2 theta
+                    dir    = zipWith (-) thetaNewton theta
+                    penCur = penOf sigB2 theta
+                    damp a k
+                      | k <= (0 :: Int)                      = theta
+                      | finite pTry && pTry >= penCur - 1e-9 = cand
+                      | otherwise                            = damp (a / 2) (k - 1)
+                      where cand = zipWith (\x dx -> x + a * dx) theta dir
+                            pTry = penOf sigB2 cand
+                    thetaNext = damp 1.0 40
+                    (_, covN, psN) = scoreStep t2 sigB2 thetaNext
+                    t2'    = case mInitTau of Nothing -> 0; Just _ -> emTau t2 thetaNext covN psN
+                    sigB2' = if exch then emSig thetaNext covN else sigB2
+                    converged = maximum (zipWith (\a b -> abs (a - b)) theta thetaNext) < 1e-10
+                                  && abs (t2 - t2') < 1e-9 && abs (sigB2 - sigB2') < 1e-9
+            (thetaF, tau2F, sigB2F) = loop theta0 (fromMaybe 0 mInitTau) 0.1 0
+            (_, fisherCov, _) = scoreStep tau2F sigB2F thetaF
+            iFisher = matInv fisherCov
+            -- observed-info cross term w·(y−μ) at (si, slopeCol t) for each active arm
+            crossAt = [ (si, slopeCol t, (y - mu) / v)
+                      | (si, isRef, t, y, v) <- arms, not isRef
+                      , let mu = (thetaF !! si) + (thetaF !! dCol t)
+                                   + (thetaF !! slopeCol t) * (thetaF !! si - mx) ]
+            iObs = [ [ iFisher !! i !! j
+                         - sum [ r | (s, sc, r) <- crossAt, (i == s && j == sc) || (i == sc && j == s) ]
+                     | j <- [0 .. nP - 1] ] | i <- [0 .. nP - 1] ]
+            covObs = matInv iObs
+            seOf i = sqrt (max 0 (covObs !! i !! i))
+            dMap  = Map.fromList [ (t, thetaF !! dCol t) | t <- nonref ]
+            dSe   = Map.fromList [ (t, seOf (dCol t))    | t <- nonref ]
+            etaMap = Map.fromList (zip sids [ thetaF !! i | i <- [0 .. nS - 1] ])
+            btMap = Map.fromList [ (t, thetaF !! slopeCol t) | t <- nonref ]
+            btSe  = Map.fromList [ (t, seOf (slopeCol t))    | t <- nonref ]
+            (bMain, bMainSe) = case model of
+              BLShared       -> (thetaF !! slopeBase, seOf slopeBase)
+              BLExchangeable -> (thetaF !! commonCol, seOf commonCol)
+              BLUnrelated    ->
+                let m = sum [ thetaF !! slopeCol t | t <- nonref ] / fromIntegral nT
+                    v = sum [ covObs !! slopeCol s !! slopeCol t | s <- nonref, t <- nonref ]
+                          / fromIntegral (nT * nT)
+                in (m, sqrt (max 0 v))
+        return BaselineRiskFit
+                 { brMx = mx, brB = bMain, brBse = bMainSe
+                 , brTau2 = tau2F, brD = dMap, brDse = dSe, brEta = etaMap
+                 , brBt = btMap, brBtSe = btSe
+                 , brSigmaB2 = if exch then Just sigB2F else Nothing }
+
+-- | 2-D grand-canonical posterior for EXCHANGEABLE BINARY baseline-risk: integrates BOTH
+-- variance components — heterogeneity τ² and slope dispersion σ_B² — instead of maximising
+-- σ_B² (as the grouped-REML EM does). The slope-springs are "free, coming and going" exactly
+-- like the τ-springs: Ξ(τ²,σ_B²) = ∫∫ Z(τ²,σ_B²) π(τ²) π(σ_B²). Single-point Laplace: the
+-- binomial arms are linearised once at the exchangeable mode (working response z, weight w,
+-- bilinear Jacobian frozen); then the (τ²,σ_B²) grid integration is the exact Gaussian
+-- partition function with the slope prior's normalisation −½·n_T·log σ_B². σ_B² uses a
+-- log-spaced grid. This lifts σ_B² off the REML boundary and recovers the Bayesian posterior
+-- mean (cf. 'nmaRegressionPosteriorB', the covariate analogue).
+data BaselineExchGC = BaselineExchGC
+  { begMx        :: Double                                            -- ^ centering constant
+  , begSigmaB2   :: (Double, Double, Double, Double)                  -- ^ σ_B²: (mode, mean, lo95, hi95)
+  , begTau2      :: (Double, Double, Double, Double)                  -- ^ τ²:  (mode, mean, lo95, hi95)
+  , begB         :: (Double, Double, Double, Double)                  -- ^ common slope B: (mean, sd, lo95, hi95)
+  , begBt        :: Map.Map TreatmentId (Double, Double, Double, Double) -- ^ per-treatment slope b_t
+  , begEMSigmaB2 :: Double                                            -- ^ the grouped-REML/EM σ_B² point (for contrast)
+  } deriving (Show)
+
+nmaRegressionBaselineRiskBinExchGC ::
+  [Study] -> TreatmentId ->
+  Int ->                                  -- ^ τ² grid resolution
+  Tau2PriorR ->                           -- ^ prior on τ² (heterogeneity)
+  Tau2PriorR ->                           -- ^ prior on σ_B² (slope dispersion)
+  Either String BaselineExchGC
+nmaRegressionBaselineRiskBinExchGC studies ref nGrid prior slopePrior = do
+  fit <- baselineRiskCoreB studies ref BLExchangeable (Just 0.1)
+  let treatments = sort $ nub $ concatMap (map tidOfArm . getStudyArms) studies
+      nonref = filter (/= ref) treatments
+      nT     = length nonref
+      sids   = map getStudyId studies
+      nS     = length sids
+      sidx   = Map.fromList (zip sids [0 ..])
+      tidx   = Map.fromList (zip nonref [0 ..])
+      betaBase  = nS + nT
+      dCol t    = nS + tidx Map.! t
+      bCol t    = betaBase + tidx Map.! t
+      commonCol = betaBase + nT
+      nP        = nS + 2 * nT + 1
+      mx        = brMx fit
+      setAt xs i v = take i xs ++ [v] ++ drop (i + 1) xs
+      -- the exchangeable mode θ̂ = (η, d, b_t, B), the single linearisation point
+      thetaHat = [ coord i | i <- [0 .. nP - 1] ]
+        where coord i
+                | i < nS        = brEta fit Map.! (sids !! i)
+                | i < nS + nT   = brD   fit Map.! (nonref !! (i - nS))
+                | i < nS + 2*nT = brBt  fit Map.! (nonref !! (i - nS - nT))
+                | otherwise     = brB   fit
+      -- freeze the binomial linearisation at θ̂: (Jacobian row, working response z, variance 1/w)
+      lin study a = case a of
+        BinaryArm t ev ns ->
+          let si   = sidx Map.! getStudyId study
+              isR  = t == ref
+              etaI = thetaHat !! si
+              bT   = if isR then 0 else thetaHat !! bCol t
+              ell  = if isR then etaI else etaI + thetaHat !! dCol t + bT * (etaI - mx)
+              p    = sigmoid ell
+              w    = max 1e-9 (fromIntegral ns * p * (1 - p))
+              jac  | isR       = setAt (replicate nP 0) si 1
+                   | otherwise = setAt (setAt (setAt (replicate nP 0) si (1 + bT)) (dCol t) 1)
+                                       (bCol t) (etaI - mx)
+              z    = sum (zipWith (*) jac thetaHat) + (fromIntegral ev - fromIntegral ns * p) / w
+          in Right (jac, z, 1 / w)
+        _ -> Left "nmaRegressionBaselineRiskBinExchGC: expects binary arms"
+  arms <- concat <$> mapM (\s -> mapM (lin s) (getStudyArms s)) studies
+  let addM m i j d = [ [ if r == i && c == j then (m!!r!!c) + d else m!!r!!c | c <- [0..nP-1] ] | r <- [0..nP-1] ]
+      -- Gaussian partition function at (τ², σ_B²): A = JᵀW_eff J + slope-spring ridge 1/σ_B²
+      solveCell t2 s2 =
+        let t2arm = t2 / 2
+            a0   = [ [ sum [ (r!!i) * (r!!j) / (v + t2arm) | (r, _, v) <- arms ] | j <- [0..nP-1] ] | i <- [0..nP-1] ]
+            invS = 1 / s2
+            aMat = foldl' (\m t -> let bt = bCol t; bb = commonCol in
+                            addM (addM (addM (addM m bt bt invS) bb bb invS) bt bb (negate invS)) bb bt (negate invS))
+                          a0 nonref
+            bVec = [ sum [ (r!!i) * z / (v + t2arm) | (r, z, v) <- arms ] | i <- [0..nP-1] ]
+            cov   = matInv aMat
+            theta = matVec cov bVec
+            sumLogV = sum [ log (v + t2arm) | (_, _, v) <- arms ]
+            zWz     = sum [ z*z / (v + t2arm) | (_, z, v) <- arms ]
+            logZ    = -0.5 * (sumLogV + logDetPD aMat + (zWz - sum (zipWith (*) bVec theta)))
+        in (logZ, theta, cov)
+      tau2hi = max (brTau2 fit * 12) 0.02
+      ts = [ tau2hi * (fromIntegral i - 0.5) / fromIntegral nGrid | i <- [1 .. nGrid] ]
+      nSig  = 40 :: Int
+      sigHi = case slopePrior of UniformSD u -> u*u; _ -> 1.0
+      sLo   = sigHi / 1e4
+      ss    = [ sLo * (sigHi/sLo) ** ((fromIntegral i - 0.5) / fromIntegral nSig) | i <- [1 .. nSig] ]
+      cells = [ let (lz, th, cv) = solveCell t s
+                    -- −½ n_T log σ_B² is the slope-prior normalisation; +log s is the
+                    -- log-grid (dσ_B² = σ_B² d log σ_B²) Jacobian.
+                    lp = lz - 0.5 * fromIntegral nT * log s
+                         + logPriorT2 prior t + logPriorT2 slopePrior s + log s
+                in (lp, t, s, th, cv)
+              | t <- ts, s <- ss ]
+      lps = [ lp | (lp,_,_,_,_) <- cells ]
+      mxlp = maximum lps
+      raw = [ exp (lp - mxlp) | lp <- lps ]; tot = sum raw; ws = map (/ tot) raw
+      thetas = [ th | (_,_,_,th,_) <- cells ]; covs = [ cv | (_,_,_,_,cv) <- cells ]
+      summ c = let m  = sum (zipWith (\w th -> w * (th!!c)) ws thetas)
+                   s2 = sum (zipWith3 (\w th cv -> w * ((cv!!c!!c) + (th!!c)^(2::Int))) ws thetas covs) - m*m
+                   (lo,hi) = mixtureCI ws (map (!!c) thetas) (map (\cv -> cv!!c!!c) covs)
+               in (m, sqrt (max 0 s2), lo, hi)
+      scells = [ (s,w) | ((_,_,s,_,_),w) <- zip cells ws ]
+      tcells = [ (t,w) | ((_,t,_,_,_),w) <- zip cells ws ]
+      momentSumm pairs = let m = sum [ v*w | (v,w) <- pairs ]
+                         in (m, sqrt (max 0 (sum [ v*v*w | (v,w) <- pairs ] - m*m)),
+                             wquantile pairs 0.025, wquantile pairs 0.975)
+      marg pairs = fst $ maximumBy (\x y -> compare (snd x) (snd y))
+                         (Map.toList (Map.fromListWith (+) pairs))
+      (sMean, sSd, sLo95, sHi95) = momentSumm scells
+      (tMean, _,   tLo95, tHi95) = momentSumm tcells
+  return BaselineExchGC
+    { begMx = mx
+    , begSigmaB2 = (marg scells, sMean, sLo95, sHi95)
+    , begTau2    = (marg tcells, tMean, tLo95, tHi95)
+    , begB       = summ commonCol
+    , begBt      = Map.fromList [ (t, summ (bCol t)) | t <- nonref ]
+    , begEMSigmaB2 = fromMaybe 0 (brSigmaB2 fit)
+    }
 
 -- | EXCHANGEABLE-β BINARY network meta-regression by PQL: the IRLS binomial
 -- linearisation interleaved with the two-tau-group EM of 'nmaRegressionGroupedREML'

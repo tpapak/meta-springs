@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>meta-springs — NMR visualizations</title>
+<style>
+  body { font-family:'Helvetica Neue',Helvetica,Arial,sans-serif; background:#fafafa; color:#222; max-width:860px; margin:0 auto; padding:32px 20px; line-height:1.5; }
+  h1 { font-size:22px; margin-bottom:4px; } .sub { color:#666; font-size:13px; margin-bottom:24px; }
+  h2 { font-size:14px; color:#888; text-transform:uppercase; letter-spacing:0.04em; margin:26px 0 8px; }
+  a.card { display:block; text-decoration:none; color:inherit; border:1px solid #ddd; border-radius:8px; padding:13px 16px; margin-bottom:9px; background:#fff; transition:.12s; }
+  a.card:hover { border-color:#e6550d; box-shadow:0 1px 6px rgba(0,0,0,.06); }
+  a.card .t { font-weight:600; font-size:15px; } a.card .d { color:#666; font-size:12.5px; margin-top:2px; }
+  .latest { border-color:#e6550d; background:#fff8f3; }
+  .badge { display:inline-block; background:#e6550d; color:#fff; font-size:10px; font-weight:700; padding:1px 7px; border-radius:10px; vertical-align:middle; margin-left:8px; }
+</style>
+</head>
+<body>
+<h1>meta-springs — network meta-regression</h1>
+<div class="sub">Spring / Grand-Canonical NMR visualizations · served from <code>test/</code> on macas.lan:8755</div>
+
+<h2>Baseline-risk regression (latest)</h2>
+<a class="card latest" href="nmr_2d_gc_springs.html">
+  <div class="t">2-D grand canonical spring network <span class="badge">LATEST</span></div>
+  <div class="d">Data-driven: the browser does the real spring solve A⁻¹b at every (τ²,σ_B²) cell (reproducing the Haskell GC), colours the Ξ lattice by true posterior mass, and shows the marginal posteriors. Hover the lattice — the slope nodes move to their <i>solved</i> values (welded at small σ_B², spread at large) and the σ_B² posterior sits visibly off the REML boundary.</div>
+</a>
+<a class="card latest" href="nmr_spring_networks.html">
+  <div class="t">Spring network for every NMR model <span class="badge">NEW</span></div>
+  <div class="d">All 9 models as spring-network diagrams, simple→complex: standard NMA → covariate rod → τ springs → split slope → slope-springs → continuous. Covariate (external rod) vs baseline-risk (self-referential rod).</div>
+</a>
+<a class="card latest" href="nmr_baseline_risk_springs.html">
+  <div class="t">Baseline-risk NMR — the honest spring network <span class="badge">LATEST</span></div>
+  <div class="d">Effect regressed on each trial's own latent baseline η_i (Achana/bnma, the MetaInsight engine). Self-referential coupled rod; shared node = randomization. Drag B to feel the springs. Real fit: certolizumab + simulation.</div>
+</a>
+
+<h2>Covariate regression &amp; the GC/spring picture</h2>
+<a class="card" href="nmr_continuous_parallelograph.html"><div class="t">Continuous covariate — parallelograph</div><div class="d">Pooled / Shared / Exchangeable (σ_B² slider) / Unrelated, as rods + springs.</div></a>
+<a class="card" href="nmr_exchangeable_springs.html"><div class="t">Exchangeable springs</div><div class="d">τ-spring (heterogeneity) and slope-spring (exchangeable β) drawn identically — same construct.</div></a>
+<a class="card" href="nmr_certolizumab_springs.html"><div class="t">Certolizumab covariate NMR</div><div class="d">Disease-duration regression, shared β, spring-loaded lines.</div></a>
+<a class="card" href="nmr_posteriors.html"><div class="t">Posteriors: spring GC vs gemtc vs netmetareg</div><div class="d">β &amp; τ² posteriors; 3-/5-trt multi-arm and binary panels.</div></a>
+<a class="card" href="nmr_posteriors_rust.html"><div class="t">Rust GC posterior vs Haskell vs gemtc</div></a>
+<a class="card" href="nmr_haskell_network_asis.html"><div class="t">Haskell makeSprings network as-is</div></a>
+</body>
+</html>

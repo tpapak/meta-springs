@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>NMR spring networks — every model</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { font-family:'Helvetica Neue',Helvetica,Arial,sans-serif; background:#fafafa; color:#222; padding:24px; }
+  h1 { font-size:21px; text-align:center; } .lead { text-align:center; color:#666; font-size:13px; max-width:920px; margin:6px auto 6px; line-height:1.5; }
+  h2 { font-size:13px; text-transform:uppercase; letter-spacing:.05em; color:#999; margin:26px auto 6px; max-width:1120px; border-bottom:1px solid #e3e3e3; padding-bottom:4px; }
+  .grid { display:flex; flex-wrap:wrap; gap:16px; justify-content:center; max-width:1180px; margin:0 auto; }
+  .card { background:#fff; border:1px solid #ddd; border-radius:8px; padding:10px 12px; width:560px; }
+  .card.complex { border-color:#e6a; }
+  .card h3 { font-size:14px; margin-bottom:2px; } .card h3 .tag { font-size:10px; font-weight:600; color:#fff; background:#888; border-radius:8px; padding:1px 6px; vertical-align:middle; margin-left:6px; }
+  .card .cap { font-size:12px; color:#555; line-height:1.45; margin-top:4px; }
+  .card .cap code { background:#f0f0f0; padding:0 3px; border-radius:3px; }
+  .card .ok { color:#2e7d32; font-family:'SF Mono',monospace; font-size:11px; }
+  svg { display:block; margin:2px auto; }
+  .legend { max-width:1120px; margin:16px auto; font-size:12px; color:#666; line-height:1.8; display:flex; flex-wrap:wrap; gap:16px; justify-content:center; }
+  .legend span { display:inline-flex; align-items:center; gap:5px; }
+  .sw { width:22px; height:0; border-top:2px solid #888; display:inline-block; }
+</style>
+</head>
+<body>
+<h1>Network meta-regression: the spring network for every model</h1>
+<div class="lead">
+  Each NMA/NMR model is a spring network. Reading order = increasing structure: standard NMA →
+  add a regression rod → add heterogeneity (τ springs) → split the slope per treatment → tie the
+  slopes with slope-springs (a second variance component) → swap the spring force law for continuous data.
+  <b>Covariate</b> regression has a fixed-length rod to an external value; <b>baseline-risk</b> regression's
+  rod is <b>self-referential</b> — it ties to the study's own baseline node (the bilinear coupling).
+</div>
+<div class="legend">
+  <span><svg width="26" height="14"><circle cx="13" cy="7" r="6" fill="#cfe3ff" stroke="#3182bd"/></svg> study node μ_i</span>
+  <span><svg width="26" height="14"><circle cx="13" cy="7" r="6" fill="#ffe0c2" stroke="#e6550d"/></svg> treatment d_t</span>
+  <span><svg width="26" height="14"><circle cx="13" cy="7" r="6" fill="#d8efd0" stroke="#31a354"/></svg> slope β / B</span>
+  <span><svg width="26" height="14"><circle cx="13" cy="7" r="5" fill="#e8def5" stroke="#756bb1"/></svg> tau node</span>
+  <span><svg width="26" height="14"><rect x="7" y="2" width="11" height="10" fill="#eee" stroke="#999"/></svg> external x_i (pinned)</span>
+  <span><svg width="34" height="14"><path d="M2 7 L6 7 L8 3 L12 11 L16 3 L20 11 L24 3 L26 7 L32 7" fill="none" stroke="#999" stroke-width="1.3"/></svg> spring (coil)</span>
+  <span><svg width="34" height="14"><path d="M2 7 H32" stroke="#d22" stroke-width="2" stroke-dasharray="4 2"/></svg> self-referential coupling</span>
+</div>
+
+<div id="root"></div>
+
+<script>
+const NS='http://www.w3.org/2000/svg';
+function el(t,a){const e=document.createElementNS(NS,t);for(const k in a)e.setAttribute(k,a[k]);return e;}
+function txt(svg,x,y,s,o){const e=el('text',Object.assign({x,y},o||{}));e.textContent=s;svg.appendChild(e);return e;}
+// coil spring between two points
+function coil(svg,x1,y1,x2,y2,col,turns,amp){
+  const dx=x2-x1,dy=y2-y1,L=Math.hypot(dx,dy),ux=dx/L,uy=dy/L,px=-uy,py=ux;
+  const lead=10, body=L-2*lead, seg=body/(turns*2);
+  let d=`M ${x1} ${y1} L ${x1+ux*lead} ${y1+uy*lead}`;
+  for(let i=0;i<turns*2;i++){const t=lead+seg*(i+0.5),s=(i%2?-1:1)*amp;
+    d+=` L ${x1+ux*t+px*s} ${y1+uy*t+py*s}`;}
+  d+=` L ${x2-ux*lead} ${y2-uy*lead} L ${x2} ${y2}`;
+  svg.appendChild(el('path',{d,fill:'none',stroke:col||'#999','stroke-width':1.4}));
+}
+const NCOL={study:['#cfe3ff','#3182bd'],trt:['#ffe0c2','#e6550d'],slope:['#d8efd0','#31a354'],
+  cslope:['#bfe3b0','#1a7a33'],tau:['#e8def5','#756bb1'],pin:['#444','#444']};
+function node(svg,x,y,label,cls){
+  if(cls==='cov'){svg.appendChild(el('rect',{x:x-9,y:y-9,width:18,height:18,fill:'#eee',stroke:'#999'}));}
+  else if(cls==='pin'){svg.appendChild(el('circle',{cx:x,cy:y,r:5,fill:'#444'}));}
+  else {const[f,s]=NCOL[cls]||['#eee','#999'];const r=(cls==='tau')?7:10;
+    svg.appendChild(el('circle',{cx:x,cy:y,r,fill:f,stroke:s,'stroke-width':1.5}));}
+  if(label) txt(svg,x,y+(cls==='cov'?4:4),label,{'text-anchor':'middle','font-size':(cls==='tau'?9:11),'font-family':'SF Mono, monospace',fill:'#222'});
+}
+function drawModel(spec){
+  const svg=el('svg',{width:spec.w,height:spec.h,viewBox:`0 0 ${spec.w} ${spec.h}`});
+  const N=spec.nodes;
+  // edges first (under nodes)
+  for(const e of spec.edges){const[ax,ay]=N[e[0]],[bx,by]=N[e[1]],type=e[2],lab=e[3];
+    if(type==='coil') coil(svg,ax,ay,bx,by,'#9a9a9a',6,5);
+    else if(type==='tau') coil(svg,ax,ay,bx,by,'#9a86c9',5,4);
+    else if(type==='slope') coil(svg,ax,ay,bx,by,'#46a35e',5,4);
+    else if(type==='rod') svg.appendChild(el('line',{x1:ax,y1:ay,x2:bx,y2:by,stroke:'#bbb','stroke-width':1.4}));
+    else if(type==='feedback'){ // curved self-referential coupling
+      const mx2=(ax+bx)/2, my2=Math.min(ay,by)-34;
+      svg.appendChild(el('path',{d:`M ${ax} ${ay} Q ${mx2} ${my2} ${bx} ${by}`,fill:'none',stroke:'#d22','stroke-width':2,'stroke-dasharray':'4 2','marker-end':'url(#arr)'}));
+      if(lab) txt(svg,mx2,my2+4,lab,{'text-anchor':'middle','font-size':10,fill:'#d22','font-family':'SF Mono, monospace'});
+    }
+    if(lab && type!=='feedback'){const mx2=(ax+bx)/2,my2=(ay+by)/2;
+      txt(svg,mx2+ (e[4]||0),my2-3+(e[5]||0),lab,{'text-anchor':'middle','font-size':9.5,fill:type==='tau'?'#6a5aa0':(type==='slope'?'#1a7a33':'#888'),'font-family':'SF Mono, monospace'});}
+  }
+  // arrow marker
+  const defs=el('defs',{});const m=el('marker',{id:'arr',markerWidth:8,markerHeight:8,refX:6,refY:3,orient:'auto'});
+  m.appendChild(el('path',{d:'M0 0 L6 3 L0 6 Z',fill:'#d22'}));defs.appendChild(m);svg.insertBefore(defs,svg.firstChild);
+  // nodes
+  for(const k in N){if(N[k].length>=4) node(svg,N[k][0],N[k][1],N[k][2],N[k][3]);}
+  return svg;
+}
+
+// ---- two-study layout shorthand: control arm A (ref) + active arm B ----
+// returns node positions; models add slope nodes / edges on top.
+function base(reg){ // reg: include external covariate squares?
+  return {
+    dB:[430,46,'d_B','trt'], dA:[470,250,'0','pin'],
+    m1:[150,150,'μ₁','study'], m2:[320,150,'μ₂','study'],
+  };
+}
+const MODELS=[
+ {grp:'Standard NMA (no regression)',
+  title:'① Fixed-effect NMA', tag:'base', w:520,h:290,
+  nodes:{dB:[400,50,'d_B','trt'],dA:[400,250,'0','pin'],m1:[140,150,'μ₁','study'],m2:[300,150,'μ₂','study']},
+  edges:[['m1','dA','coil','yᶜ₁'],['m1','dB','coil','yᵗ₁'],['m2','dA','coil','yᶜ₂'],['m2','dB','coil','yᵗ₂']],
+  cap:'Each arm is an observation spring from its study baseline node μ_i to a treatment node (reference d_A pinned at 0). Hardness = arm precision; rest length = the observed arm value.'},
+
+ {grp:'Standard NMA (no regression)',
+  title:'② Random-effects NMA', tag:'+ τ', w:520,h:290,
+  nodes:{dB:[400,50,'d_B','trt'],dA:[400,255,'0','pin'],
+    m1:[140,150,'μ₁','study'],t1:[270,100,'τ','tau'],tc1:[270,200,'τ','tau'],
+    m2:[300,150,'μ₂','study'],t2:[360,110,'τ','tau'],tc2:[360,205,'τ','tau']},
+  edges:[['m1','t1','tau','1/τ²'],['t1','dB','coil'],['m1','tc1','tau','1/τ²'],['tc1','dA','coil'],
+         ['m2','t2','tau'],['t2','dB','coil'],['m2','tc2','tau'],['tc2','dA','coil']],
+  cap:'Insert a tau node + tau spring (hardness 1/τ²ₐᵣₘ) on each arm, in series with the observation spring. FE is the τ→0 rigid-spring limit. The τ² posterior is the spring partition function Z(τ²).'},
+
+ {grp:'Covariate meta-regression (external x_i)',
+  title:'③ Shared β, fixed effect', tag:'+ rod', w:560,h:300,
+  nodes:{dB:[380,55,'d_B','trt'],beta:[490,55,'β','slope'],dA:[380,255,'0','pin'],
+    x1:[150,80,'x₁','cov'],x2:[330,80,'x₂','cov'],
+    m1:[150,170,'μ₁','study'],m2:[330,170,'μ₂','study'],e1:[380,150,'','pin'],e2:[430,120,'','pin']},
+  edges:[['m1','dA','coil','yᶜ₁'],['m2','dA','coil','yᶜ₂'],
+    ['m1','dB','coil','yᵗ₁'],['m2','dB','coil','yᵗ₂'],
+    ['x1','beta','rod','β·x₁'],['x2','beta','rod','β·x₂']],
+  cap:'The active arm\'s treatment end is shifted by a <code>β·x_i</code> rod, where x_i is an <b>external pinned</b> covariate value (gray square). One shared slope node β. The rod has a <b>fixed length</b> (x_i is data).'},
+
+ {grp:'Covariate meta-regression (external x_i)',
+  title:'④ Exchangeable β', tag:'+ slope-springs', w:560,h:300, complex:true,
+  nodes:{B:[470,40,'B','cslope'],bB:[380,95,'β_B','slope'],bC:[470,95,'β_C','slope'],bD:[560-10,95,'β_D','slope'],
+    x1:[150,80,'x₁','cov'],m1:[150,180,'μ₁','study'],dB:[300,150,'d_t','trt'],dA:[300,260,'0','pin']},
+  edges:[['m1','dA','coil'],['m1','dB','coil'],['x1','bB','rod','β_B·x'],
+    ['bB','B','slope','1/σ_B²'],['bC','B','slope','1/σ_B²'],['bD','B','slope','1/σ_B²']],
+  cap:'Per-treatment slopes β_t tied to a common mean B by <b>slope-springs</b> of hardness 1/σ_B² — structurally identical to the τ springs, one level up. σ_B²→0 ⇒ shared; σ_B²→∞ ⇒ unrelated.'},
+
+ {grp:'Baseline-risk regression (self-referential)',
+  title:'⑤ Shared B, fixed effect', tag:'core', w:560,h:300, complex:true,
+  nodes:{dB:[380,60,'d_B','trt'],B:[500,60,'B','slope'],dA:[380,260,'0','pin'],
+    m1:[150,175,'μ₁','study'],m2:[330,175,'μ₂','study']},
+  edges:[['m1','dA','coil','yᶜ₁'],['m2','dA','coil','yᶜ₂'],
+    ['m1','dB','coil','yᵗ₁'],['m2','dB','coil','yᵗ₂'],
+    ['m1','dB','feedback','+B·(μ₁−mx)'],['m2','dB','feedback','+B·(μ₂−mx)']],
+  cap:'The regressor IS the baseline node: the active rod ties back to μ_i (red), so its length depends on the study\'s own baseline — ∂ℓ/∂μ_i = 1+B, ∂ℓ/∂B = μ_i−mx. Both arms share μ_i = randomization.',
+  ok:'verified: force-balance = MLE, max|net force| = 2.95e-12'},
+
+ {grp:'Baseline-risk regression (self-referential)',
+  title:'⑥ Shared B, random effects', tag:'+ τ', w:560,h:300, complex:true,
+  nodes:{dB:[400,60,'d_B','trt'],B:[510,60,'B','slope'],dA:[400,265,'0','pin'],
+    m1:[150,170,'μ₁','study'],tt1:[290,115,'τ','tau'],tc1:[290,220,'τ','tau'],
+    m2:[320,170,'μ₂','study'],tt2:[370,120,'τ','tau'],tc2:[370,225,'τ','tau']},
+  edges:[['m1','tt1','tau','1/τ²'],['tt1','dB','coil'],['m1','tc1','tau'],['tc1','dA','coil'],
+    ['m2','tt2','tau'],['tt2','dB','coil'],['m2','tc2','tau'],['tc2','dA','coil'],
+    ['m1','dB','feedback','+B·(μ₁−mx)'],['m2','dB','feedback','+B·(μ₂−mx)']],
+  cap:'Add tau nodes + tau springs (heterogeneity) to ⑤. Two variance components now coexist as springs to shared nodes: τ (study baseline) and — in ⑧ — σ_B² (slopes).'},
+
+ {grp:'Baseline-risk regression (self-referential)',
+  title:'⑦ Unrelated B_t', tag:'split slope', w:560,h:300, complex:true,
+  nodes:{dB:[300,55,'d_B','trt'],dC:[430,55,'d_C','trt'],
+    BB:[300,18,'B_B','slope'],BC:[430,18,'B_C','slope'],dA:[365,260,'0','pin'],
+    m1:[150,170,'μ₁','study'],m2:[300,200,'μ₂','study']},
+  edges:[['m1','dA','coil'],['m2','dA','coil'],['m1','dB','coil','yᵗ'],['m2','dC','coil','yᵗ'],
+    ['m1','dB','feedback','+B_B(μ₁−mx)'],['m2','dC','feedback','+B_C(μ₂−mx)']],
+  cap:'Independent slope node per treatment, coupled only to that treatment\'s active rods. A treatment in a single study has an <b>unidentified</b> B_t (rod free to rotate) — reported with a large SE via a weak ridge.'},
+
+ {grp:'Baseline-risk regression (self-referential)',
+  title:'⑧ Exchangeable B_t', tag:'+ slope-springs', w:560,h:300, complex:true,
+  nodes:{B:[430,22,'B','cslope'],BB:[330,80,'B_B','slope'],BC:[430,80,'B_C','slope'],BD:[530,80,'B_D','slope'],
+    dB:[300,160,'d_t','trt'],dA:[300,265,'0','pin'],m1:[150,200,'μ₁','study']},
+  edges:[['m1','dA','coil'],['m1','dB','coil'],['m1','dB','feedback','+B_t(μ−mx)'],
+    ['BB','B','slope','1/σ_B²'],['BC','B','slope','1/σ_B²'],['BD','B','slope','1/σ_B²']],
+  cap:'Per-treatment slopes B_t tied to a common mean B by slope-springs of hardness 1/σ_B². The <b>2-D grand canonical</b> Ξ(τ²,σ_B²) integrates BOTH variance components — the slope-springs are "free, coming and going" exactly like the τ-springs — instead of maximising σ_B² (EM). This lifts σ_B² off the REML boundary.',
+  ok:'2-D GC lifts σ_B² off boundary: EM 0.00004 → GC mean 0.030 ≈ bnma 0.044 (sim); slopes+SDs match bnma'},
+
+ {grp:'Baseline-risk regression (self-referential)',
+  title:'⑨ Continuous (mean difference)', tag:'Gaussian springs', w:560,h:300, complex:true,
+  nodes:{dB:[380,60,'d_B','trt'],B:[500,60,'B','slope'],dA:[380,260,'0','pin'],
+    m1:[150,175,'μ₁','study'],m2:[330,175,'μ₂','study']},
+  edges:[['m1','dA','coil','1/v'],['m2','dA','coil','1/v'],
+    ['m1','dB','coil','1/v'],['m2','dB','coil','1/v'],
+    ['m1','dB','feedback','+B·(μ₁−mx)'],['m2','dB','feedback','+B·(μ₂−mx)']],
+  cap:'Identical network to ⑤–⑧, but every observation spring is <b>Gaussian</b> (hardness 1/v, energy ½(x−y)²/v) instead of binomial. The bilinear rod is unchanged, so still a Gauss–Newton equilibrium.',
+  ok:'verified: force-balance = WLS-MLE, max|net force| = 1.46e-11'},
+];
+
+const root=document.getElementById('root');
+let curGrp=null,grid=null;
+for(const m of MODELS){
+  if(m.grp!==curGrp){curGrp=m.grp;const h=document.createElement('h2');h.textContent=m.grp;root.appendChild(h);
+    grid=document.createElement('div');grid.className='grid';root.appendChild(grid);}
+  const card=document.createElement('div');card.className='card'+(m.complex?' complex':'');
+  card.innerHTML=`<h3>${m.title}<span class="tag">${m.tag}</span></h3>`;
+  card.appendChild(drawModel(m));
+  const cap=document.createElement('div');cap.className='cap';cap.innerHTML=m.cap+(m.ok?` <span class="ok">✓ ${m.ok}</span>`:'');
+  card.appendChild(cap);
+  grid.appendChild(card);
+}
+</script>
+</body>
+</html>

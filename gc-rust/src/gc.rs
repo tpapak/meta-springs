@@ -19,6 +19,9 @@ pub enum Tau2Prior {
     Flat,
     HalfNormalTau(f64),
     HalfCauchyTau(f64),
+    /// τ (the heterogeneity SD) ~ Uniform(0, upper). This is gemtc's default
+    /// `mtc.hy.prior("std.dev", "dunif", 0, om.scale)`; `upper` = om.scale.
+    UniformSD(f64),
 }
 
 impl Tau2Prior {
@@ -43,6 +46,7 @@ impl Tau2Prior {
                     format!("HalfCauchy(τ; σ={})", s)
                 }
             }
+            Tau2Prior::UniformSD(u) => format!("Uniform(τ; 0, {})", u),
         }
     }
 
@@ -56,6 +60,11 @@ impl Tau2Prior {
             Tau2Prior::HalfNormalTau(s) => -0.5 * t2.ln() - 0.5 * t2 / (s * s),
             Tau2Prior::HalfCauchyTau(s) => {
                 -0.5 * t2.ln() - (1.0 + t2 / (s * s)).ln()
+            }
+            // Uniform on τ = √τ² over [0, u]: density on τ² is ∝ τ²^(-1/2)
+            // (the Jacobian dτ/dτ²) truncated at τ² = u². Constant dropped.
+            Tau2Prior::UniformSD(u) => {
+                if t2 > u * u { -1e30 } else { -0.5 * t2.ln() }
             }
         }
     }
@@ -181,6 +190,27 @@ pub fn adaptive_grid_taus_with(
         .collect()
 }
 
+/// Like [`adaptive_grid_taus_with`] but guarantees the upper τ² reaches at
+/// least `min_hi`. Needed when a bounded prior (e.g. Uniform on τ over
+/// `[0, u]`, gemtc's default) places posterior mass at large τ² that the
+/// REML-mode-centred default bound would otherwise truncate.
+pub fn adaptive_grid_taus_min_hi(
+    reml_mode: f64,
+    n_pts: usize,
+    bounds: GridBounds,
+    min_hi: f64,
+) -> Vec<f64> {
+    let t_hat = reml_mode.max(1e-5);
+    let (lo, hi0) = bounds.lo_hi(t_hat);
+    let hi = hi0.max(min_hi);
+    (0..n_pts)
+        .map(|i| {
+            let f = i as f64 / (n_pts as f64 - 1.0);
+            lo * (hi / lo).powf(f)
+        })
+        .collect()
+}
+
 /// Run the GC pipeline against an arbitrary likelihood by passing in the
 /// per-grid-point evaluator. Returns the REML mode and a τ²-sorted grid.
 pub fn run_adaptive_with<F: Fn(f64) -> GridPoint>(
@@ -188,11 +218,54 @@ pub fn run_adaptive_with<F: Fn(f64) -> GridPoint>(
     n_pts: usize,
     bounds: GridBounds,
 ) -> (f64, Vec<GridPoint>) {
+    run_adaptive_with_min_hi(eval_at, n_pts, bounds, 0.0)
+}
+
+/// As [`run_adaptive_with`] but with a minimum upper τ² bound (see
+/// [`adaptive_grid_taus_min_hi`]).
+pub fn run_adaptive_with_min_hi<F: Fn(f64) -> GridPoint>(
+    eval_at: F,
+    n_pts: usize,
+    bounds: GridBounds,
+    min_hi: f64,
+) -> (f64, Vec<GridPoint>) {
     let mode = find_reml_mode_with(|t2| eval_at(t2).log_z);
-    let mut taus = adaptive_grid_taus_with(mode, n_pts, bounds);
+    let mut taus = adaptive_grid_taus_min_hi(mode, n_pts, bounds, min_hi);
     taus.sort_by(|a, b| a.partial_cmp(b).unwrap());
     let grid: Vec<GridPoint> = taus.iter().map(|&t| eval_at(t)).collect();
     (mode, grid)
+}
+
+/// Convenience: run the right backend by `Dataset::mode`, with a minimum upper
+/// τ² grid bound. Mirrors [`run_adaptive_auto`].
+pub fn run_adaptive_auto_min_hi(
+    ds: &Dataset,
+    n_pts: usize,
+    min_hi: f64,
+) -> (Topology, f64, Vec<GridPoint>) {
+    match ds.mode {
+        Mode::Binary => {
+            let topo = Topology::build(ds);
+            let (mode, grid) = run_adaptive_with_min_hi(
+                |t2| eval_xi_at(&topo, t2),
+                n_pts,
+                GridBounds::Binomial,
+                min_hi,
+            );
+            (topo, mode, grid)
+        }
+        Mode::Continuous => {
+            let topo = Topology::build(ds);
+            let arms = cont_arms(ds);
+            let (mode, grid) = run_adaptive_with_min_hi(
+                |t2| eval_xi_cont_at(&topo, &arms, t2),
+                n_pts,
+                GridBounds::Continuous,
+                min_hi,
+            );
+            (topo, mode, grid)
+        }
+    }
 }
 
 /// Run the binomial GC pipeline. Mirrors the existing public API used by the

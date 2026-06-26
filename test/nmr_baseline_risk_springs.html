@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Baseline-risk NMR — the spring network</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { font-family:'Helvetica Neue',Helvetica,Arial,sans-serif; background:#fafafa; color:#222;
+    display:flex; flex-direction:column; align-items:center; padding:20px; }
+  h1 { font-size:19px; font-weight:600; margin-bottom:4px; }
+  .subtitle { font-size:13px; color:#666; margin-bottom:12px; max-width:1040px; text-align:center; line-height:1.55; }
+  .subtitle code { background:#eee; padding:1px 4px; border-radius:3px; }
+  .ctrl-row { display:flex; gap:10px; align-items:center; margin-bottom:8px; flex-wrap:wrap; justify-content:center; }
+  button { padding:5px 14px; border:1px solid #aaa; border-radius:4px; background:#fff; cursor:pointer; font-size:13px; }
+  button:hover { background:#eee; }
+  button.active { background:#333; color:#fff; border-color:#333; }
+  label { font-size:13px; color:#555; }
+  input[type=range] { width:160px; vertical-align:middle; }
+  .pill { font-family:'SF Mono','Consolas',monospace; font-size:14px; background:#fff3e0; border:1px solid #f0b27a;
+    border-radius:4px; padding:3px 10px; color:#b35a00; font-weight:600; min-width:120px; text-align:center; }
+  .pill.tau { background:#f0f4ff; border-color:#c4d4f4; color:#1a3a6e; }
+  .pill.en  { background:#f3fff0; border-color:#bfe6b0; color:#2e6e1a; }
+  svg { border:1px solid #ddd; border-radius:6px; background:#fff; }
+  .legend { margin-top:10px; font-size:12px; color:#777; max-width:1060px; text-align:center; line-height:1.7; }
+  .legend b { color:#555; } .legend .k { font-family:'SF Mono',monospace; }
+</style>
+</head>
+<body>
+<h1>Baseline-risk network meta-regression — the honest spring network</h1>
+<div class="subtitle">
+  The treatment effect is regressed on each trial's <b>own baseline risk</b> (control-arm log-odds, the latent node
+  <span class="k">η<sub>i</sub></span>), the Achana&nbsp;2013 / <code>bnma</code> model MetaInsight uses.
+  Each study is a point hanging from its treatment's shared-slope line by a spring of stiffness = arm information.
+  The line is <span class="k">effect = d<sub>t</sub> + B·(η<sub>i</sub>−mx)</span>; drag <b>B</b> to feel the springs —
+  the total energy (Σ stiffness·gap²) is minimised at the fitted slope. Self-referential: η<sub>i</sub> sets both a
+  point's <i>x</i>-position <i>and</i> enters its effect — the rod ties to the node, not to an external covariate.
+</div>
+
+<div class="ctrl-row">
+  <button class="ds active" data-ds="certolizumab">Certolizumab (real)</button>
+  <button class="ds" data-ds="sim">Simulation (truth B = −0.60)</button>
+</div>
+<div class="ctrl-row">
+  <button class="sm active" data-sm="shared">shared β</button>
+  <button class="sm" data-sm="unrelated">unrelated β_t</button>
+  <button class="sm" data-sm="exchangeable">exchangeable</button>
+</div>
+<div class="ctrl-row">
+  <label id="bLabel">slope B: <input type="range" id="bSlider" min="-2.0" max="1.0" step="0.001" value="-0.85"></label>
+  <span class="pill" id="bPill">B = −0.85</span>
+  <button id="btnFit">Snap to fit</button>
+  <label><input type="checkbox" id="cbSprings" checked> springs</label>
+  <span class="pill tau" id="sigPill" style="display:none">σ_B² = —</span>
+  <span class="pill en" id="enPill">energy = —</span>
+</div>
+
+<svg id="canvas" width="1100" height="600"></svg>
+
+<div class="legend">
+  <b>x</b> = baseline log-odds <span class="k">η<sub>i</sub></span> (left = low control risk, right = high) &nbsp;·&nbsp;
+  <b>y</b> = treatment effect (log-OR vs control) &nbsp;·&nbsp;
+  dashed vertical = centering <span class="k">mx</span>; reported <span class="k">d<sub>t</sub></span> is the effect there. <br>
+  <b>Shared node = randomization:</b> both arms of a trial attach to one <span class="k">η<sub>i</sub></span> — the treated
+  group, untreated, would share the control's baseline. A non-zero <b>B</b> is a study-level (ecological) association:
+  genuine effect-modification, scale compression, and trial-conduct/blinding artefacts are not separable.
+</div>
+
+<script>
+const svg = document.getElementById('canvas');
+const W = 1100, H = 600, margin = {top:30,right:170,bottom:50,left:60};
+const plotW = W-margin.left-margin.right, plotH = H-margin.top-margin.bottom;
+function el(tag,a){ const e=document.createElementNS('http://www.w3.org/2000/svg',tag); for(const k in a) e.setAttribute(k,a[k]); return e; }
+function txt(x,y,s,o){ const e=el('text',Object.assign({x,y},o||{})); e.textContent=s; svg.appendChild(e); return e; }
+
+const COLORS = ['#e6550d','#3182bd','#31a354','#756bb1','#e377c2','#17becf','#bcbd22','#8c564b'];
+let DATA=null, ds='certolizumab', sm='shared', userB=-0.85, showSprings=true, fitB=-0.85;
+
+// per-study derived: x=eta, observed contrast y, stiffness
+function prep(d){
+  const studies = d.studies.map(s=>{
+    const obs = s.actLO - s.ctrlLO;                       // observed contrast (log-OR)
+    const kc = s.ctrlE*(s.ctrlN-s.ctrlE)/s.ctrlN, ka = s.actE*(s.actN-s.actE)/s.actN; // ~ n p(1-p)
+    const varc = (kc>0?1/kc:1) + (ka>0?1/ka:1);
+    return { id:s.id, active:s.active, x:+s.eta, y:obs, w:1/varc };
+  });
+  return { mx:+d.mx, models:d.models, treats:d.treats, studies };
+}
+// shared model: intercepts d_t(B) = weighted mean residual (best-fit at the dragged B)
+function intercepts(P,B){
+  const acc={};
+  for(const s of P.studies){ const r=s.y - B*(s.x-P.mx); (acc[s.active]=acc[s.active]||[]).push([r,s.w]); }
+  const d={}; for(const t in acc){ let sw=0,swr=0; for(const [r,w] of acc[t]){sw+=w;swr+=w*r;} d[t]=swr/sw; } return d;
+}
+// lineFor(t) -> {b, d}: shared uses the dragged B + refit intercepts; unrelated/exchangeable
+// use the real fitted per-treatment slope b_t and intercept d_t from the Haskell fit.
+function lineFns(P){
+  if(sm==='shared'){ const d=intercepts(P,userB); return t=>({b:userB, d:d[t]}); }
+  const m=P.models[sm]; return t=>({b:+m.bt[t], d:+m.d[t]});
+}
+function energy(P){ const L=lineFns(P); let E=0;
+  for(const s of P.studies){ const ln=L(s.active); E+=s.w*(s.y-(ln.d+ln.b*(s.x-P.mx)))**2; } return E; }
+
+function render(){
+  while(svg.firstChild) svg.removeChild(svg.firstChild);
+  if(!DATA) return;
+  const P = prep(DATA[ds]);
+  const L = lineFns(P);
+  const xs_ = P.studies.map(s=>s.x), ys_ = P.studies.map(s=>s.y);
+  const xlo=Math.min(...xs_)-0.4, xhi=Math.max(...xs_)+0.4;
+  const ylo=Math.min(...ys_,0)-0.4, yhi=Math.max(...ys_)+0.4;
+  const X=v=>margin.left+(v-xlo)/(xhi-xlo)*plotW, Y=v=>margin.top+(yhi-v)/(yhi-ylo)*plotH;
+  // grid + axes
+  for(let g=Math.ceil(xlo); g<=xhi; g++){ svg.appendChild(el('line',{x1:X(g),y1:margin.top,x2:X(g),y2:margin.top+plotH,stroke:'#f4f4f4'})); txt(X(g),margin.top+plotH+16,g.toFixed(0),{'font-size':11,fill:'#999','text-anchor':'middle'}); }
+  for(let g=Math.ceil(ylo); g<=yhi; g++){ svg.appendChild(el('line',{x1:margin.left,y1:Y(g),x2:margin.left+plotW,y2:Y(g),stroke:'#f4f4f4'})); txt(margin.left-8,Y(g)+4,g.toFixed(0),{'font-size':11,fill:'#999','text-anchor':'end'}); }
+  svg.appendChild(el('line',{x1:margin.left,y1:Y(0),x2:margin.left+plotW,y2:Y(0),stroke:'#ccc','stroke-dasharray':'4 3'}));
+  // centering mx
+  svg.appendChild(el('line',{x1:X(P.mx),y1:margin.top,x2:X(P.mx),y2:margin.top+plotH,stroke:'#9aa','stroke-dasharray':'5 4'}));
+  txt(X(P.mx),margin.top-8,'mx',{'font-size':11,fill:'#789','text-anchor':'middle'});
+  txt(margin.left+plotW/2,H-12,'baseline log-odds  η_i  (control-arm risk)',{'font-size':12,fill:'#666','text-anchor':'middle'});
+  txt(16,margin.top+plotH/2,'treatment effect (log-OR)',{'font-size':12,fill:'#666','text-anchor':'middle',transform:`rotate(-90,16,${margin.top+plotH/2})`});
+  // per-treatment lines (slopes are equal for shared, independent for unrelated, shrunk for
+  // exchangeable). Collect label positions, then de-collide.
+  const labels=[];
+  P.treats.forEach((t,i)=>{ const c=COLORS[i%COLORS.length]; const ln=L(t);
+    const y1=ln.d+ln.b*(xlo-P.mx), y2=ln.d+ln.b*(xhi-P.mx);
+    svg.appendChild(el('line',{x1:X(xlo),y1:Y(y1),x2:X(xhi),y2:Y(y2),stroke:c,'stroke-width':2,opacity:0.85}));
+    labels.push({t,c,y:Y(y2)});
+  });
+  labels.sort((a,b)=>a.y-b.y);
+  for(let i=1;i<labels.length;i++) if(labels[i].y - labels[i-1].y < 15) labels[i].y = labels[i-1].y + 15;
+  labels.forEach(LB=>txt(margin.left+plotW+8, LB.y+4, LB.t, {'font-size':12,fill:LB.c,'font-weight':600}));
+  // springs (residual) + study points
+  P.studies.forEach(s=>{ const i=P.treats.indexOf(s.active); const c=COLORS[i%COLORS.length];
+    const ln=L(s.active); const fit=ln.d+ln.b*(s.x-P.mx);
+    if(showSprings){ const x=X(s.x), y0=Y(s.y), y1=Y(fit), n=6; let dpath=`M ${x} ${y0}`;
+      for(let k=1;k<n;k++){ const yy=y0+(y1-y0)*k/n, dx=(k%2?1:-1)*4; dpath+=` L ${x+dx} ${yy}`; }
+      dpath+=` L ${x} ${y1}`;
+      svg.appendChild(el('path',{d:dpath,stroke:'#bbb',fill:'none','stroke-width':1.2}));
+    }
+    svg.appendChild(el('circle',{cx:X(s.x),cy:Y(s.y),r:5,fill:c,opacity:0.9,stroke:'#fff','stroke-width':1.2}));
+  });
+  // readouts
+  const m=P.models[sm], E=energy(P);
+  document.getElementById('bLabel').style.display = (sm==='shared')?'inline':'none';
+  if(sm==='shared'){ document.getElementById('bPill').textContent='B = '+userB.toFixed(3);
+    document.getElementById('bPill').style.display='inline'; fitB=+m.B; }
+  else { document.getElementById('bPill').textContent='β_t fitted'; document.getElementById('bPill').style.display='inline'; }
+  const sig=document.getElementById('sigPill');
+  if(sm==='exchangeable' && m.sigmaB2!=null){ sig.style.display='inline'; sig.textContent='σ_B² = '+(+m.sigmaB2).toFixed(4); }
+  else sig.style.display='none';
+  document.getElementById('enPill').textContent='energy = '+E.toFixed(2)+((sm==='shared'&&Math.abs(userB-(+m.B))<0.005)?'  (min)':'');
+}
+
+function setDS(d){ ds=d; DATA && (userB=+DATA[ds].models.shared.B, document.getElementById('bSlider').value=userB);
+  document.querySelectorAll('.ds').forEach(b=>b.classList.toggle('active',b.dataset.ds===d)); render(); }
+function setSM(s){ sm=s; document.querySelectorAll('.sm').forEach(b=>b.classList.toggle('active',b.dataset.sm===s));
+  if(s==='shared'&&DATA){ userB=+DATA[ds].models.shared.B; document.getElementById('bSlider').value=userB; } render(); }
+
+document.querySelectorAll('.ds').forEach(b=>b.onclick=()=>setDS(b.dataset.ds));
+document.querySelectorAll('.sm').forEach(b=>b.onclick=()=>setSM(b.dataset.sm));
+document.getElementById('bSlider').oninput = e=>{ userB=+e.target.value; render(); };
+document.getElementById('btnFit').onclick = ()=>{ userB=fitB; document.getElementById('bSlider').value=userB; render(); };
+document.getElementById('cbSprings').onchange = e=>{ showSprings=e.target.checked; render(); };
+
+fetch('nmr_baseline_risk_viz.json').then(r=>r.json()).then(j=>{ DATA=j; setDS('certolizumab'); })
+  .catch(e=>{ txt(W/2,H/2,'could not load nmr_baseline_risk_viz.json',{'text-anchor':'middle',fill:'#c00'}); });
+</script>
+</body>
+</html>

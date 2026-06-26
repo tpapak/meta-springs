@@ -1,0 +1,110 @@
+[
+  {
+    "study": "RAPID 1",
+    "treatmentA": "Placebo",
+    "eventsA": 15,
+    "nA": 199,
+    "treatmentB": "CZP",
+    "eventsB": 146,
+    "nB": 393
+  },
+  {
+    "study": "RAPID 2",
+    "treatmentA": "Placebo",
+    "eventsA": 4,
+    "nA": 127,
+    "treatmentB": "CZP",
+    "eventsB": 80,
+    "nB": 246
+  },
+  {
+    "study": "Kim 2007",
+    "treatmentA": "Placebo",
+    "eventsA": 9,
+    "nA": 63,
+    "treatmentB": "Adalimumab",
+    "eventsB": 28,
+    "nB": 65
+  },
+  {
+    "study": "DE019",
+    "treatmentA": "Placebo",
+    "eventsA": 19,
+    "nA": 200,
+    "treatmentB": "Adalimumab",
+    "eventsB": 81,
+    "nB": 207
+  },
+  {
+    "study": "ARMADA",
+    "treatmentA": "Placebo",
+    "eventsA": 5,
+    "nA": 62,
+    "treatmentB": "Adalimumab",
+    "eventsB": 37,
+    "nB": 67
+  },
+  {
+    "study": "Weinblatt 1999",
+    "treatmentA": "Placebo",
+    "eventsA": 1,
+    "nA": 30,
+    "treatmentB": "Etanercept",
+    "eventsB": 23,
+    "nB": 59
+  },
+  {
+    "study": "START",
+    "treatmentA": "Placebo",
+    "eventsA": 33,
+    "nA": 363,
+    "treatmentB": "Infliximab",
+    "eventsB": 110,
+    "nB": 360
+  },
+  {
+    "study": "ATTEST",
+    "treatmentA": "Placebo",
+    "eventsA": 22,
+    "nA": 110,
+    "treatmentB": "Infliximab",
+    "eventsB": 61,
+    "nB": 165
+  },
+  {
+    "study": "Abe 2006",
+    "treatmentA": "Placebo",
+    "eventsA": 0,
+    "nA": 47,
+    "treatmentB": "Infliximab",
+    "eventsB": 15,
+    "nB": 49
+  },
+  {
+    "study": "Strand 2006",
+    "treatmentA": "Placebo",
+    "eventsA": 5,
+    "nA": 40,
+    "treatmentB": "Rituximab",
+    "eventsB": 5,
+    "nB": 40
+  },
+  {
+    "study": "CHARISMA",
+    "treatmentA": "Placebo",
+    "eventsA": 14,
+    "nA": 49,
+    "treatmentB": "Tocilizumab",
+    "eventsB": 26,
+    "nB": 50
+  },
+  {
+    "study": "OPTION",
+    "treatmentA": "Placebo",
+    "eventsA": 22,
+    "nA": 204,
+    "treatmentB": "Tocilizumab",
+    "eventsB": 90,
+    "nB": 205
+  }
+]

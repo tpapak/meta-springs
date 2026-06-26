@@ -157,11 +157,22 @@ pub fn eval_xi_cont_at(
         }
     }
 
+    // Full joint covariance of the effect vector (treatment block of a_inv).
+    let mut eff_cov = vec![vec![0.0_f64; n_t]; n_t];
+    for t in 1..n_t {
+        let it = n_studies + t - 1;
+        for s in 1..n_t {
+            let is = n_studies + s - 1;
+            eff_cov[t][s] = a_inv[(it, is)];
+        }
+    }
+
     GridPoint {
         tau2: tau2c,
         log_z,
         effects,
         eff_vars,
+        eff_cov,
         // No iteration in the Gaussian path; report 1.
         iters: 1,
     }
