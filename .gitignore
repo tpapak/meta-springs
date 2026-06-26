@@ -2,6 +2,9 @@
 meta-springs.cabal
 *~
 notes/
+paper/
+__pycache__/
+*.pyc
 .DS_Store
 *.swp
 *.swo
