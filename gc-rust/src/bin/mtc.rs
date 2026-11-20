@@ -24,7 +24,9 @@ use std::fs;
 use std::time::Instant;
 
 use gc_rust::data::{read_dataset, Mode};
-use gc_rust::gc::{grid_weights, posterior_under, run_adaptive_auto_min_hi, Tau2Prior};
+use gc_rust::gc::{grid_weights, log_marginal, posterior_under, run_adaptive_auto_min_hi, Tau2Prior};
+use gc_rust::solver::eval_xi_at;
+use gc_rust::solver_cont::{cont_arms, eval_xi_cont_at};
 
 #[derive(Parser, Debug)]
 #[command(name = "mtc", about = "GC NMA gemtc-facade posterior sampler")]
@@ -81,7 +83,16 @@ fn parse_prior(s: &str) -> Tau2Prior {
     if let Some(rest) = s.strip_prefix("unif:") {
         return Tau2Prior::UniformSD(rest.parse().expect("prior upper"));
     }
-    panic!("unknown --prior '{s}' (use flat | hn:SIGMA | hc:SIGMA | unif:UPPER)");
+    // Log-normal on τ² (Turner / Rhodes empirical priors): `ln:MU:SIGMA`.
+    if let Some(rest) = s.strip_prefix("ln:") {
+        let v: Vec<f64> = rest.split(':').map(|x| x.parse().expect("ln:MU:SIGMA")).collect();
+        assert!(v.len() == 2, "ln prior needs ln:MU:SIGMA");
+        return Tau2Prior::LogNormalTau2(v[0], v[1]);
+    }
+    if let Some(rest) = s.strip_prefix("exp:") {
+        return Tau2Prior::ExpTau(rest.parse().expect("exp rate"));
+    }
+    panic!("unknown --prior '{s}' (use flat | hn:SIGMA | hc:SIGMA | unif:UPPER | ln:MU:SIGMA | exp:RATE)");
 }
 
 /// splitmix64 -> uniforms; tiny, deterministic, no external dependency.
@@ -277,7 +288,28 @@ fn fit_log_nma(input: &str, samples: usize, seed: u64, n_grid: usize, random: bo
 }
 
 #[derive(Serialize)]
-struct EffSummary { to: String, mean: f64, sd: f64, lo: f64, hi: f64 }
+struct EffSummary {
+    to: String, mean: f64, sd: f64, lo: f64, hi: f64,
+    /// deterministic: moments and 95% interval of the exact τ²-mixture of
+    /// Gaussians (no Monte Carlo error)
+    mean_exact: f64, sd_exact: f64, lo_exact: f64, hi_exact: f64,
+}
+
+/// Quantile of a Gaussian mixture Σ w_k N(m_k, s_k²) by bisection on its CDF.
+fn mixture_quantile(comp: &[(f64, f64, f64)], p: f64) -> f64 {
+    let cdf = |x: f64| -> f64 {
+        comp.iter().map(|(w, m, s)| w * 0.5 * libm::erfc(-(x - m) / (s * std::f64::consts::SQRT_2))).sum()
+    };
+    let lo0 = comp.iter().map(|(_, m, s)| m - 12.0 * s).fold(f64::INFINITY, f64::min);
+    let hi0 = comp.iter().map(|(_, m, s)| m + 12.0 * s).fold(f64::NEG_INFINITY, f64::max);
+    let (mut a, mut b) = (lo0, hi0);
+    for _ in 0..200 {
+        let c = 0.5 * (a + b);
+        if cdf(c) < p { a = c } else { b = c }
+        if b - a < 1e-12 { break; }
+    }
+    0.5 * (a + b)
+}
 
 #[derive(Serialize)]
 struct PriorSummary {
@@ -285,6 +317,10 @@ struct PriorSummary {
     tau2: Tau2Out,
     sd_d_mean: f64,
     effects: Vec<EffSummary>,
+    /// log p(y | RE, prior) = log ∫ Z(τ²) π(τ²) dτ² (None for improper priors).
+    log_ml_re: Option<f64>,
+    /// log Bayes factor RE vs FE = log_ml_re − log Z(τ²→0).
+    log_bf_re_fe: Option<f64>,
 }
 
 #[derive(Serialize)]
@@ -298,6 +334,12 @@ struct SensitivityReport {
     n_samples: usize,
     seed: u64,
     fit_wall_sec: f64,
+    /// log Z at τ² → 0: the fixed-effect marginal likelihood (same constants as
+    /// the RE grid, so differences are Bayes factors).
+    log_ml_fe: f64,
+    /// the shared τ² grid (τ², log Z): everything any prior needs.
+    grid_tau2: Vec<f64>,
+    grid_log_z: Vec<f64>,
     /// one entry per requested prior, all from a single τ² grid pass.
     priors: Vec<PriorSummary>,
 }
@@ -414,6 +456,12 @@ fn main() {
 
     // ---- multi-prior sensitivity: reuse the ONE grid + chols, reweight per prior ----
     if args.priors.is_some() {
+        // FE marginal likelihood: the τ²→0 limit of the same partition function.
+        let t2_fe = 1e-9;
+        let log_ml_fe = match ds.mode {
+            Mode::Binary => eval_xi_at(&topo, t2_fe).log_z,
+            Mode::Continuous => eval_xi_cont_at(&topo, &cont_arms(&ds), t2_fe).log_z,
+        };
         let param_names: Vec<String> = treatments[1..].iter().map(|t| format!("d.{ref_t}.{t}")).collect();
         let mut out_priors = Vec::with_capacity(prior_specs.len());
         for (pi, (label, p)) in prior_specs.iter().enumerate() {
@@ -446,19 +494,34 @@ fn main() {
                 let v = &mut cols[a];
                 let mean = v.iter().sum::<f64>() / v.len() as f64;
                 let sd = (v.iter().map(|x| (x - mean).powi(2)).sum::<f64>() / v.len() as f64).sqrt();
-                EffSummary { to: treatments[a + 1].clone(), mean, sd, lo: q(v, 0.025), hi: q(v, 0.975) }
+                let comp: Vec<(f64, f64, f64)> = grid.iter().zip(&w)
+                    .filter(|(g, wi)| **wi > 0.0 && g.eff_cov[a + 1][a + 1] > 0.0)
+                    .map(|(g, wi)| (*wi, g.effects[a + 1], g.eff_cov[a + 1][a + 1].sqrt()))
+                    .collect();
+                let tw: f64 = comp.iter().map(|c| c.0).sum();
+                let comp: Vec<(f64, f64, f64)> = comp.into_iter().map(|(wi, m, s)| (wi / tw, m, s)).collect();
+                let me: f64 = comp.iter().map(|(wi, m, _)| wi * m).sum();
+                let ve: f64 = comp.iter().map(|(wi, m, s)| wi * (s * s + (m - me).powi(2))).sum();
+                EffSummary { to: treatments[a + 1].clone(), mean, sd, lo: q(v, 0.025), hi: q(v, 0.975),
+                             mean_exact: me, sd_exact: ve.sqrt(),
+                             lo_exact: mixture_quantile(&comp, 0.025), hi_exact: mixture_quantile(&comp, 0.975) }
             }).collect();
             out_priors.push(PriorSummary {
                 label: label.clone(),
                 tau2: Tau2Out { mode: post_p.mode, median: post_p.median, mean: post_p.mean, ci_lo: post_p.ci_lo, ci_hi: post_p.ci_hi },
                 sd_d_mean: sdsum / args.samples as f64,
                 effects,
+                log_ml_re: log_marginal(&grid_tlz, *p),
+                log_bf_re_fe: log_marginal(&grid_tlz, *p).map(|l| l - log_ml_fe),
             });
         }
         let report = SensitivityReport {
             dataset: args.input.clone(), mode: mode_str.to_string(), ref_treatment: ref_t.clone(),
             treatments: treatments.clone(), param_names, n_samples: args.samples, seed: args.seed,
-            fit_wall_sec: t0.elapsed().as_secs_f64(), priors: out_priors,
+            fit_wall_sec: t0.elapsed().as_secs_f64(), log_ml_fe,
+            grid_tau2: grid_tlz.iter().map(|g| g.0).collect(),
+            grid_log_z: grid_tlz.iter().map(|g| g.1).collect(),
+            priors: out_priors,
         };
         fs::write(&args.output, serde_json::to_string(&report).expect("serialise")).expect("write output");
         eprintln!("mtc: {} ({mode_str}), {} priors in ONE grid pass, {:.3}s -> {}",

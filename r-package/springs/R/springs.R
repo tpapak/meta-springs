@@ -15,7 +15,7 @@
 #' Locate the `mtc` engine binary
 #'
 #' Resolution order: option `springs.engine`, env var `SPRINGS_MTC_BIN`, then a
-#' set of conventional build locations relative to the package / repo.
+#' build location relative to the package / repo, then `mtc` on the PATH.
 #' @return Absolute path to the `mtc` binary (errors if not found).
 #' @export
 springs_engine_bin <- function() {
@@ -25,7 +25,7 @@ springs_engine_bin <- function() {
     # Dev tree: package lives at meta-springs/r-package/springs.
     file.path(find.package("springs", quiet = TRUE), "..", "..", "gc-rust",
               "target", "release", "mtc"),
-    "/Users/tosku/Sync/Documents/meta-springs/gc-rust/target/release/mtc"
+    Sys.which("mtc")  # on PATH
   )
   cand <- cand[nzchar(cand)]
   for (p in cand) {
@@ -300,11 +300,16 @@ mtc.run <- function(model, n.adapt = 5000, n.iter = 20000, thin = 1,
 #'
 #' @param model An `mtc.model` from [mtc.model()].
 #' @param priors Character vector of prior specs: `"gemtc"` (the default
-#'   `dunif(0, om.scale)`), `"flat"`, `"hn:SIGMA"`, `"hc:SIGMA"`, `"unif:UPPER"`.
+#'   `dunif(0, om.scale)`), `"flat"`, `"hn:SIGMA"`, `"hc:SIGMA"`, `"unif:UPPER"`,
+#'   `"ln:MU:SIGMA"` (log-normal on τ², e.g. Turner et al. predictive priors),
+#'   `"exp:RATE"` (exponential on τ).
 #' @param n.iter Posterior draws per prior (for the credible intervals).
 #' @param seed RNG seed.
 #' @return A data frame: one row per (prior × comparison) with `effect`/`sd`/
-#'   `lo`/`hi`, plus a `tau2_mean` column — ready for a sensitivity table/forest.
+#'   `lo`/`hi`, the τ² posterior (`tau2_mean`/`tau2_median`/`tau2_lo`/`tau2_hi`)
+#'   and `log_bf_re_fe` (log Bayes factor random vs fixed effects under that
+#'   prior; NA for improper priors). Attributes: `fit_wall_sec`, `log_ml_fe`,
+#'   and `grid` (the shared τ² partition-function grid).
 #' @export
 mtc.sensitivity <- function(model, priors = c("gemtc", "flat", "hn:0.5", "hn:1", "hc:0.5"),
                             n.iter = 4000, seed = 1) {
@@ -335,10 +340,19 @@ mtc.sensitivity <- function(model, priors = c("gemtc", "flat", "hn:0.5", "hn:1",
       rows[[length(rows) + 1]] <- data.frame(
         prior = priors[i], comparison = paste0(rep$ref, ":", e$to),
         effect = e$mean, sd = e$sd, lo = e$lo, hi = e$hi,
-        tau2_mean = pr$tau2$mean, stringsAsFactors = FALSE)
+        lo_exact = e$lo_exact %||% NA_real_, hi_exact = e$hi_exact %||% NA_real_,
+        effect_exact = e$mean_exact %||% NA_real_, sd_exact = e$sd_exact %||% NA_real_,
+        tau2_mean = pr$tau2$mean, tau2_median = pr$tau2$median,
+        tau2_lo = pr$tau2$ci_lo, tau2_hi = pr$tau2$ci_hi,
+        log_bf_re_fe = if (is.null(pr$log_bf_re_fe)) NA_real_ else pr$log_bf_re_fe,
+        stringsAsFactors = FALSE)
     }
   }
-  do.call(rbind, rows)
+  res <- do.call(rbind, rows)
+  attr(res, "fit_wall_sec") <- rep$fit_wall_sec
+  attr(res, "log_ml_fe") <- rep$log_ml_fe
+  attr(res, "grid") <- data.frame(tau2 = unlist(rep$grid_tau2), log_z = unlist(rep$grid_log_z))
+  res
 }
 
 # Build a coda-shaped mcmc.list from a draws matrix, without a hard coda

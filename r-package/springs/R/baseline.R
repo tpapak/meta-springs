@@ -19,7 +19,7 @@ brisk_engine_bin <- function() {
             Sys.getenv("SPRINGS_BRISK_BIN", unset = ""),
             file.path(find.package("springs", quiet = TRUE), "..", "..", "gc-rust",
                       "target", "release", "brisk"),
-            "/Users/tosku/Sync/Documents/meta-springs/gc-rust/target/release/brisk")
+            Sys.which("brisk"))  # last: on PATH
   cand <- cand[nzchar(cand)]
   for (p in cand) {
     pp <- suppressWarnings(normalizePath(p, mustWork = FALSE))

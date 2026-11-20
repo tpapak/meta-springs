@@ -22,9 +22,36 @@ pub enum Tau2Prior {
     /// τ (the heterogeneity SD) ~ Uniform(0, upper). This is gemtc's default
     /// `mtc.hy.prior("std.dev", "dunif", 0, om.scale)`; `upper` = om.scale.
     UniformSD(f64),
+    /// τ² ~ LogNormal(μ, σ²) on the VARIANCE — the Turner et al. (2012/2015)
+    /// and Rhodes et al. (2015) empirical predictive priors. Fields (μ, σ).
+    LogNormalTau2(f64, f64),
+    /// τ ~ Exponential(rate) on the SD.
+    ExpTau(f64),
 }
 
 impl Tau2Prior {
+    /// Parse a prior spec: `flat | hn:S | hc:S | unif:U | exp:R` (on τ) or
+    /// `ln:MU:SIGMA` (log-normal on τ²).
+    pub fn parse(spec: &str) -> Result<Tau2Prior, String> {
+        let s = spec.trim().to_lowercase();
+        let num = |x: &str| x.parse::<f64>().map_err(|e| format!("prior '{spec}': {e}"));
+        if s == "flat" {
+            return Ok(Tau2Prior::Flat);
+        }
+        let (kind, rest) = s.split_once(':').ok_or_else(|| format!("bad prior '{spec}'"))?;
+        Ok(match kind {
+            "hn" => Tau2Prior::HalfNormalTau(num(rest)?),
+            "hc" => Tau2Prior::HalfCauchyTau(num(rest)?),
+            "unif" => Tau2Prior::UniformSD(num(rest)?),
+            "exp" => Tau2Prior::ExpTau(num(rest)?),
+            "ln" => {
+                let (m, sd) = rest.split_once(':').ok_or_else(|| format!("ln prior needs ln:MU:SIGMA, got '{spec}'"))?;
+                Tau2Prior::LogNormalTau2(num(m)?, num(sd)?)
+            }
+            _ => return Err(format!("unknown prior '{spec}'")),
+        })
+    }
+
     pub fn label(&self) -> String {
         match self {
             Tau2Prior::Flat => "Flat (REML)".into(),
@@ -47,6 +74,8 @@ impl Tau2Prior {
                 }
             }
             Tau2Prior::UniformSD(u) => format!("Uniform(τ; 0, {})", u),
+            Tau2Prior::LogNormalTau2(m, sd) => format!("LogNormal(τ²; {}, {}²)", m, sd),
+            Tau2Prior::ExpTau(r) => format!("Exponential(τ; rate={})", r),
         }
     }
 
@@ -66,8 +95,110 @@ impl Tau2Prior {
             Tau2Prior::UniformSD(u) => {
                 if t2 > u * u { -1e30 } else { -0.5 * t2.ln() }
             }
+            Tau2Prior::LogNormalTau2(m, sd) => {
+                let z = (t2.ln() - m) / sd;
+                -t2.ln() - 0.5 * z * z
+            }
+            // p(τ) = r e^{-rτ}; on τ²: × 1/(2τ).
+            Tau2Prior::ExpTau(r) => -0.5 * t2.ln() - r * t2.sqrt(),
         }
     }
+
+    /// NORMALISED log density of τ² (all constants kept), or `None` for the
+    /// improper flat prior. Needed for marginal likelihoods / Bayes factors;
+    /// differs from [`log_prior`] only by a τ²-independent constant.
+    pub fn log_prior_norm(&self, t2: f64) -> Option<f64> {
+        use std::f64::consts::PI;
+        if t2 <= 0.0 {
+            return Some(f64::NEG_INFINITY);
+        }
+        let ln_tau = 0.5 * t2.ln();
+        match self {
+            Tau2Prior::Flat => None,
+            // p(τ²) = p(τ) / (2τ)
+            Tau2Prior::HalfNormalTau(s) => Some(
+                (2.0 / (s * (2.0 * PI).sqrt())).ln() - 0.5 * t2 / (s * s) - (2.0f64).ln() - ln_tau,
+            ),
+            Tau2Prior::HalfCauchyTau(s) => Some(
+                (2.0 / (PI * s)).ln() - (1.0 + t2 / (s * s)).ln() - (2.0f64).ln() - ln_tau,
+            ),
+            Tau2Prior::UniformSD(u) => Some(if t2 > u * u {
+                f64::NEG_INFINITY
+            } else {
+                -(u.ln()) - (2.0f64).ln() - ln_tau
+            }),
+            Tau2Prior::LogNormalTau2(m, sd) => {
+                let z = (t2.ln() - m) / sd;
+                Some(-t2.ln() - sd.ln() - 0.5 * (2.0 * PI).ln() - 0.5 * z * z)
+            }
+            Tau2Prior::ExpTau(r) => Some(r.ln() - r * t2.sqrt() - (2.0f64).ln() - ln_tau),
+        }
+    }
+
+    /// Prior CDF P(τ² ≤ t2) — used to account for the prior mass below the
+    /// grid's lower bound (where Z(τ²) ≈ Z(0)). `None` for the flat prior.
+    pub fn cdf(&self, t2: f64) -> Option<f64> {
+        if t2 <= 0.0 {
+            return Some(0.0);
+        }
+        let tau = t2.sqrt();
+        match self {
+            Tau2Prior::Flat => None,
+            Tau2Prior::HalfNormalTau(s) => Some(erf(tau / (s * std::f64::consts::SQRT_2))),
+            Tau2Prior::HalfCauchyTau(s) => Some(2.0 / std::f64::consts::PI * (tau / s).atan()),
+            Tau2Prior::UniformSD(u) => Some((tau / u).min(1.0)),
+            Tau2Prior::LogNormalTau2(m, sd) => {
+                Some(0.5 * (1.0 + erf((t2.ln() - m) / (sd * std::f64::consts::SQRT_2))))
+            }
+            Tau2Prior::ExpTau(r) => Some(1.0 - (-r * tau).exp()),
+        }
+    }
+}
+
+/// erf via Abramowitz–Stegun 7.1.26 refined (|err| < 1.2e-7) — ample for the
+/// sub-grid prior-mass correction.
+fn erf(x: f64) -> f64 {
+    // Numerical Recipes erfc Chebyshev approximation (fractional err < 1.2e-7).
+    let z = x.abs();
+    let t = 1.0 / (1.0 + 0.5 * z);
+    let r = t * (-z * z - 1.26551223
+        + t * (1.00002368
+        + t * (0.37409196
+        + t * (0.09678418
+        + t * (-0.18628806
+        + t * (0.27886807
+        + t * (-1.13520398
+        + t * (1.48851587
+        + t * (-0.82215223 + t * 0.17087277)))))))))
+        .exp();
+    if x >= 0.0 { 1.0 - r } else { r - 1.0 }
+}
+
+/// log marginal likelihood  log ∫ Z(τ²) π(τ²) dτ²  on a log-spaced τ² grid
+/// (trapezoid in log τ²), with the prior mass below the grid's lower edge
+/// assigned Z(τ²_lo) (Z is flat as τ²→0). `None` for an improper prior.
+/// Constants common to all τ² in log Z cancel in Bayes factors.
+pub fn log_marginal(grid: &[(f64, f64)], prior: Tau2Prior) -> Option<f64> {
+    let mut pts: Vec<(f64, f64)> = grid.iter().copied().filter(|(t, _)| *t > 0.0).collect();
+    pts.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
+    if pts.len() < 2 {
+        return None;
+    }
+    // integrand in u = log τ²:  Z(τ²) π(τ²) τ²
+    let mut lf = Vec::with_capacity(pts.len());
+    for (t, lz) in &pts {
+        lf.push(lz + prior.log_prior_norm(*t)? + t.ln());
+    }
+    let m = lf.iter().cloned().fold(f64::NEG_INFINITY, f64::max);
+    let mut acc = 0.0;
+    for i in 1..pts.len() {
+        let du = pts[i].0.ln() - pts[i - 1].0.ln();
+        acc += 0.5 * du * ((lf[i] - m).exp() + (lf[i - 1] - m).exp());
+    }
+    // sub-grid mass: P(τ² < τ²_lo) · Z(τ²_lo)
+    let below = prior.cdf(pts[0].0)?;
+    acc += below * (pts[0].1 - m).exp();
+    Some(m + acc.ln())
 }
 
 /// Approximate dlogZ/dτ² by central finite difference. h ≈ 1e-3 · τ².
@@ -376,17 +507,26 @@ pub fn posterior_under(
         acc += w;
         cums[i] = acc;
     }
+    // Quantiles: midpoint-rule CDF (node i carries mass w_i centred on it),
+    // linearly interpolated in log τ² between nodes — avoids snapping every
+    // quantile to a grid node.
+    let mids: Vec<f64> = cums.iter().zip(pairs.iter()).map(|(c, (_, w))| c - 0.5 * w).collect();
     let w_quantile = |q: f64| -> f64 {
-        // index of first cum >= q (matches Haskell `length (takeWhile (<q) cums)`).
-        let mut ix = 0usize;
-        while ix < cums.len() && cums[ix] < q {
+        let n = pairs.len();
+        if q <= mids[0] {
+            return pairs[0].0;
+        }
+        if q >= mids[n - 1] {
+            return pairs[n - 1].0;
+        }
+        let mut ix = 1usize;
+        while ix < n - 1 && mids[ix] < q {
             ix += 1;
         }
-        if ix >= pairs.len() {
-            pairs[pairs.len() - 1].0
-        } else {
-            pairs[ix].0
-        }
+        let (c0, c1) = (mids[ix - 1], mids[ix]);
+        let f = if c1 > c0 { (q - c0) / (c1 - c0) } else { 0.5 };
+        let (l0, l1) = (pairs[ix - 1].0.ln(), pairs[ix].0.ln());
+        (l0 + f * (l1 - l0)).exp()
     };
 
     PosteriorSummary {
