@@ -532,12 +532,21 @@ posterior.</strong> In <code>brisk</code>, variance-grid weights are
 deterministic; the exported effect and slope draws are random draws from
 the resulting approximate mixture.</p>
 <h2 id="code">5. Run the model behind the picture</h2>
-<p>From the repository root, build and run the Gaussian fixed-effect
-example:</p>
+<p>The solver is in the <a
+href="https://github.com/tpapak/meta-springs">meta-springs
+repository</a>; it needs Rust (<code>cargo</code>). Clone it, then build
+and run the Gaussian fixed-effect example on this page’s data:</p>
 <div class="sourceCode" id="cb1"><pre
-class="sourceCode bash"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="ex">cargo</span> build <span class="at">--release</span> <span class="at">--manifest-path</span> gc-rust/Cargo.toml <span class="at">--example</span> nmr_fe</span>
-<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="ex">gc-rust/target/release/examples/nmr_fe</span> <span class="dt">\</span></span>
-<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>  blog/data/nmr-four-treatment.json blog/data/nmr-four-treatment-covariates.json</span></code></pre></div>
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="fu">git</span> clone https://github.com/tpapak/meta-springs.git</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="bu">cd</span> meta-springs</span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="ex">cargo</span> build <span class="at">--release</span> <span class="at">--manifest-path</span> gc-rust/Cargo.toml <span class="at">--example</span> nmr_fe</span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a><span class="ex">gc-rust/target/release/examples/nmr_fe</span> <span class="dt">\</span></span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a>  blog/data/nmr-four-treatment.json blog/data/nmr-four-treatment-covariates.json</span></code></pre></div>
+<p>It prints:</p>
+<pre><code>beta = -1.08069
+  A-&gt;B = 0.87176
+  A-&gt;C = 1.56743
+  A-&gt;D = 3.26861</code></pre>
 <p>The downloadable <a href="../data/nmr-four-treatment.json">arm
 data</a> and <a
 href="../data/nmr-four-treatment-covariates.json">centred covariates</a>
@@ -546,14 +555,15 @@ prints the slope and the effects relative to A. Covariates are centred
 in the input file: the example solver does not centre them
 automatically.</p>
 <p>For the nonlinear baseline-risk model, use the separate bundled
-binary simulation, with A present in every study:</p>
-<div class="sourceCode" id="cb2"><pre
-class="sourceCode bash"><code class="sourceCode bash"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="ex">cargo</span> build <span class="at">--release</span> <span class="at">--manifest-path</span> gc-rust/Cargo.toml <span class="at">--bin</span> brisk</span>
-<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="ex">gc-rust/target/release/brisk</span> <span class="dt">\</span></span>
-<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>  <span class="at">--input</span> test/nmr_br_sim_arms.json <span class="dt">\</span></span>
-<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a>  <span class="at">--output</span> /tmp/meta-springs-baseline-draws.json <span class="dt">\</span></span>
-<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a>  <span class="at">--ref</span> A <span class="at">--regressor</span> common <span class="at">--effects</span> random <span class="at">--method</span> gc <span class="dt">\</span></span>
-<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a>  <span class="at">--samples</span> 4000 <span class="at">--seed</span> 1</span></code></pre></div>
+binary simulation, with A present in every study (from the same
+<code>meta-springs</code> directory):</p>
+<div class="sourceCode" id="cb3"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="ex">cargo</span> build <span class="at">--release</span> <span class="at">--manifest-path</span> gc-rust/Cargo.toml <span class="at">--bin</span> brisk</span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a><span class="ex">gc-rust/target/release/brisk</span> <span class="dt">\</span></span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a>  <span class="at">--input</span> test/nmr_br_sim_arms.json <span class="dt">\</span></span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a>  <span class="at">--output</span> /tmp/meta-springs-baseline-draws.json <span class="dt">\</span></span>
+<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a>  <span class="at">--ref</span> A <span class="at">--regressor</span> common <span class="at">--effects</span> random <span class="at">--method</span> gc <span class="dt">\</span></span>
+<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a>  <span class="at">--samples</span> 4000 <span class="at">--seed</span> 1</span></code></pre></div>
 <p>Change <code>common</code> to <code>independent</code> or
 <code>exchangeable</code> for the other slope structures. This CLI takes
 arm outcomes, not an external covariate file. Its current GC variance
@@ -568,18 +578,25 @@ point estimates, not the GC mixture means. The baseline-risk example
 uses a different dataset because the four-study animation includes a C–D
 study without reference A.</p>
 <h2 id="source">Source map</h2>
-<p>In the repository:</p>
+<p>In the <a
+href="https://github.com/tpapak/meta-springs">repository</a>:</p>
 <ul>
-<li><code>src/Data/Meta/NMA.hs</code>: <code>nmaRegression</code>,
-<code>nmaRegressionRE</code>, <code>nmaRegressionPosteriorB</code>,
+<li><a
+href="https://github.com/tpapak/meta-springs/blob/master/src/Data/Meta/NMA.hs"><code>src/Data/Meta/NMA.hs</code></a>:
+<code>nmaRegression</code>, <code>nmaRegressionRE</code>,
+<code>nmaRegressionPosteriorB</code>,
 <code>nmaRegressionBinPosteriorB</code>, <code>baselineRiskCoreB</code>,
 and <code>nmaRegressionBaselineRiskBinExchGC</code>.</li>
-<li><code>gc-rust/examples/nmr_fe.rs</code>: the minimal Gaussian
-external-covariate solve.</li>
-<li><code>gc-rust/examples/nmr_bin.rs</code>: a binary
-external-covariate working-response example.</li>
-<li><code>gc-rust/src/bin/brisk.rs</code>: the baseline-risk CLI, slope
-coupling, variance grid and mixture draws.</li>
+<li><a
+href="https://github.com/tpapak/meta-springs/blob/master/gc-rust/examples/nmr_fe.rs"><code>gc-rust/examples/nmr_fe.rs</code></a>:
+the minimal Gaussian external-covariate solve.</li>
+<li><a
+href="https://github.com/tpapak/meta-springs/blob/master/gc-rust/examples/nmr_bin.rs"><code>gc-rust/examples/nmr_bin.rs</code></a>:
+a binary external-covariate working-response example.</li>
+<li><a
+href="https://github.com/tpapak/meta-springs/blob/master/gc-rust/src/bin/brisk.rs"><code>gc-rust/src/bin/brisk.rs</code></a>:
+the baseline-risk CLI, slope coupling, variance grid and mixture
+draws.</li>
 </ul>
 <p>The central step is now visible: <strong>enlarge the coordinates to
 include slopes; construct the energy; solve for equilibrium and

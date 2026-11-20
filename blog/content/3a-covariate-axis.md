@@ -171,12 +171,25 @@ are random draws from the resulting approximate mixture.
 
 ## 5. Run the model behind the picture {#code}
 
-From the repository root, build and run the Gaussian fixed-effect example:
+The solver is in the [meta-springs repository](https://github.com/tpapak/meta-springs);
+it needs Rust (`cargo`). Clone it, then build and run the Gaussian
+fixed-effect example on this page's data:
 
 ```bash
+git clone https://github.com/tpapak/meta-springs.git
+cd meta-springs
 cargo build --release --manifest-path gc-rust/Cargo.toml --example nmr_fe
 gc-rust/target/release/examples/nmr_fe \
   blog/data/nmr-four-treatment.json blog/data/nmr-four-treatment-covariates.json
+```
+
+It prints:
+
+```
+beta = -1.08069
+  A->B = 0.87176
+  A->C = 1.56743
+  A->D = 3.26861
 ```
 
 The downloadable [arm data](../data/nmr-four-treatment.json) and
@@ -186,7 +199,8 @@ the effects relative to A. Covariates are centred in the input file: the
 example solver does not centre them automatically.
 
 For the nonlinear baseline-risk model, use the separate bundled binary
-simulation, with A present in every study:
+simulation, with A present in every study (from the same `meta-springs`
+directory):
 
 ```bash
 cargo build --release --manifest-path gc-rust/Cargo.toml --bin brisk
@@ -211,14 +225,14 @@ because the four-study animation includes a C–D study without reference A.
 
 ## Source map {#source}
 
-In the repository:
+In the [repository](https://github.com/tpapak/meta-springs):
 
-- `src/Data/Meta/NMA.hs`: `nmaRegression`, `nmaRegressionRE`,
+- [`src/Data/Meta/NMA.hs`](https://github.com/tpapak/meta-springs/blob/master/src/Data/Meta/NMA.hs): `nmaRegression`, `nmaRegressionRE`,
   `nmaRegressionPosteriorB`, `nmaRegressionBinPosteriorB`,
   `baselineRiskCoreB`, and `nmaRegressionBaselineRiskBinExchGC`.
-- `gc-rust/examples/nmr_fe.rs`: the minimal Gaussian external-covariate solve.
-- `gc-rust/examples/nmr_bin.rs`: a binary external-covariate working-response example.
-- `gc-rust/src/bin/brisk.rs`: the baseline-risk CLI, slope coupling, variance grid
+- [`gc-rust/examples/nmr_fe.rs`](https://github.com/tpapak/meta-springs/blob/master/gc-rust/examples/nmr_fe.rs): the minimal Gaussian external-covariate solve.
+- [`gc-rust/examples/nmr_bin.rs`](https://github.com/tpapak/meta-springs/blob/master/gc-rust/examples/nmr_bin.rs): a binary external-covariate working-response example.
+- [`gc-rust/src/bin/brisk.rs`](https://github.com/tpapak/meta-springs/blob/master/gc-rust/src/bin/brisk.rs): the baseline-risk CLI, slope coupling, variance grid
   and mixture draws.
 
 The central step is now visible: **enlarge
