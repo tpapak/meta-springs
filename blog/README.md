@@ -6,6 +6,14 @@ the static HTML locally.
 
 ---
 
+## 0. Offline, no build
+
+The generated pages are committed and need nothing from the network or the rest
+of the repository: open `blog/index.html` directly in a browser. MathJax is
+vendored in `vendor/mathjax/`. Building (below) needs Python 3 and pandoc.
+
+---
+
 ## 1. Launch and watch
 
 From the repository root, run one command:
@@ -103,6 +111,7 @@ blog/
 ├── dev.sh                 ← launch server and watch sources
 ├── rebuild.sh             ← build shortcut ( ./rebuild.sh [--watch] )
 ├── style.css              ← all shared styling
+├── vendor/mathjax/       ← MathJax 3.2.2, vendored: pages render maths offline
 ├── content/               ← EDIT THESE  (Markdown source, one per page)
 │   ├── README.md          ← Markdown syntax cheatsheet
 │   ├── index.md

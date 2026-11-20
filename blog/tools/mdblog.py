@@ -52,7 +52,7 @@ MATHJAX = ('<script>\nwindow.MathJax = {\n'
  "  tex: { inlineMath: [['$','$'],['\\\\(','\\\\)']], displayMath: [['$$','$$'],['\\\\[','\\\\]']], tags: 'ams',\n"
  "    macros: { Var:'\\\\operatorname{Var}', Cov:'\\\\operatorname{Cov}', E:'\\\\operatorname{E}', tr:'\\\\operatorname{tr}', keff:'k^{\\\\text{eff}}' } },\n"
  "  svg: { fontCache: 'global' }\n};\n</script>\n"
- '<script async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml-full.js"></script>')
+ '<script async src="{home}vendor/mathjax/tex-chtml-full.js"></script>')
 
 BLOGNAV = ('<nav class="blognav">\n  <div class="blognav-inner">\n'
  '    <a class="blognav-brand" href="{home}index.html">meta-springs</a>\n'
@@ -256,7 +256,7 @@ def build():
 def page_head(title, home):
     return ('<!DOCTYPE html>\n<html lang="en">\n<head>\n<meta charset="UTF-8">\n'
      '<meta name="viewport" content="width=device-width, initial-scale=1">\n'
-     f'<title>{title}</title>\n<link rel="stylesheet" href="{home}style.css">\n'+MATHJAX+'\n</head>\n<body>\n'
+     f'<title>{title}</title>\n<link rel="stylesheet" href="{home}style.css">\n'+MATHJAX.replace("{home}", home)+'\n</head>\n<body>\n'
      +BLOGNAV.format(home=home)+"\n")
 
 def render_post(slug,kind,fm,body,fmcache):
