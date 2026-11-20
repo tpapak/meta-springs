@@ -38,3 +38,13 @@ test/nmr_continuous_sim_log.txt
 test/nmr_multipkg_results.rds
 test/nmr_multipkg_log.txt
 dist-newstyle/
+
+# Papers, abstracts, submissions and personal notes stay out of the repo
+paper-old/
+*.tex
+*.bib
+*.ics
+blog/*.pdf
+notes-to-Annie.md
+ouline.md
+examples/vs-multinma/.cache/
