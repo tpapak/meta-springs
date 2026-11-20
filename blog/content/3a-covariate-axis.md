@@ -34,7 +34,7 @@ treatment–covariate interactions (multinma's `beta[x:.trtB]` for treatment B).
 covariate value per study the prognostic term $\beta_1 x_i$ is constant within
 the study and is absorbed into $\mu_i$, so only $\beta_{2,t}$ appears here.
 Patient-level covariates, where $\beta_1$ becomes a tilted study rod, are in
-[3b](3b-mlnmr.html).
+[3b](3b-ipd.html) (IPD) and [3c](3c-mlnmr.html) (IPD with aggregate data).
 
 The treatment node becomes the line $d_t+\beta_{2,t} x^c$. Its intercept is the
 effect relative to A at the centring value; its slope is the change per unit

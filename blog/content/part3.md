@@ -12,9 +12,11 @@ Start with a **supplied covariate**: adding slope coordinates preserves the
 quadratic Gaussian energy. Then couple those slopes to share information
 across treatments. Finally, let the covariate be the **latent study baseline**:
 that makes the model nonlinear and introduces a local approximation in the
-current solver. Page 3b moves to **patient-level covariates** (ML-NMR): study
-rows gain height, study rods tilt by the prognostic slope, and an aggregate
-arm becomes one spring averaged over its covariate distribution.
+current solver. Page 3b moves to **individual participant data**: every
+patient is a spring, study rows gain height, study rods tilt by the prognostic
+slope, and the within-study spread of the covariate identifies the slopes.
+Page 3c combines IPD with aggregate data (ML-NMR): an aggregate arm becomes one
+spring averaged over its covariate distribution.
 
 The walkthrough connects the animation to the Haskell and Rust source, and
 includes commands for a Gaussian example and a separate binary baseline-risk

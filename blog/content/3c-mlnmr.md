@@ -9,11 +9,15 @@ blurb: Patient-level covariates give each study a height; study rods tilt by $\b
 
 In [3a](3a-covariate-axis.html) every study had **one** covariate value. Its
 arms all sat at one height, so the prognostic term was absorbed into the study
-baseline and only the treatment slopes appeared. Multilevel network
-meta-regression (ML-NMR; Phillippo et al. 2020, implemented in multinma) uses
-covariates measured on **patients**: individual participant data (IPD) from
-some trials, and published covariate summaries from the others. The change of
-picture is one step: give every study row a height.
+baseline and only the treatment slopes appeared. In [3b](3b-ipd.html) both
+trials shared their patients, and every patient was a spring at their own
+height. Usually only some trials do. Multilevel network meta-regression
+(ML-NMR; Phillippo et al. 2020, implemented in multinma) combines individual
+participant data (IPD) from some trials with published covariate summaries
+from the others. The animation keeps 3b's Study 1 patients unchanged and
+replaces Study 2 by a trial of the same size and population that reports only
+its arm totals and its covariate mean and SD. Sections 1–4 recap the rods and levers of 3b in this
+setting; section 5 is new.
 
 ## 1. The model in multinma's notation {#model}
 

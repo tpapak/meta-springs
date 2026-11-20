@@ -1,0 +1,551 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>IPD: every patient is a spring — meta-springs</title>
+<link rel="stylesheet" href="../style.css">
+<script>
+window.MathJax = {
+  tex: { inlineMath: [['$','$'],['\\(','\\)']], displayMath: [['$$','$$'],['\\[','\\]']], tags: 'ams',
+    macros: { Var:'\\operatorname{Var}', Cov:'\\operatorname{Cov}', E:'\\operatorname{E}', tr:'\\operatorname{tr}', keff:'k^{\\text{eff}}' } },
+  svg: { fontCache: 'global' }
+};
+</script>
+<script async src="../vendor/mathjax/tex-chtml-full.js"></script>
+</head>
+<body>
+<nav class="blognav">
+  <div class="blognav-inner">
+    <a class="blognav-brand" href="../index.html">meta-springs</a>
+    <div class="blognav-links">
+      <a href="../index.html">Home</a>
+      <a href="../posts/part1.html">Part 1</a>
+      <a href="../posts/part2.html">Part 2</a>
+      <a href="../posts/part3.html">Part 3</a>
+    </div>
+  </div>
+</nav>
+<main class="wrap postwrap">
+  <article class="postbody">
+    <p class="breadcrumb"><a href="part3.html">Part 3 &middot; Network meta-regression</a> &rsaquo; 3b</p>
+    <h1 class="post-h1">IPD: every patient is a spring</h1>
+    <p class="post-meta">Thodoris Papakonstantinou</p>
+
+    <div class="posthero">
+<div class="posthero-title">Two trials sharing their patients · binary or continuous outcomes</div>
+<div class="animbox">
+<style>
+@scope (.animbox) {
+* { margin: 0; padding: 0; box-sizing: border-box; }
+  :scope { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; background: #fafafa; color: #222;
+    display: flex; flex-direction: column; align-items: center; padding: 18px; }
+  h1 { font-size: 18px; font-weight: 600; margin-bottom: 4px; }
+  .subtitle { font-size: 13px; color: #666; margin-bottom: 12px; max-width: 1040px; text-align: center; line-height: 1.5; }
+  .ctrl-row { display: flex; gap: 10px; align-items: center; margin-bottom: 6px; flex-wrap: wrap; justify-content: center; }
+  button { padding: 5px 14px; border: 1px solid #aaa; border-radius: 4px; background: #fff; cursor: pointer; font-size: 13px; }
+  button:hover { background: #eee; }
+  button.out { background: #f0fdf4; border-color: #86c9a5; color: #11684f; }
+  button.out.active { background: #1b9e77; color: #fff; border-color: #1b9e77; }
+  button.mode { background: #fff7ed; border-color: #fb8c00; color: #b35a00; }
+  button.mode.active { background: #e65100; color: #fff; border-color: #e65100; }
+  button.view { background: #f0f4ff; border-color: #8fb0ea; color: #1a3a6e; }
+  button.view.active { background: #1a73e8; color: #fff; border-color: #1a73e8; }
+  label { font-size: 13px; color: #555; }
+  input[type=range] { width: 200px; vertical-align: middle; }
+  .pill { font-family:'SF Mono',Consolas,monospace; font-size:13px; background:#fff3e0; border:1px solid #f0b27a;
+    border-radius:4px; padding:3px 10px; color:#b35a00; font-weight:600; min-width:120px; text-align:center; }
+  svg { background: #fff; border: 1px solid #ddd; border-radius: 6px; max-width: 100%; height: auto; }
+  .legend { margin-top: 8px; font-size: 12px; color: #666; max-width: 1040px; text-align: center; line-height: 1.5; }
+  .legend b { color:#444; }
+}
+</style>
+<div class="ctrl-row">
+  <button class="out active" id="oBin">Binary outcome (logit)</button>
+  <button class="out" id="oCont">Continuous outcome (identity)</button>
+</div>
+<div class="ctrl-row">
+  <button class="mode" id="rNone">No covariate</button>
+  <button class="mode" id="rProg">Prognostic &beta;<sub>1</sub> only</button>
+  <button class="mode active" id="rFull">&beta;<sub>1</sub> + interaction &beta;<sub>2</sub></button>
+</div>
+<div class="ctrl-row">
+  <button class="view active" id="vPat">Patients as springs</button>
+  <button class="view" id="vArm">Summed into arm springs</button>
+  <label>within-study covariate spread <input id="kSlider" type="range" min="10" max="200" value="100"></label>
+  <span class="pill" id="kDisplay">× 1.00</span>
+</div>
+
+<svg id="canvas" width="1320" height="780" viewBox="0 0 1320 780"></svg>
+
+<div class="legend">
+  Horizontal = linear predictor &eta; (log-odds for binary, outcome scale for continuous). A patient's spring runs from the study rod (at &minus;&mu;<sub>j</sub>) to the treatment rod (at d<sub>k</sub>) at the patient's height, so its length is that patient's &eta;. Tilts pivot at x&#772;; dashed lines show where each rod would stand untilted.
+  <b>Binary:</b> <b style="color:#1b9e77">responders</b> push &eta; up, <b style="color:#8a8f98">non-responders</b> push it down; a single patient has no rest length.
+  <b>Continuous:</b> each patient is a Hooke spring whose rest length is their outcome y (dot); <b style="color:#e65100">orange</b> springs are compressed (y &gt; &eta;) and push the rods apart, <b style="color:#1a73e8">blue</b> springs are stretched (y &lt; &eta;) and pull them together.
+  <b>Summed into arm springs</b> keeps only arm totals (no covariate): the patients of an arm add up to one spring with the same equilibrium. The spread slider stretches every patient's distance from the study's covariate mean: longer levers, smaller slope SEs.
+</div>
+
+<script src="../study-data.js"></script>
+<script>
+"use strict";
+// ===================== DATA (simulated, deterministic) =====================
+// Same truth, centring and Study 1 patients as the ML-NMR animation; there Study 2 keeps only its totals.
+const TRUE = { mu1:-1.3, mu2:-0.8, dB:1.5, dC:1.8, b1:0.8, b2:0.6 };
+const xbar = 0.5, SIGMA = 0.5;                    // centring value (pivot); residual SD for continuous outcomes
+let seed = 20261115;
+const rnd = () => { seed = (1664525*seed + 1013904223) % 4294967296; return seed/4294967296; };
+const rnorm = () => { const u=rnd()||1e-12, v=rnd(); return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v); };
+const sig = e => 1/(1+Math.exp(-e));
+const STUDY = { 1:{ mean:0.0, sd:1.0 }, 2:{ mean:1.0, sd:0.8 } };
+const base = [];                                   // fixed random numbers: z (covariate), u (binary), e (continuous)
+for (const t of [0,1]) for (let i=0;i<250;i++) base.push({ s:1, t, z:rnorm(), u:rnd() });
+for (const t of [0,2]) for (let i=0;i<150;i++) base.push({ s:2, t, z:rnorm(), u:rnd() });
+for (const p of base) p.e = rnorm();
+function linpred(s,t,x){ return (s===1?TRUE.mu1:TRUE.mu2) + TRUE.b1*(x-xbar) + (t===0?0:(t===1?TRUE.dB:TRUE.dC) + TRUE.b2*(x-xbar)); }
+function makeData(k){                              // k = spread factor about each study's covariate mean
+  return base.map(p=>{ const x = STUDY[p.s].mean + k*STUDY[p.s].sd*p.z, eta = linpred(p.s,p.t,x);
+    return { s:p.s, t:p.t, x, yb: p.u < sig(eta) ? 1 : 0, yc: eta + SIGMA*p.e }; });
+}
+let outcome='bin', reg='full', view='pat', spread=1.0, pts=makeData(1.0);
+
+// ===================== SOLVER: Newton on the exact energy =====================
+// theta = [mu1, mu2, dB, dC, b1, b2]
+const NP=6, NAMES=['μ₁','μ₂','d_B','d_C','β₁','β₂'], TKEY=['mu1','mu2','dB','dC','b1','b2'];
+function active(r){ return [true,true,true,true, r!=='none', r==='full']; }
+function design(s,t,x){
+  const v=new Float64Array(NP), dx=x-xbar;
+  v[s===1?0:1]=1; v[4]=dx;
+  if(t===1){ v[2]=1; v[5]=dx; } if(t===2){ v[3]=1; v[5]=dx; }
+  return v;
+}
+const dot=(a,b)=>a.reduce((s,ai,i)=>s+ai*b[i],0);
+// units: {X, kind:'bern'|'binom'|'gauss', y, n, w}; energy in units of the spring constant (sigma = 1 for gauss)
+function energy(th, units, on, wantDeriv){
+  let E=0; const g=new Float64Array(NP), H=Array.from({length:NP},()=>new Float64Array(NP));
+  const t2=th.map((v,i)=>on[i]?v:0);
+  for(const u of units){
+    const e=dot(u.X,t2); let f, w;                 // f = dE/deta, w = d2E/deta2
+    if(u.kind==='gauss'){ E += 0.5*u.w*(e-u.y)**2; f=u.w*(e-u.y); w=u.w; }
+    else { const q=sig(e); E -= u.y*Math.log(q+1e-300) + (u.n-u.y)*Math.log(1-q+1e-300); f=u.n*q-u.y; w=u.n*q*(1-q); }
+    if(wantDeriv) for(let i=0;i<NP;i++){ if(!u.X[i]) continue; g[i]+=f*u.X[i]; for(let j=0;j<NP;j++) H[i][j]+=w*u.X[i]*u.X[j]; }
+  }
+  for(let i=0;i<NP;i++){ if(!on[i]){ g[i]=0; for(let j=0;j<NP;j++){H[i][j]=0;H[j][i]=0;} H[i][i]=1; } }
+  return {E,g,H};
+}
+function linSolve(Ain, bin){
+  const n=bin.length, M=Ain.map((r,i)=>[...r, bin[i]]);
+  for (let c=0;c<n;c++){ let mx=Math.abs(M[c][c]),mr=c;
+    for (let r=c+1;r<n;r++) if(Math.abs(M[r][c])>mx){mx=Math.abs(M[r][c]);mr=r;}
+    [M[c],M[mr]]=[M[mr],M[c]];
+    for (let r=c+1;r<n;r++){const f=M[r][c]/M[c][c];for(let k=c;k<=n;k++)M[r][k]-=f*M[c][k];} }
+  const x=new Float64Array(n);
+  for (let i=n-1;i>=0;i--){let s=M[i][n];for(let j=i+1;j<n;j++)s-=M[i][j]*x[j];x[i]=s/M[i][i];}
+  return x;
+}
+function patientUnits(){ return pts.map(p=> outcome==='bin'
+  ? { X:design(p.s,p.t,p.x), kind:'bern', y:p.yb, n:1 }
+  : { X:design(p.s,p.t,p.x), kind:'gauss', y:p.yc, w:1 }); }
+function arms(){                                   // arm totals: events / n, or mean outcome / n
+  const out=[]; for(const [s,t] of [[1,0],[1,1],[2,0],[2,2]]){ const a=pts.filter(p=>p.s===s&&p.t===t), n=a.length;
+    const ys=a.map(p=>p.yc), m=ys.reduce((u,v)=>u+v,0)/n, sd=Math.sqrt(ys.reduce((u,v)=>u+(v-m)**2,0)/(n-1));
+    out.push({ s, t, n, r:a.filter(p=>p.yb).length, ybar:m, sd }); } return out; }
+function armUnits(){ return arms().map(a=> outcome==='bin'
+  ? { X:design(a.s,a.t,xbar), kind:'binom', y:a.r, n:a.n }      // x = xbar: no lever, the slopes are off
+  : { X:design(a.s,a.t,xbar), kind:'gauss', y:a.ybar, w:a.n }); }   // n patients of stiffness 1 = one spring of stiffness n
+function fit(units, r){
+  let th=new Float64Array(NP); const on=active(r);
+  for(let it=0;it<80;it++){
+    const {E,g,H}=energy(th,units,on,true), step=linSolve(H,g.map(v=>-v));
+    let a=1, next; for(let k=0;k<30;k++){ next=th.map((v,i)=>v+a*step[i]); if(energy(next,units,on,false).E<=E+1e-12) break; a/=2; }
+    th=next; if(Math.max(...step.map(Math.abs))*a<1e-12) break;
+  }
+  const {H}=energy(th,units,on,true);
+  // continuous: scale by the residual variance estimate, as lm() does (patients only)
+  let s2=1;
+  if(units[0].kind==='gauss' && units.length>NP){ const p=on.filter(Boolean).length;
+    s2=units.reduce((s,u)=>s+(u.y-dot(u.X,th.map((v,i)=>on[i]?v:0)))**2,0)/(units.length-p); }
+  const se=th.map((_,i)=>{ if(!on[i]) return 0; const e=new Float64Array(NP); e[i]=1; return Math.sqrt(Math.max(0,s2*linSolve(H,e)[i])); });
+  return { th: Array.from(th).map((v,i)=>on[i]?v:0), se, on, s2 };
+}
+
+// ===================== DRAWING =====================
+const svg=document.getElementById('canvas');
+const X0=330, SC=150, SY=44;                       // effect origin (d_A = 0), px per unit, px per covariate unit
+const XR=[-2.4,2.6];                               // covariate range drawn in each row
+const bands=[{c:240, id:'Study 1 · IPD (A vs B)'},{c:540, id:'Study 2 · IPD (A vs C)'}];
+const Y=(b,x)=>bands[b].c - SY*(x - (XR[0]+XR[1])/2);
+const fmt=(v,n)=>Number(v).toFixed(n);
+const sci=v=>v===0?'0':v.toExponential(0);
+function drawCoil(x1,y1,x2,y2,color,turns,sw,amp){
+  const dx=x2-x1,dy=y2-y1,len=Math.hypot(dx,dy); if(len<1) return '';
+  const ux=dx/len,uy=dy/len,px=-uy,py=ux, A=Math.min(amp||4,len*0.3), segs=Math.max(12,turns*8);
+  let d=`M ${x1.toFixed(1)} ${y1.toFixed(1)}`;
+  for(let i=1;i<=segs;i++){ const t=i/segs,o=A*Math.sin(Math.PI*t)*Math.sin(2*Math.PI*turns*t);
+    d+=` L ${(x1+dx*t+px*o).toFixed(1)} ${(y1+dy*t+py*o).toFixed(1)}`; }
+  return `<path d="${d}" stroke="${color}" stroke-width="${sw||1.2}" fill="none"/>`;
+}
+const TC={0:'#555555',1:'#1b9e77',2:'#7c3aed'}, TN={0:'A',1:'B',2:'C'};
+
+function render(){
+  const regUsed = view==='arm' ? 'none' : reg;
+  const F = view==='arm' ? fit(armUnits(),'none') : fit(patientUnits(), reg);
+  const th=F.th, P=Object.fromEntries(TKEY.map((k,i)=>[k,th[i]]));
+  document.getElementById('kDisplay').textContent=`× ${fmt(spread,2)}`;
+  const studyX=(j,x)=> X0 + SC*(-(j===0?P.mu1:P.mu2) - P.b1*(x-xbar));
+  const trtX=(t,x)=> X0 + SC*(t===0?0:(t===1?P.dB:P.dC) + P.b2*(x-xbar));
+  let h='';
+  // effect axis
+  const yAx=700;
+  h+=`<line x1="${X0-SC*1.5}" y1="${yAx}" x2="${X0+SC*3.6}" y2="${yAx}" stroke="#888"/>`;
+  for(let v=-1.5; v<=3.5; v+=0.5){ const xx=X0+SC*v; h+=`<line x1="${xx}" y1="${yAx-4}" x2="${xx}" y2="${yAx+4}" stroke="#888"/>`;
+    if(Math.abs(v-Math.round(v))<1e-9) h+=`<text x="${xx}" y="${yAx+17}" text-anchor="middle" font-size="10" fill="#666">${v}</text>`; }
+  h+=`<text x="${X0+SC*3.6}" y="${yAx+32}" text-anchor="end" font-size="11" fill="#444">linear predictor (${outcome==='bin'?'log-odds':'outcome scale'}); spring length = η</text>`;
+  // glued treatment rods: guides through both rows
+  for(const t of [1,2]){ const xs=[trtX(t,XR[1]),trtX(t,XR[0])];
+    h+=`<line x1="${xs[0].toFixed(1)}" y1="${Y(0,XR[1])}" x2="${xs[1].toFixed(1)}" y2="${Y(0,XR[0])}" stroke="${TC[t]}" stroke-width="1" stroke-dasharray="2,5" opacity="${t===1?0:0.5}"/>`;
+    h+=`<line x1="${xs[0].toFixed(1)}" y1="${Y(1,XR[1])}" x2="${xs[1].toFixed(1)}" y2="${Y(1,XR[0])}" stroke="${TC[t]}" stroke-width="1" stroke-dasharray="2,5" opacity="${t===2?0:0.5}"/>`; }
+  h+=`<line x1="${X0}" y1="${Y(0,XR[1])-14}" x2="${X0}" y2="${Y(1,XR[0])+10}" stroke="${TC[0]}" stroke-width="4" stroke-linecap="round"/>`;
+  h+=`<text x="${X0}" y="${Y(1,XR[0])+26}" text-anchor="middle" font-size="9.5" fill="#a00">⚓ d_A = 0</text>`;
+
+  bands.forEach((bd,b)=>{
+    h+=`<line x1="44" y1="${Y(b,XR[1])}" x2="44" y2="${Y(b,XR[0])}" stroke="#888"/>`;
+    for(let v=-2; v<=2; v++){ h+=`<line x1="40" y1="${Y(b,v)}" x2="48" y2="${Y(b,v)}" stroke="#888"/><text x="36" y="${Y(b,v)+3.5}" text-anchor="end" font-size="10" fill="#666">${v}</text>`; }
+    h+=`<text x="60" y="${Y(b,XR[1])-6}" font-size="12.5" font-weight="700" fill="#1a73e8">${bd.id}${view==='arm'?' · arm totals only':''}</text>`;
+    h+=`<line x1="48" y1="${Y(b,xbar)}" x2="${X0+SC*3.4}" y2="${Y(b,xbar)}" stroke="#e65100" stroke-dasharray="2,4" opacity="0.5"/>`;
+    h+=`<text x="${X0+SC*3.4+4}" y="${Y(b,xbar)+4}" font-size="10" fill="#b35a00">x̄ = ${xbar}</text>`;
+  });
+  h+=`<text x="16" y="${(Y(0,XR[1])+Y(1,XR[0]))/2}" transform="rotate(-90 16 ${(Y(0,XR[1])+Y(1,XR[0]))/2})" text-anchor="middle" font-size="11" fill="#444">patient covariate x</text>`;
+
+  if(view==='pat'){
+    // ---- patient springs
+    for(const p of pts){ if(p.x<XR[0]||p.x>XR[1]) continue; const b=p.s-1, y=Y(b,p.x), a=studyX(b,p.x), c=trtX(p.t,p.x);
+      if(outcome==='bin'){
+        h+=`<line x1="${a.toFixed(1)}" y1="${y.toFixed(1)}" x2="${c.toFixed(1)}" y2="${y.toFixed(1)}" stroke="${p.yb?'#1b9e77':'#8a8f98'}" stroke-width="0.6" opacity="${p.yb?0.45:0.35}"/>`;
+        h+=`<circle cx="${c.toFixed(1)}" cy="${y.toFixed(1)}" r="1.3" fill="${p.yb?'#1b9e77':'#8a8f98'}"/>`;
+      } else {
+        const rest=a+SC*p.yc, comp=p.yc> (c-a)/SC, col=comp?'#e65100':'#1a73e8';
+        h+=`<line x1="${a.toFixed(1)}" y1="${y.toFixed(1)}" x2="${c.toFixed(1)}" y2="${y.toFixed(1)}" stroke="${col}" stroke-width="0.6" opacity="0.35"/>`;
+        h+=`<circle cx="${rest.toFixed(1)}" cy="${y.toFixed(1)}" r="1.4" fill="${col}" opacity="0.8"/>`;
+      } }
+  } else {
+    // ---- one spring per arm at the study's covariate mean
+    for(const a of arms()){ const b=a.s-1, xm=STUDY[a.s].mean, y=Y(b,xm)+(a.t===0?-14:14), col=TC[a.t], s0=studyX(b,xm), t0=trtX(a.t,xm);
+      h+=drawCoil(s0,y,t0,y,col,7,2.2,6);
+      h+=`<circle cx="${s0.toFixed(1)}" cy="${y}" r="3.5" fill="#1a73e8"/><circle cx="${t0.toFixed(1)}" cy="${y}" r="3" fill="${col}"/>`;
+      h+=`<text x="${(Math.max(s0,t0)+12).toFixed(1)}" y="${y+4}" text-anchor="start" font-size="10.5" fill="#444">${TN[a.t]} arm: ${outcome==='bin'?`r = ${a.r} of ${a.n}`:`ȳ = ${fmt(a.ybar,3)}, n = ${a.n}`}</text>`; }
+  }
+  // ---- rods (drawn over the springs)
+  [0,1].forEach(j=>{ const x1=studyX(j,XR[1]), x2=studyX(j,XR[0]);
+    h+=`<line x1="${(X0+SC*-(j===0?P.mu1:P.mu2)).toFixed(1)}" y1="${Y(j,XR[1])}" x2="${(X0+SC*-(j===0?P.mu1:P.mu2)).toFixed(1)}" y2="${Y(j,XR[0])}" stroke="#1a73e8" stroke-dasharray="2,5" opacity="${F.on[4]?0.5:0}"/>`;
+    h+=`<line x1="${x1.toFixed(1)}" y1="${Y(j,XR[1])}" x2="${x2.toFixed(1)}" y2="${Y(j,XR[0])}" stroke="#1a73e8" stroke-width="5" stroke-linecap="round" opacity="0.9"/>`;
+    h+=`<circle cx="${studyX(j,xbar).toFixed(1)}" cy="${Y(j,xbar)}" r="4.5" fill="#fff" stroke="#1a73e8" stroke-width="2"/>`;
+    h+=`<text x="${(x2+10).toFixed(1)}" y="${Y(j,XR[0])+4}" font-size="12" fill="#1a73e8" font-weight="700">S${j+1} (−μ<tspan font-size="9" dy="2">${j+1}</tspan><tspan dy="-2">)</tspan></text>`; });
+  for(const [t,bb] of [[1,0],[2,1]]){ const x1=trtX(t,XR[1]), x2=trtX(t,XR[0]);
+    h+=`<line x1="${(X0+SC*(t===1?P.dB:P.dC)).toFixed(1)}" y1="${Y(bb,XR[1])}" x2="${(X0+SC*(t===1?P.dB:P.dC)).toFixed(1)}" y2="${Y(bb,XR[0])}" stroke="${TC[t]}" stroke-dasharray="2,5" opacity="${F.on[5]?0.5:0}"/>`;
+    h+=`<line x1="${x1.toFixed(1)}" y1="${Y(bb,XR[1])}" x2="${x2.toFixed(1)}" y2="${Y(bb,XR[0])}" stroke="${TC[t]}" stroke-width="5" stroke-linecap="round" opacity="0.9"/>`;
+    h+=`<circle cx="${trtX(t,xbar).toFixed(1)}" cy="${Y(bb,xbar)}" r="4.5" fill="#fff" stroke="${TC[t]}" stroke-width="2"/>`;
+    h+=`<circle cx="${x1.toFixed(1)}" cy="${Y(bb,XR[1])-18}" r="13" fill="#dbeafe" stroke="${TC[t]}" stroke-width="2"/><text x="${x1.toFixed(1)}" y="${Y(bb,XR[1])-13}" text-anchor="middle" font-weight="700" font-size="13">${TN[t]}</text>`; }
+  h+=`<circle cx="${X0}" cy="${Y(0,XR[1])-30}" r="13" fill="#dbeafe" stroke="${TC[0]}" stroke-width="2"/><text x="${X0}" y="${Y(0,XR[1])-25}" text-anchor="middle" font-weight="700" font-size="13">A</text>`;
+
+  // ---- estimates panel
+  const px=1000, py=110;
+  h+=`<rect x="${px-14}" y="${py-30}" width="324" height="${440}" fill="#fcfcfc" stroke="#bbb" rx="4"/>`;
+  h+=`<text x="${px}" y="${py-10}" font-size="13" font-weight="600" fill="#333">Equilibrium = ${outcome==='bin'?'glm()':'lm()'} fit (± SE)</text>`;
+  h+=`<text x="${px+150}" y="${py+10}" font-size="10" fill="#888" text-anchor="end">estimate</text><text x="${px+240}" y="${py+10}" font-size="10" fill="#888" text-anchor="end">SE</text><text x="${px+295}" y="${py+10}" font-size="10" fill="#888" text-anchor="end">true</text>`;
+  TKEY.forEach((k,i)=>{ const yy=py+30+i*20;
+    h+=`<text x="${px}" y="${yy}" font-size="12" fill="#333">${NAMES[i]}</text>`;
+    h+=`<text x="${px+150}" y="${yy}" font-size="12" fill="${F.on[i]?'#111':'#bbb'}" text-anchor="end" font-family="monospace">${F.on[i]?fmt(th[i],3):'0 (off)'}</text>`;
+    h+=`<text x="${px+240}" y="${yy}" font-size="12" fill="#666" text-anchor="end" font-family="monospace">${F.on[i]&&!(outcome==='cont'&&view==='arm')?fmt(F.se[i],3):''}</text>`;
+    h+=`<text x="${px+295}" y="${yy}" font-size="12" fill="#999" text-anchor="end" font-family="monospace">${fmt(TRUE[k],1)}</text>`; });
+  let y2=py+30+6*20+18;
+  h+=`<line x1="${px}" y1="${y2-12}" x2="${px+300}" y2="${y2-12}" stroke="#ddd"/>`;
+  // patients vs arm springs, both without covariates
+  const fp=fit(patientUnits(),'none').th, fa=fit(armUnits(),'none').th;
+  const diff=Math.max(...fp.map((v,i)=>Math.abs(v-fa[i])));
+  h+=`<text x="${px}" y="${y2+6}" font-size="12" font-weight="600" fill="#333">No covariate: patients vs arm springs</text>`;
+  h+=`<text x="${px}" y="${y2+26}" font-size="11.5" fill="#444">patients: d_B ${fmt(fp[2],4)}, d_C ${fmt(fp[3],4)}</text>`;
+  h+=`<text x="${px}" y="${y2+44}" font-size="11.5" fill="#444">arm springs: d_B ${fmt(fa[2],4)}, d_C ${fmt(fa[3],4)}</text>`;
+  h+=`<text x="${px}" y="${y2+62}" font-size="11.5" fill="#11684f">max |difference| = ${sci(diff)} (the same fit)</text>`;
+  y2+=92;
+  h+=`<text x="${px}" y="${y2}" font-size="12" font-weight="600" fill="#333">Levers: within-study spread of x</text>`;
+  [1,2].forEach((s,k)=>{ const xs=pts.filter(p=>p.s===s).map(p=>p.x), m=xs.reduce((u,v)=>u+v,0)/xs.length,
+      sd=Math.sqrt(xs.reduce((u,v)=>u+(v-m)**2,0)/(xs.length-1));
+    h+=`<text x="${px}" y="${y2+20+k*18}" font-size="11.5" fill="#444">Study ${s}: mean ${fmt(m,2)}, SD ${fmt(sd,2)}</text>`; });
+  if(view==='pat' && regUsed!=='none'){
+    h+=`<text x="${px}" y="${y2+60}" font-size="11.5" fill="#444">SE(β₁) ${fmt(F.se[4],3)}${F.on[5]?`, SE(β₂) ${fmt(F.se[5],3)}`:''}</text>`; }
+  h+=`<text x="${px}" y="${y2+84}" font-size="10.5" fill="#888">${view==='arm'
+      ? 'Arm totals carry no within-study spread: no lever, no slope.'
+      : 'Tilt balance Σ (x−x̄)·force = 0 is the score equation;'}</text>`;
+  h+=`<text x="${px}" y="${y2+99}" font-size="10.5" fill="#888">${view==='arm'
+      ? 'Switch back to patients to estimate β₁ and β₂.'
+      : 'patients far from the pivot carry most of the slope.'}</text>`;
+  svg.innerHTML=h;
+}
+
+// ===================== CONTROLS =====================
+const $=id=>document.getElementById(id);
+function activate(ids,on){ ids.forEach(id=>$(id).classList.toggle('active', id===on)); }
+function setOut(o){ outcome=o; activate(['oBin','oCont'], o==='bin'?'oBin':'oCont'); render(); }
+function setReg(r){ reg=r; view='pat'; activate(['rNone','rProg','rFull'], {none:'rNone',prog:'rProg',full:'rFull'}[r]); activate(['vPat','vArm'],'vPat'); render(); }
+function setView(v){ view=v; activate(['vPat','vArm'], v==='pat'?'vPat':'vArm');
+  if(v==='arm') activate(['rNone','rProg','rFull'],'rNone'); else activate(['rNone','rProg','rFull'], {none:'rNone',prog:'rProg',full:'rFull'}[reg]);
+  render(); }
+$('oBin').onclick=()=>setOut('bin'); $('oCont').onclick=()=>setOut('cont');
+$('rNone').onclick=()=>setReg('none'); $('rProg').onclick=()=>setReg('prog'); $('rFull').onclick=()=>setReg('full');
+$('vPat').onclick=()=>setView('pat'); $('vArm').onclick=()=>setView('arm');
+$('kSlider').oninput=function(){ spread=(+this.value)/100; pts=makeData(spread); render(); };
+render();
+
+showStudyData(() => [{title: `IPD example (simulated), ${outcome==='bin'?'binary':'continuous'} outcome, arm summaries`, treatments: ['A','B','C'],
+  studies: [1,2].map(s=>({ id:`S${s} (IPD)`, arms: arms().filter(a=>a.s===s).map(a=> outcome==='bin'
+      ? { t:a.t, events:a.r, n:a.n } : { t:a.t, y:Number(a.ybar.toFixed(6)), v:Number((a.sd*a.sd/a.n).toFixed(6)) }) })),
+  note: `Both studies share individual records: Study 1 has 250 patients per arm with covariate x ~ N(0, ${fmt(spread,2)}²), Study 2 has 150 per arm with x ~ N(1, ${fmt(0.8*spread,2)}²); the table shows arm summaries only. Centring value x̄ = ${xbar}. Simulated with μ₁ = ${TRUE.mu1}, μ₂ = ${TRUE.mu2}, d_B = ${TRUE.dB}, d_C = ${TRUE.dC}, β₁ = ${TRUE.b1}, β₂ = ${TRUE.b2}${outcome==='cont'?`, residual SD ${SIGMA}`:''}. The patient-level data at spread × 1 are in data/ipd-two-studies.csv.`}]);
+</script>
+</div>
+<p class="anim-cap">Each patient is one spring at the height of their covariate. Switch between binary and continuous outcomes and between regression terms, sum the patients into arm springs, and stretch the within-study covariate spread to see the slope estimates sharpen.</p>
+<p class="anim-fulllink"><a href="../ipd-springs.html" target="_blank" rel="noopener">Open this animation in its own page &#8599;</a></p>
+</div>
+
+<p>In <a href="3a-covariate-axis.html">3a</a> a covariate was a property
+of a <strong>study</strong>: one value per trial, and the slope was
+learned from differences between trials. Individual participant data
+(IPD) record the covariate and the outcome for every
+<strong>patient</strong>. The spring network takes them as they are: one
+spring per patient.</p>
+<h2 id="patient">1. A patient is a spring</h2>
+<p>Patient $i$ in study $j$ on treatment $k$ has linear
+predictor $\eta_i=\mu_j+d_k$ (covariates come in section 3). As in Part 1, the
+spring runs from the study node to the treatment node, and its energy is
+the patient’s negative log-likelihood:</p>
+<ul>
+<li><strong>Continuous outcome</strong>, $y_i\sim\mathcal N(\eta_i,\sigma^2)$: $E_i=(y_i-\eta_i)^2/2\sigma^2$. A Hooke
+spring with rest length $y_i$ and stiffness $1/\sigma^2$.</li>
+<li><strong>Binary outcome</strong>, $y_i\in\{0,1\}$, $\operatorname{logit}p_i=\eta_i$: $E_i=-y_i\log p_i-(1-y_i)\log(1-p_i)$. The
+force is $y_i-p_i$ and the stiffness $p_i(1-p_i)$: the binomial spring of <a
+href="1b-binomial-spring.html">1b</a> with $n=1$. A single patient
+has <strong>no rest length</strong>: a responder pushes $\eta$ up, a
+non-responder pushes it down, and neither push ever reaches zero.</li>
+</ul>
+<h2 id="collapse">2. Without covariates, patients add up to the arm
+spring</h2>
+<p>If every patient in an arm has the same $\eta$, their springs act
+in parallel and add:</p>
+<p>$$ \sum_{i\in\text{arm}}\frac{(y_i-\eta)^2}{2\sigma^2}
+=\frac{n(\bar y-\eta)^2}{2\sigma^2}+\text{const},\qquad
+\sum_{i\in\text{arm}}(y_i-p)=r-np. $$</p>
+<p>The $n$ Gaussian patients are one spring of stiffness $n/\sigma^2$
+at the arm mean $\bar y$: the arm spring of <a
+href="1a-pairwise-fe.html">1a</a> with $v=\sigma^2/n$. The $n$ binary
+patients pull exactly like the arm’s binomial spring with $r$
+events. The arm totals are sufficient statistics, so IPD and arm totals
+give <strong>the same equilibrium</strong>. In the animation, select
+<strong>Summed into arm springs</strong>: the panel compares the two
+fits, and they differ only by rounding ($10^{-15}$).</p>
+<p>So IPD changes nothing until patients differ in something that
+matters for their outcome.</p>
+<h2 id="heights">3. Patient covariates give the patients heights</h2>
+<p>With a patient covariate $x$, in multinma’s notation,</p>
+<p>$$ \eta_i=\mu_j+\beta_1(x_i-\bar x)+d_k+\beta_{2,k}(x_i-\bar x),
+\qquad d_A=\beta_{2,A}=0. $$</p>
+<p>Put each patient at the height of their own $x$:</p>
+<ul>
+<li><strong>Study rods.</strong> The study node of 3a opens into a rod,
+tilted by the prognostic slope $\beta_1$. Each study keeps its own
+position $\mu_j$; all study rods share the tilt.</li>
+<li><strong>Treatment rods.</strong> As in 3a, treatment $k$ is a
+rod at $d_k$ tilted by the interaction $\beta_{2,k}$, glued through every
+study that has it. The reference $A$ is pinned and vertical. The
+animation shares one interaction between B and C, $\beta_{2,B}=\beta_{2,C}=\beta_2$.</li>
+<li><strong>Springs.</strong> Patient $i$ is a spring from the
+study rod to their treatment rod at height $x_i$. Its horizontal
+length is $\eta_i$.</li>
+</ul>
+<p>Now the patients of one arm sit at different heights, see different
+$\eta$, and no longer collapse into one spring.</p>
+<h2 id="levers">4. Levers: the within-study spread identifies the
+slopes</h2>
+<p>Tilting a rod by $\Delta$ moves its contact at height $x$ by
+$(x-\bar x)\Delta$. A spring pulling with force $F_i$ at height $x_i$ turns
+the rod with torque $(x_i-\bar x)F_i$, and resists the tilt with stiffness
+$(x_i-\bar x)^2k_i$. At equilibrium</p>
+<p>$$ \sum_i (x_i-\bar x)\,F_i=0, $$</p>
+<p>which is the score equation for the slope, and $\sum_i (x_i-\bar x)^2k_i$ is its Fisher
+information. The heights are the lever arms:</p>
+<ul>
+<li>A patient at the pivot $\bar x$ says nothing about a slope. Patients
+far from it say the most.</li>
+<li>The slope’s standard error falls in proportion to the covariate’s
+spread <strong>within</strong> the studies. Halve the spread and the
+standard error roughly doubles.</li>
+<li>Summing an arm into one spring puts all its patients at one height:
+no lever, no slope. That is why the <strong>Summed into arm
+springs</strong> view switches the covariate terms off.</li>
+</ul>
+<p>This is the main gain of IPD over the study-level regression of 3a.
+There the slope came from comparing trials with different average
+$x$, which is confounded with anything else that differs between
+the trials (ecological or aggregation bias). Here each study rod has its
+own position $\mu_j$, so between-study differences in baseline are
+absorbed; $\beta_2$ is learned by comparing randomised arms at the same
+$x$. In this two-study network each active treatment appears in
+only one study, so $d_B$ and $d_C$ also absorb any between-study
+difference in effect and $\beta_2$ comes from within-trial comparisons
+alone. In larger networks a one-stage model can mix within- and
+between-study information on an interaction unless the covariate is
+centred within each study (Riley et al. 2020, <em>Statistics in
+Medicine</em>).</p>
+<h3 id="try-the-picture">Try the picture</h3>
+<ol type="1">
+<li>Start with <strong>Binary outcome</strong> and <strong>$\beta_1$ +
+interaction $\beta_2$</strong>. The estimates sit near the simulation
+truth; note the standard errors of $\beta_1$ and $\beta_2$.</li>
+<li>Select <strong>Summed into arm springs</strong>. Each arm becomes
+one spring labelled with its totals, the rods stand vertical, and the
+panel shows that the patient fit and the arm fit without covariates are
+the same.</li>
+<li>Back to <strong>Patients as springs</strong>. Drag the
+<strong>within-study covariate spread</strong> down to $\times 0.25$: the
+patients bunch up around each study’s mean, the levers shorten, and the
+slope standard errors grow three to four times. Drag it up to $\times 2$
+and they fall, but by less than half: patients at extreme heights have
+$p$ near 0 or 1, and their springs go soft (stiffness
+$p(1-p)$).</li>
+<li>Switch to <strong>Continuous outcome</strong>. Each patient is now a
+Hooke spring whose rest length is their outcome (the dot). Orange
+springs are compressed and push the rods apart; blue ones are stretched
+and pull them together. The standard errors are much smaller: a
+continuous outcome with residual SD 0.5 carries more information per
+patient than a yes/no answer. Here every spring has the same stiffness,
+so the slope standard errors are exactly inversely proportional to the
+spread.</li>
+</ol>
+<h2 id="glm">5. The equilibrium is the glm() fit</h2>
+<p>With no priors, the equilibrium is the maximum-likelihood estimate
+and the stiffness matrix at equilibrium is the observed information. For
+the logit link (the canonical link) the observed and expected
+information coincide, so the spring network reproduces
+<code>glm()</code> exactly, standard errors included; for a continuous
+outcome it reproduces <code>lm()</code>. The animation solves the
+network by Newton’s method in the browser, and its panel matches R to
+every digit shown.</p>
+<p>The patients in the animation (spread $\times 1$) are in <a
+href="../data/ipd-two-studies.csv">ipd-two-studies.csv</a>. With the
+<code>springs</code> R package from the <a
+href="https://github.com/tpapak/meta-springs">meta-springs
+repository</a> and multinma installed:</p>
+<div class="sourceCode" id="cb1"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(multinma)</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>d <span class="ot">&lt;-</span> <span class="fu">read.csv</span>(<span class="st">&quot;ipd-two-studies.csv&quot;</span>)</span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>d$xc <- d$x <span class="sc">-</span> <span class="fl">0.5</span>                                        <span class="co"># centre at x-bar = 0.5</span></span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>d$trtclass <- ifelse(d$trt <span class="sc">==</span> <span class="st">&quot;A&quot;</span>, <span class="st">&quot;control&quot;</span>, <span class="st">&quot;active&quot;</span><span class="er">)</span>  <span class="co"># one interaction for B and C</span></span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a>net <span class="ot">&lt;-</span> <span class="fu">set_ipd</span>(d, <span class="at">study =</span> study, <span class="at">trt =</span> trt, <span class="at">r =</span> y_binary, <span class="at">trt_class =</span> trtclass)</span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a>fit <span class="ot">&lt;-</span> springs<span class="sc">::</span><span class="fu">mlnmr</span>(net, <span class="at">regression =</span> <span class="sc">~</span> xc <span class="sc">+</span> xc<span class="sc">:</span>.trt, <span class="at">class_interactions =</span> <span class="st">&quot;common&quot;</span>,</span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a>                      <span class="at">link =</span> <span class="st">&quot;logit&quot;</span>, <span class="at">likelihood =</span> <span class="st">&quot;bernoulli&quot;</span>, <span class="at">center =</span> <span class="cn">FALSE</span>,</span>
+<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a>                      <span class="at">prior_intercept =</span> <span class="cn">Inf</span>, <span class="at">prior_trt =</span> <span class="cn">Inf</span>, <span class="at">prior_reg =</span> <span class="cn">Inf</span>)</span>
+<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a>d$act <- as.numeric(d$trt <span class="sc">!=</span> <span class="st">&quot;A&quot;</span><span class="er">)</span></span>
+<span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a>g <span class="ot">&lt;-</span> <span class="fu">glm</span>(y_binary <span class="sc">~</span> <span class="dv">0</span> <span class="sc">+</span> study <span class="sc">+</span> trt <span class="sc">+</span> xc <span class="sc">+</span> xc<span class="sc">:</span>act, <span class="at">family =</span> binomial, <span class="at">data =</span> d)</span>
+<span id="cb1-12"><a href="#cb1-12" aria-hidden="true" tabindex="-1"></a><span class="fu">cbind</span>(<span class="at">springs =</span> fit<span class="sc">$</span>mode, <span class="at">glm =</span> <span class="fu">coef</span>(g))</span></code></pre></div>
+<table class="tbl">
+<thead>
+<tr>
+<th>parameter</th>
+<th>springs</th>
+<th><code>glm()</code></th>
+<th>SE</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>$\mu_1$</td>
+<td>−1.2277</td>
+<td>−1.2277</td>
+<td>0.165</td>
+</tr>
+<tr>
+<td>$\mu_2$</td>
+<td>−0.6564</td>
+<td>−0.6564</td>
+<td>0.184</td>
+</tr>
+<tr>
+<td>$d_B$</td>
+<td>1.6146</td>
+<td>1.6146</td>
+<td>0.231</td>
+</tr>
+<tr>
+<td>$d_C$</td>
+<td>1.4537</td>
+<td>1.4537</td>
+<td>0.291</td>
+</tr>
+<tr>
+<td>$\beta_1$</td>
+<td>0.6388</td>
+<td>0.6388</td>
+<td>0.139</td>
+</tr>
+<tr>
+<td>$\beta_2$</td>
+<td>0.7196</td>
+<td>0.7196</td>
+<td>0.212</td>
+</tr>
+</tbody>
+</table>
+<p>The largest difference is $7\times10^{-8}$, the solver’s convergence
+tolerance. On real data, the three UNCOVER psoriasis trials in multinma
+(26 parameters, five covariates and their interactions with treatment)
+give the same agreement: identical to <code>glm()</code> for the logit
+link and within $5\times10^{-8}$ for the probit.</p>
+<p>The <code>prior_*</code> arguments set to <code>Inf</code> mean flat
+priors. Finite values add springs to ground, and
+<code>springs::mlnmr</code> then returns the posterior rather than the
+maximum-likelihood point, without MCMC.</p>
+<p>Usually only some trials share their patients. In <a
+href="3c-mlnmr.html">3c</a> Study 2 keeps only its arm totals and its
+covariate mean and SD, and its arms become springs averaged over that
+distribution.</p>
+
+
+    <div class="inpart">
+      <div class="inpart-label">Part 3 · Network meta-regression</div>
+      <ol>
+        <li><a href="3a-covariate-axis.html">Covariates, slopes and the solver</a></li>
+        <li class="here"><a href="3b-ipd.html">IPD: every patient a spring</a></li>
+        <li><a href="3c-mlnmr.html">ML-NMR: study rods and averaged springs</a></li>
+      </ol>
+    </div>
+
+<details class="faq">
+<summary>FAQ</summary>
+<div class="faq-body">
+
+<details class="faq-item"><summary>Is this
+one-stage or two-stage IPD meta-analysis?</summary>
+<p>One-stage: every patient’s spring is in one network, solved once. A
+two-stage analysis would first fit each trial and then pool the trial
+estimates as contrast springs. Without covariates and with Gaussian
+outcomes the two give the same treatment effects (section 2). With
+covariates or binary outcomes they can differ, and the one-stage network
+keeps the exact patient likelihood.</p>
+</details>
+<details class="faq-item"><summary>Do I need IPD from every
+trial?</summary>
+<p>No. Trials without IPD enter through their published arm totals and
+covariate summaries; that is multilevel network meta-regression, in <a
+href="3c-mlnmr.html">3c</a>.</p>
+</details>
+</div>
+</details>
+  </article>
+  <nav class="pager">
+    <a class="pager-prev" href="3a-covariate-axis.html"><span class="pager-label">Previous</span><span class="pager-title">&larr; Meta-regression: from a covariate axis to the solver</span></a>
+    <a class="pager-next" href="3c-mlnmr.html"><span class="pager-label">Next</span><span class="pager-title">ML-NMR: patient covariates, study rods and averaged springs &rarr;</span></a>
+  </nav>
+</main>
+<footer class="footer">
+  meta-springs &middot; <a href="https://github.com/tpapak/meta-springs">source on GitHub</a>
+</footer>
+</body>
+</html>

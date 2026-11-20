@@ -28,7 +28,7 @@ window.MathJax = {
 </nav>
 <main class="wrap postwrap">
   <article class="postbody">
-    <p class="breadcrumb"><a href="part3.html">Part 3 &middot; Network meta-regression</a> &rsaquo; 3b</p>
+    <p class="breadcrumb"><a href="part3.html">Part 3 &middot; Network meta-regression</a> &rsaquo; 3c</p>
     <h1 class="post-h1">ML-NMR: patient covariates, study rods and averaged springs</h1>
     <p class="post-meta">Thodoris Papakonstantinou</p>
 
@@ -296,11 +296,16 @@ showStudyData(() => [{title: 'ML-NMR example (simulated)', treatments: ['A','B',
 <p>In <a href="3a-covariate-axis.html">3a</a> every study had
 <strong>one</strong> covariate value. Its arms all sat at one height, so
 the prognostic term was absorbed into the study baseline and only the
-treatment slopes appeared. Multilevel network meta-regression (ML-NMR;
-Phillippo et al. 2020, implemented in multinma) uses covariates measured
-on <strong>patients</strong>: individual participant data (IPD) from
-some trials, and published covariate summaries from the others. The
-change of picture is one step: give every study row a height.</p>
+treatment slopes appeared. In <a href="3b-ipd.html">3b</a> both trials
+shared their patients, and every patient was a spring at their own
+height. Usually only some trials do. Multilevel network meta-regression
+(ML-NMR; Phillippo et al. 2020, implemented in multinma) combines
+individual participant data (IPD) from some trials with published
+covariate summaries from the others. The animation keeps 3b’s Study 1
+patients unchanged and replaces Study 2 by a trial of the same size and
+population that reports only its arm totals and its covariate mean and
+SD. Sections 1–4 recap the rods and levers of 3b in this setting;
+section 5 is new.</p>
 <h2 id="model">1. The model in multinma’s notation</h2>
 <p>For a patient in study $j$ on treatment $k$ with covariate
 $x$,</p>
@@ -500,7 +505,8 @@ to these posterior means.</p>
       <div class="inpart-label">Part 3 · Network meta-regression</div>
       <ol>
         <li><a href="3a-covariate-axis.html">Covariates, slopes and the solver</a></li>
-        <li class="here"><a href="3b-mlnmr.html">ML-NMR: study rods and averaged springs</a></li>
+        <li><a href="3b-ipd.html">IPD: every patient a spring</a></li>
+        <li class="here"><a href="3c-mlnmr.html">ML-NMR: study rods and averaged springs</a></li>
       </ol>
     </div>
 
@@ -527,7 +533,7 @@ studies then borrow them.</p>
 </details>
   </article>
   <nav class="pager">
-    <a class="pager-prev" href="3a-covariate-axis.html"><span class="pager-label">Previous</span><span class="pager-title">&larr; Meta-regression: from a covariate axis to the solver</span></a>
+    <a class="pager-prev" href="3b-ipd.html"><span class="pager-label">Previous</span><span class="pager-title">&larr; IPD: every patient is a spring</span></a>
     <span class="pager-empty"></span>
   </nav>
 </main>

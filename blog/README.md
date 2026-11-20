@@ -117,7 +117,7 @@ blog/
 │   ├── index.md
 │   ├── part1.md … 1a/1b/1c/1d
 │   ├── part2.md … 2a/2b/2c
-│   └── part3.md … 3a
+│   └── part3.md … 3a/3b/3c
 ├── tools/mdblog.py        ← the generator (extract / build)
 ├── *.html                 ← the interactive animation widgets (standalone)
 ├── index.html             ← GENERATED — do not edit

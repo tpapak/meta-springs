@@ -40,9 +40,11 @@ coordinates preserves the quadratic Gaussian energy. Then couple those
 slopes to share information across treatments. Finally, let the
 covariate be the <strong>latent study baseline</strong>: that makes the
 model nonlinear and introduces a local approximation in the current
-solver. Page 3b moves to <strong>patient-level covariates</strong>
-(ML-NMR): study rows gain height, study rods tilt by the prognostic
-slope, and an aggregate arm becomes one spring averaged over its
+solver. Page 3b moves to <strong>individual participant data</strong>:
+every patient is a spring, study rows gain height, study rods tilt by
+the prognostic slope, and the within-study spread of the covariate
+identifies the slopes. Page 3c combines IPD with aggregate data
+(ML-NMR): an aggregate arm becomes one spring averaged over its
 covariate distribution.</p>
 <p>The walkthrough connects the animation to the Haskell and Rust
 source, and includes commands for a Gaussian example and a separate
@@ -375,7 +377,9 @@ showStudyData(() => [{title: 'Meta-regression network', treatments, studies, not
 <ol class="series-list">
   <li><a href="3a-covariate-axis.html">Covariates, slopes and the solver</a>
       <span class="series-blurb">Fixed covariates extend the quadratic energy; exchangeable slopes add springs; latent baseline risk makes the model nonlinear. A runnable example connects the picture to the code.</span></li>
-  <li><a href="3b-mlnmr.html">ML-NMR: study rods and averaged springs</a>
+  <li><a href="3b-ipd.html">IPD: every patient a spring</a>
+      <span class="series-blurb">With individual participant data each patient is a spring. Without covariates the patients of an arm add up exactly to the arm spring; with a patient covariate they sit at different heights, and the within-study spread is the lever that identifies the slopes. The equilibrium is the glm() fit.</span></li>
+  <li><a href="3c-mlnmr.html">ML-NMR: study rods and averaged springs</a>
       <span class="series-blurb">Patient-level covariates give each study a height; study rods tilt by $\beta_1$, treatment rods by $\beta_2$; an aggregate arm is one spring with extent, and averaging its force law removes aggregation bias.</span></li>
 </ol>
 

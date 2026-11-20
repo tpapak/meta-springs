@@ -32,13 +32,14 @@ ORDER = [
     ("2c-exchangeability","page"),
     ("part3",            "hub"),
     ("3a-covariate-axis","page"),
-    ("3b-mlnmr",         "page"),
+    ("3b-ipd",           "page"),
+    ("3c-mlnmr",         "page"),
 ]
 # which hub each part's pages belong to, in order
 PARTS = [
     ("part1", 1, ["1a-pairwise-fe","1b-binomial-spring","1c-random-effects","1d-spring-reml"]),
     ("part2", 2, ["2a-xi-posterior","2b-multiple-tau","2c-exchangeability"]),
-    ("part3", 3, ["3a-covariate-axis","3b-mlnmr"]),
+    ("part3", 3, ["3a-covariate-axis","3b-ipd","3c-mlnmr"]),
 ]
 KIND   = dict(ORDER)
 def part_of(slug):
