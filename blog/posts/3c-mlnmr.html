@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>ML-NMR: patient covariates, study rods and averaged springs — meta-springs</title>
+<title>ML-NMR: IPD and aggregate data, averaged springs — meta-springs</title>
 <link rel="stylesheet" href="../style.css">
 <script>
 window.MathJax = {
@@ -29,7 +29,7 @@ window.MathJax = {
 <main class="wrap postwrap">
   <article class="postbody">
     <p class="breadcrumb"><a href="part3.html">Part 3 &middot; Network meta-regression</a> &rsaquo; 3c</p>
-    <h1 class="post-h1">ML-NMR: patient covariates, study rods and averaged springs</h1>
+    <h1 class="post-h1">ML-NMR: IPD and aggregate data, averaged springs</h1>
     <p class="post-meta">Thodoris Papakonstantinou</p>
 
     <div class="posthero">
@@ -289,7 +289,7 @@ showStudyData(() => [{title: 'ML-NMR example (simulated)', treatments: ['A','B',
   note: `Study 1 shares individual records (250 per arm, covariate x ~ N(0, 1)); the table shows its totals. Study 2 reports only totals and a covariate mean ${agdMean} and SD ${agdTrueSD} (its events are the expected counts under the true model). Centring value x̄ = ${xbar}. Simulated with μ₁ = ${TRUE.mu1}, μ₂ = ${TRUE.mu2}, d_B = ${TRUE.dB}, d_C = ${TRUE.dC}, β₁ = ${TRUE.b1}, β₂ = ${TRUE.b2}.`}]);
 </script>
 </div>
-<p class="anim-cap">Each study row now has height, the patient covariate $x$. Study rods tilt by the prognostic slope $\beta_1$, treatment rods by the interaction $\beta_2$. Switch the regression terms, compare the averaged aggregate spring with the at-mean spring, and move the reported covariate SD of Study 2.</p>
+<p class="anim-cap">Study 1 shares its patients; Study 2 reports only arm totals and the covariate mean and SD. Switch the regression terms, compare the averaged aggregate spring with the at-mean spring, and move the reported covariate SD of Study 2.</p>
 <p class="anim-fulllink"><a href="../mlnmr-springs.html" target="_blank" rel="noopener">Open this animation in its own page &#8599;</a></p>
 </div>
 
@@ -304,10 +304,10 @@ individual participant data (IPD) from some trials with published
 covariate summaries from the others. The animation keeps 3b’s Study 1
 patients unchanged and replaces Study 2 by a trial of the same size and
 population that reports only its arm totals and its covariate mean and
-SD. Sections 1–4 recap the rods and levers of 3b in this setting;
-section 5 is new.</p>
-<h2 id="model">1. The model in multinma’s notation</h2>
-<p>For a patient in study $j$ on treatment $k$ with covariate
+SD.</p>
+<h2 id="model">1. The model and the picture</h2>
+<p>The model and the picture are those of <a href="3b-ipd.html">3b</a>.
+For a patient in study $j$ on treatment $k$ with covariate
 $x$,</p>
 <p>$$ \operatorname{logit} p = \mu_j + \beta_1 (x-\bar x) + d_k + \beta_{2,k}(x-\bar x),
 \qquad d_A=\beta_{2,A}=0. $$</p>
@@ -348,59 +348,17 @@ arm</td>
 </tr>
 </tbody>
 </table>
-<p>The animation shares one interaction across the active treatments,
-$\beta_{2,B}=\beta_{2,C}=\beta_2$.</p>
-<h2 id="rods">2. Study rods appear</h2>
-<p>Put each patient at the height of their own $x$.</p>
-<ul>
-<li><strong>Treatment rods.</strong> As in 3a, treatment $k$ is a
-rigid rod at $d_k$, tilted by $\beta_{2,k}$ about the pivot $\bar x$. It
-is glued through every study: all studies see the same position and tilt
-(consistency). The reference $A$ is pinned and vertical.</li>
-<li><strong>Study rods.</strong> The study spindle of 3a opens into a
-rod over the study’s covariate range, tilted by $\beta_1$. Study rods are
-glued in <strong>tilt only</strong>: each keeps its own baseline
-$\mu_j$, but all tilt by the same $\beta_1$, so they stay parallel.</li>
-<li><strong>Springs.</strong> A patient is a spring from the study rod
-to the treatment rod at the patient’s height. Its horizontal length is
-the patient’s log-odds $\eta$ (the study rod sits at $-\mu_j$, as in
-<a href="1b-binomial-spring.html">1b</a>).</li>
-</ul>
-<p>This is why 3a had no study rods: with one $x$ per study the rod
-has no length, and tilting it is the same as moving $\mu_j$. $\beta_1$
-is identified only when $x$ varies <strong>within</strong> a
-study.</p>
-<h2 id="levers">3. What the tilt does: levers</h2>
-<p>The rods are rigid but their displacement is not fixed. Tilting a rod
-by $\Delta$ moves its contact at height $x$ by $(x-\bar x)\Delta$. The rod
-stores no energy; it transmits force:</p>
-<ul>
-<li>A spring pulling with force $F_i$ turns the tilt with force
-$(x_i-\bar x)F_i$ and resists it with stiffness $(x_i-\bar x)^2 k_i$.</li>
-<li>The balance $\sum_i (x_i-\bar x)F_i=0$ is the score equation for $\beta_1$ (all arms)
-or $\beta_2$ (active arms); $\sum_i (x_i-\bar x)^2k_i$ is its Fisher information.</li>
-<li>A patient at $\bar x$ sits at the pivot and says nothing about a
-slope. If every patient sat at one height, tilt and position could not
-be separated. The heights are the entries of the design matrix.</li>
-</ul>
-<p>The link function changes the springs, not the rods, so the same rods
-serve Gaussian, binomial and survival likelihoods.</p>
-<h2 id="binary">4. Binary patients have no rest length</h2>
-<p>A single Bernoulli observation has no finite best value of $\eta$:
-a responder pushes $\eta$ up with force $1-p$, a non-responder
-pushes it down with force $p$ (<a
-href="1b-binomial-spring.html">1b</a> with $n=1$). In the animation
-responders are green and non-responders grey. The equilibrium exists
-because the two push against each other through the rods. Without
-covariates every patient in an arm shares $\eta$, the pushes balance
-at $\operatorname{logit}(r/n)$, and the patients add up exactly to the arm’s binomial
-spring. With covariates they sit at different heights and stay
-separate.</p>
-<p>If all responders sat at one end of the covariate range and all
-non-responders at the other, every levered push would turn the tilt the
-same way and the slope would run off to infinity: complete separation. A
-prior on the slope (a spring to ground) stops it.</p>
-<h2 id="agd">5. Aggregate arms: one spring with extent</h2>
+<p>The animation shares one interaction between the active treatments,
+$\beta_{2,B}=\beta_{2,C}=\beta_2$. Study rods tilt by $\beta_1$, treatment rods by $\beta_2$, and
+each IPD patient is a spring at their own height (responders green,
+non-responders grey). The tilts are learned from the within-study spread
+of $x$ (<a href="3b-ipd.html#levers">3b, levers</a>), so Study 1’s
+patients carry the slopes. If all responders sat at one end of the
+covariate range and all non-responders at the other, every levered push
+would turn the tilt the same way and the slope would run off to infinity
+(complete separation); a prior on the slope, a spring to ground, stops
+it.</p>
+<h2 id="agd">2. Aggregate arms: one spring with extent</h2>
 <p>Study 2 reports only arm totals $r$ of $n$ and the
 covariate mean and SD. Its arm is still <strong>one</strong> spring, but
 the spring has extent: it sits at every height of the arm’s covariate
@@ -433,7 +391,7 @@ one spring and the two models agree. Increase it and they separate.</li>
 1’s patients collapse to two binomial springs, and the C vs B comparison
 ignores that the two studies enrolled different populations.</li>
 </ol>
-<h2 id="code">6. What is implemented</h2>
+<h2 id="code">3. What is implemented</h2>
 <p>The engine (<code>gc-rust/src/ipd.rs</code>,
 <code>gc-rust/src/bin/mlnmr.rs</code>) builds these springs, finds the
 equilibrium by Newton’s method on the exact energy, and corrects the
@@ -506,7 +464,7 @@ to these posterior means.</p>
       <ol>
         <li><a href="3a-covariate-axis.html">Covariates, slopes and the solver</a></li>
         <li><a href="3b-ipd.html">IPD: every patient a spring</a></li>
-        <li class="here"><a href="3c-mlnmr.html">ML-NMR: study rods and averaged springs</a></li>
+        <li class="here"><a href="3c-mlnmr.html">ML-NMR: averaged aggregate springs</a></li>
       </ol>
     </div>
 
