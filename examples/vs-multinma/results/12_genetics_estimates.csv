@@ -1,0 +1,7 @@
+"analysis","what","estimate","sd","bias vs gold (gold SDs)","vs correct model (its SDs)"
+"gold standard: logistic regression on all individuals","needs every genotype",0.173348512659267,0.0223249413045407,0,-0.153617185832445
+"**springs: IPD + averaged count tables + summary statistics**","uses the data as available",0.17695331119092,0.0234661148888933,0.161469563681202,0
+"Stan, same likelihood","3 s (+15 s compile)",0.177103743299893,0.0236213442835927,0.168207861754215,0.00641060992349034
+"count tables at their mean covariates","one η per observation (INLA-representable)",0.169339263681844,0.0236043839200879,-0.179586092645548,-0.324469881151059
+"count tables crude (genotype only)","ignores stratification",0.293625220169185,0.0213146710690551,5.38754865552341,4.97193120934929
+"IVW of adjusted summaries from all 6 cohorts","needs every cohort to rerun its regression",0.172990804953966,0.0223811395698463,-0.016022783684915,-0.168860770336942

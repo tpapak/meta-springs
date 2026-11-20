@@ -1,0 +1,276 @@
+"prior","parameter","mean","sd"
+"vignette: all N(0, 10²)","d[ETN]",1.55256965496349,0.0802332057282228
+"vignette: all N(0, 10²)","d[IXE_Q2W]",2.95550936173272,0.0870995336325431
+"vignette: all N(0, 10²)","d[IXE_Q4W]",2.54230360204822,0.0824897927244003
+"vignette: all N(0, 10²)","d[SEC_150]",2.14484572705203,0.115108362910658
+"vignette: all N(0, 10²)","d[SEC_300]",2.44966087017539,0.118683993452405
+"vignette: all N(0, 10²)","beta[durnpso]",0.0433432699886292,0.0613393930510666
+"vignette: all N(0, 10²)","beta[prevsys]",-0.137860014842733,0.160290831307848
+"vignette: all N(0, 10²)","beta[bsa]",-0.0744112839413272,0.444429625830453
+"vignette: all N(0, 10²)","beta[weight]",0.0396707525681332,0.0284472150918563
+"vignette: all N(0, 10²)","beta[psa]",-0.0809723664413622,0.169522787010496
+"vignette: all N(0, 10²)","beta[durnpso:.trtclassTNFa blocker]",-0.0291665658255422,0.0736619298364604
+"vignette: all N(0, 10²)","beta[durnpso:.trtclassIL blocker]",-0.0118827057264848,0.0673983095396621
+"vignette: all N(0, 10²)","beta[prevsys:.trtclassTNFa blocker]",0.188427314541142,0.187879541316031
+"vignette: all N(0, 10²)","beta[prevsys:.trtclassIL blocker]",0.065147577477271,0.175070925591239
+"vignette: all N(0, 10²)","beta[bsa:.trtclassTNFa blocker]",0.0582726247762058,0.515551113185958
+"vignette: all N(0, 10²)","beta[bsa:.trtclassIL blocker]",0.295624808365473,0.48836015725864
+"vignette: all N(0, 10²)","beta[weight:.trtclassTNFa blocker]",-0.16700307106045,0.0352532518543261
+"vignette: all N(0, 10²)","beta[weight:.trtclassIL blocker]",-0.099000934373313,0.0318432272512721
+"vignette: all N(0, 10²)","beta[psa:.trtclassTNFa blocker]",-0.0527207134591944,0.208665778070887
+"vignette: all N(0, 10²)","beta[psa:.trtclassIL blocker]",0.00934521705423311,0.185963235338438
+"vignette: all N(0, 10²)","d[target: ETN]",1.05790182482055,0.269104162873358
+"vignette: all N(0, 10²)","d[target: IXE_Q2W]",2.75889728425925,0.241822747199129
+"vignette: all N(0, 10²)","d[target: IXE_Q4W]",2.34671080903777,0.240084899847972
+"vignette: all N(0, 10²)","d[target: SEC_150]",1.94993784165139,0.256410996179878
+"vignette: all N(0, 10²)","d[target: SEC_300]",2.25358342925768,0.258230146548865
+"reg N(0, 2.5²)","d[ETN]",1.552036935452,0.0801714863397107
+"reg N(0, 2.5²)","d[IXE_Q2W]",2.9549283931421,0.0870187541841306
+"reg N(0, 2.5²)","d[IXE_Q4W]",2.54166636108168,0.0824033483884814
+"reg N(0, 2.5²)","d[SEC_150]",2.14450283209801,0.114884953133282
+"reg N(0, 2.5²)","d[SEC_300]",2.44927308791841,0.118527052181223
+"reg N(0, 2.5²)","beta[durnpso]",0.0430252537794843,0.0612445842088884
+"reg N(0, 2.5²)","beta[prevsys]",-0.136704491190323,0.15950919703101
+"reg N(0, 2.5²)","beta[bsa]",-0.0602908349302653,0.42392335187195
+"reg N(0, 2.5²)","beta[weight]",0.0395651596073522,0.0284673285935669
+"reg N(0, 2.5²)","beta[psa]",-0.0807166393311954,0.168477318100322
+"reg N(0, 2.5²)","beta[durnpso:.trtclassTNFa blocker]",-0.028837140182507,0.0735914446967206
+"reg N(0, 2.5²)","beta[durnpso:.trtclassIL blocker]",-0.0115495823374496,0.0673098485250495
+"reg N(0, 2.5²)","beta[prevsys:.trtclassTNFa blocker]",0.187036627099594,0.186888400016247
+"reg N(0, 2.5²)","beta[prevsys:.trtclassIL blocker]",0.063991275017798,0.174242872463954
+"reg N(0, 2.5²)","beta[bsa:.trtclassTNFa blocker]",0.0436259816449128,0.493431877624743
+"reg N(0, 2.5²)","beta[bsa:.trtclassIL blocker]",0.279777524712525,0.46718690160399
+"reg N(0, 2.5²)","beta[weight:.trtclassTNFa blocker]",-0.166904282662868,0.0352645844553811
+"reg N(0, 2.5²)","beta[weight:.trtclassIL blocker]",-0.0988655305878146,0.0318449402108607
+"reg N(0, 2.5²)","beta[psa:.trtclassTNFa blocker]",-0.053027685541391,0.207362103207827
+"reg N(0, 2.5²)","beta[psa:.trtclassIL blocker]",0.00911964101917542,0.184836446534899
+"reg N(0, 2.5²)","d[target: ETN]",1.06367901159181,0.267021702840744
+"reg N(0, 2.5²)","d[target: IXE_Q2W]",2.76527554742039,0.237944687934006
+"reg N(0, 2.5²)","d[target: IXE_Q4W]",2.35230189466397,0.237008241910407
+"reg N(0, 2.5²)","d[target: SEC_150]",1.95364700704301,0.253738218339113
+"reg N(0, 2.5²)","d[target: SEC_300]",2.25863596102093,0.255459652929837
+"reg N(0, 1)","d[ETN]",1.54998394097837,0.0799647675149704
+"reg N(0, 1)","d[IXE_Q2W]",2.95277139969045,0.0869257472074157
+"reg N(0, 1)","d[IXE_Q4W]",2.53930569061965,0.0820954097835373
+"reg N(0, 1)","d[SEC_150]",2.14324413317677,0.114280323779604
+"reg N(0, 1)","d[SEC_300]",2.44794869321891,0.118132141302217
+"reg N(0, 1)","beta[durnpso]",0.04167351911362,0.0607990853743903
+"reg N(0, 1)","beta[prevsys]",-0.12977767790045,0.154977216243829
+"reg N(0, 1)","beta[bsa]",-0.0168203793986066,0.351768702881847
+"reg N(0, 1)","beta[weight]",0.0392056834048017,0.0285032547341607
+"reg N(0, 1)","beta[psa]",-0.0796022931403265,0.16252226180559
+"reg N(0, 1)","beta[durnpso:.trtclassTNFa blocker]",-0.0273303065124742,0.073202756339428
+"reg N(0, 1)","beta[durnpso:.trtclassIL blocker]",-0.0101385625951571,0.0668589131273853
+"reg N(0, 1)","beta[prevsys:.trtclassTNFa blocker]",0.178654606919841,0.181695819723542
+"reg N(0, 1)","beta[prevsys:.trtclassIL blocker]",0.0569537941096056,0.169382065646199
+"reg N(0, 1)","beta[bsa:.trtclassTNFa blocker]",0.000432025067858235,0.415225298836097
+"reg N(0, 1)","beta[bsa:.trtclassIL blocker]",0.228530458549045,0.391407364578421
+"reg N(0, 1)","beta[weight:.trtclassTNFa blocker]",-0.166518585264199,0.0352458773014636
+"reg N(0, 1)","beta[weight:.trtclassIL blocker]",-0.0984276464186256,0.0318613402651625
+"reg N(0, 1)","beta[psa:.trtclassTNFa blocker]",-0.0538976087872841,0.200112159479564
+"reg N(0, 1)","beta[psa:.trtclassIL blocker]",0.00807295934892303,0.178632453563818
+"reg N(0, 1)","d[target: ETN]",1.04411087385752,0.250368231872951
+"reg N(0, 1)","d[target: IXE_Q2W]",2.74011236855358,0.224938412781282
+"reg N(0, 1)","d[target: IXE_Q4W]",2.3263637192146,0.224588880904595
+"reg N(0, 1)","d[target: SEC_150]",1.92872841968937,0.243528556946029
+"reg N(0, 1)","d[target: SEC_300]",2.23482039929048,0.245754883861403
+"reg N(0, 0.5²)","d[ETN]",1.54579204607603,0.0795742783059106
+"reg N(0, 0.5²)","d[IXE_Q2W]",2.94818729856803,0.0865318259812864
+"reg N(0, 0.5²)","d[IXE_Q4W]",2.53480101092575,0.0813825353499547
+"reg N(0, 0.5²)","d[SEC_150]",2.14035249485387,0.113747223641452
+"reg N(0, 0.5²)","d[SEC_300]",2.44495085071256,0.117455281704449
+"reg N(0, 0.5²)","beta[durnpso]",0.0384498848778644,0.0596020320762391
+"reg N(0, 0.5²)","beta[prevsys]",-0.108700385005327,0.141053734378683
+"reg N(0, 0.5²)","beta[bsa]",0.0259472120837522,0.2506794891574
+"reg N(0, 0.5²)","beta[weight]",0.0383450505781061,0.0283931706924671
+"reg N(0, 0.5²)","beta[psa]",-0.0765259961084319,0.145375812928463
+"reg N(0, 0.5²)","beta[durnpso:.trtclassTNFa blocker]",-0.0234629401558044,0.0719527195005387
+"reg N(0, 0.5²)","beta[durnpso:.trtclassIL blocker]",-0.00687645451388413,0.0656001641820389
+"reg N(0, 0.5²)","beta[prevsys:.trtclassTNFa blocker]",0.153371890470077,0.166030593157878
+"reg N(0, 0.5²)","beta[prevsys:.trtclassIL blocker]",0.0359229248964688,0.154802804465242
+"reg N(0, 0.5²)","beta[bsa:.trtclassTNFa blocker]",-0.0337971673222253,0.304875287993253
+"reg N(0, 0.5²)","beta[bsa:.trtclassIL blocker]",0.167591427214415,0.285158503544888
+"reg N(0, 0.5²)","beta[weight:.trtclassTNFa blocker]",-0.165500977139095,0.0350405411289206
+"reg N(0, 0.5²)","beta[weight:.trtclassIL blocker]",-0.0974324555775097,0.0318101425063315
+"reg N(0, 0.5²)","beta[psa:.trtclassTNFa blocker]",-0.054805081213394,0.17957443235066
+"reg N(0, 0.5²)","beta[psa:.trtclassIL blocker]",0.00551827912971642,0.161033630177809
+"reg N(0, 0.5²)","d[target: ETN]",1.02354934448588,0.223603579683053
+"reg N(0, 0.5²)","d[target: IXE_Q2W]",2.7098568769094,0.201489460642129
+"reg N(0, 0.5²)","d[target: IXE_Q4W]",2.29678112316907,0.199949273836785
+"reg N(0, 0.5²)","d[target: SEC_150]",1.90259734008885,0.220518380891411
+"reg N(0, 0.5²)","d[target: SEC_300]",2.20794399966251,0.225874905350915
+"reg N(0, 0.25²)","d[ETN]",1.53885746900392,0.0792888377884724
+"reg N(0, 0.25²)","d[IXE_Q2W]",2.94047916552095,0.0853737824849866
+"reg N(0, 0.25²)","d[IXE_Q4W]",2.52790087320988,0.079569254716708
+"reg N(0, 0.25²)","d[SEC_150]",2.13457367179961,0.113411514324739
+"reg N(0, 0.25²)","d[SEC_300]",2.44035329730688,0.115916849340082
+"reg N(0, 0.25²)","beta[durnpso]",0.0321385673018514,0.0564479616843003
+"reg N(0, 0.25²)","beta[prevsys]",-0.0672081041987325,0.109765821642911
+"reg N(0, 0.25²)","beta[bsa]",0.044849459297822,0.160210777076556
+"reg N(0, 0.25²)","beta[weight]",0.0355047180014498,0.0276703295612705
+"reg N(0, 0.25²)","beta[psa]",-0.0691130220252164,0.11094677135971
+"reg N(0, 0.25²)","beta[durnpso:.trtclassTNFa blocker]",-0.0157173859044904,0.0681842225890003
+"reg N(0, 0.25²)","beta[durnpso:.trtclassIL blocker]",-0.000945522001664869,0.062733946533551
+"reg N(0, 0.25²)","beta[prevsys:.trtclassTNFa blocker]",0.10262297113857,0.130016105260658
+"reg N(0, 0.25²)","beta[prevsys:.trtclassIL blocker]",-0.00378692535852129,0.123141345109451
+"reg N(0, 0.25²)","beta[bsa:.trtclassTNFa blocker]",-0.0298951628515673,0.195913803764071
+"reg N(0, 0.25²)","beta[bsa:.trtclassIL blocker]",0.109593469720437,0.186149104581254
+"reg N(0, 0.25²)","beta[weight:.trtclassTNFa blocker]",-0.162231147205774,0.0345414266879453
+"reg N(0, 0.25²)","beta[weight:.trtclassIL blocker]",-0.0939654740189097,0.031489066060022
+"reg N(0, 0.25²)","beta[psa:.trtclassTNFa blocker]",-0.0515419508307253,0.137574258319311
+"reg N(0, 0.25²)","beta[psa:.trtclassIL blocker]",-0.000767287556384633,0.125816653860232
+"reg N(0, 0.25²)","d[target: ETN]",1.01810033338745,0.185463578217121
+"reg N(0, 0.25²)","d[target: IXE_Q2W]",2.68563792688161,0.166176538632303
+"reg N(0, 0.25²)","d[target: IXE_Q4W]",2.27282957458328,0.162752729250427
+"reg N(0, 0.25²)","d[target: SEC_150]",1.8784936460111,0.192595645283721
+"reg N(0, 0.25²)","d[target: SEC_300]",2.18512097460738,0.196342563347741
+"reg N(0, 0.1²) (≈ no EM)","d[ETN]",1.53359770977606,0.0781340811639457
+"reg N(0, 0.1²) (≈ no EM)","d[IXE_Q2W]",2.93080422355908,0.0851532124360689
+"reg N(0, 0.1²) (≈ no EM)","d[IXE_Q4W]",2.5199009614512,0.0804291240754711
+"reg N(0, 0.1²) (≈ no EM)","d[SEC_150]",2.13200536883891,0.111857971272193
+"reg N(0, 0.1²) (≈ no EM)","d[SEC_300]",2.43653486175653,0.11560274574926
+"reg N(0, 0.1²) (≈ no EM)","beta[durnpso]",0.0241984938240667,0.042212462309723
+"reg N(0, 0.1²) (≈ no EM)","beta[prevsys]",-0.0299682725368836,0.0625437471910523
+"reg N(0, 0.1²) (≈ no EM)","beta[bsa]",0.0268857428113938,0.0848825016518677
+"reg N(0, 0.1²) (≈ no EM)","beta[weight]",0.0200352663007482,0.025731592282859
+"reg N(0, 0.1²) (≈ no EM)","beta[psa]",-0.0517392663995044,0.0643743341777606
+"reg N(0, 0.1²) (≈ no EM)","beta[durnpso:.trtclassTNFa blocker]",-0.00705568006253587,0.0519528426317113
+"reg N(0, 0.1²) (≈ no EM)","beta[durnpso:.trtclassIL blocker]",0.00621827336052442,0.0474571853288347
+"reg N(0, 0.1²) (≈ no EM)","beta[prevsys:.trtclassTNFa blocker]",0.0399271022987368,0.0765487440936108
+"reg N(0, 0.1²) (≈ no EM)","beta[prevsys:.trtclassIL blocker]",-0.027464173662375,0.0710151108339421
+"reg N(0, 0.1²) (≈ no EM)","beta[bsa:.trtclassTNFa blocker]",-0.00726408891572466,0.0940824442654525
+"reg N(0, 0.1²) (≈ no EM)","beta[bsa:.trtclassIL blocker]",0.0379840362508913,0.0913571224685406
+"reg N(0, 0.1²) (≈ no EM)","beta[weight:.trtclassTNFa blocker]",-0.141530598580605,0.0319703014155944
+"reg N(0, 0.1²) (≈ no EM)","beta[weight:.trtclassIL blocker]",-0.0767088206665285,0.0289070503745179
+"reg N(0, 0.1²) (≈ no EM)","beta[psa:.trtclassTNFa blocker]",-0.0321154563815379,0.0816984261700704
+"reg N(0, 0.1²) (≈ no EM)","beta[psa:.trtclassIL blocker]",-0.010413893752059,0.0730853148778372
+"reg N(0, 0.1²) (≈ no EM)","d[target: ETN]",1.08243483462721,0.147740920247519
+"reg N(0, 0.1²) (≈ no EM)","d[target: IXE_Q2W]",2.69535223362025,0.135908114379721
+"reg N(0, 0.1²) (≈ no EM)","d[target: IXE_Q4W]",2.28401478788948,0.134138165554018
+"reg N(0, 0.1²) (≈ no EM)","d[target: SEC_150]",1.89473841617705,0.164078959924415
+"reg N(0, 0.1²) (≈ no EM)","d[target: SEC_300]",2.19954709053018,0.167548281056186
+"reg Cauchy(0, 0.5)","d[ETN]",1.54397245598461,0.0795087626241249
+"reg Cauchy(0, 0.5)","d[IXE_Q2W]",2.94635798575513,0.0862924224448594
+"reg Cauchy(0, 0.5)","d[IXE_Q4W]",2.53314891571534,0.0811088409433316
+"reg Cauchy(0, 0.5)","d[SEC_150]",2.13821618851196,0.113634998012302
+"reg Cauchy(0, 0.5)","d[SEC_300]",2.44316359273713,0.117247329665058
+"reg Cauchy(0, 0.5)","beta[durnpso]",0.0366309931908389,0.0584688070531403
+"reg Cauchy(0, 0.5)","beta[prevsys]",-0.0969824289290626,0.133599273206597
+"reg Cauchy(0, 0.5)","beta[bsa]",0.0262616414944872,0.24319919943542
+"reg Cauchy(0, 0.5)","beta[weight]",0.0375745832824137,0.0282270344682126
+"reg Cauchy(0, 0.5)","beta[psa]",-0.0740943751704238,0.136141880930207
+"reg Cauchy(0, 0.5)","beta[durnpso:.trtclassTNFa blocker]",-0.0213212381981354,0.0706257060119037
+"reg Cauchy(0, 0.5)","beta[durnpso:.trtclassIL blocker]",-0.00514780469160947,0.0644279047766615
+"reg Cauchy(0, 0.5)","beta[prevsys:.trtclassTNFa blocker]",0.139456253201448,0.158083411417332
+"reg Cauchy(0, 0.5)","beta[prevsys:.trtclassIL blocker]",0.0241926884293837,0.147015471200587
+"reg Cauchy(0, 0.5)","beta[bsa:.trtclassTNFa blocker]",-0.0336240386482524,0.29822644432836
+"reg Cauchy(0, 0.5)","beta[bsa:.trtclassIL blocker]",0.164923994993501,0.281019671008649
+"reg Cauchy(0, 0.5)","beta[weight:.trtclassTNFa blocker]",-0.164591969114822,0.0349336178253639
+"reg Cauchy(0, 0.5)","beta[weight:.trtclassIL blocker]",-0.0965515424568997,0.031698284430599
+"reg Cauchy(0, 0.5)","beta[psa:.trtclassTNFa blocker]",-0.055096316923783,0.169123337732845
+"reg Cauchy(0, 0.5)","beta[psa:.trtclassIL blocker]",0.00335409477267132,0.151457600539574
+"reg Cauchy(0, 0.5)","d[target: ETN]",1.01921048163874,0.218413961319712
+"reg Cauchy(0, 0.5)","d[target: IXE_Q2W]",2.70569000825898,0.193427322013832
+"reg Cauchy(0, 0.5)","d[target: IXE_Q4W]",2.29314790501946,0.191377367593589
+"reg Cauchy(0, 0.5)","d[target: SEC_150]",1.89862895063848,0.21573203837418
+"reg Cauchy(0, 0.5)","d[target: SEC_300]",2.20449072674218,0.218229443775724
+"reg t3(0, 0.5)","d[ETN]",1.54511388221838,0.079558078587177
+"reg t3(0, 0.5)","d[IXE_Q2W]",2.94753143036017,0.0864419102980583
+"reg t3(0, 0.5)","d[IXE_Q4W]",2.53420990018224,0.0812887090798715
+"reg t3(0, 0.5)","d[SEC_150]",2.13948983199897,0.113704645907941
+"reg t3(0, 0.5)","d[SEC_300]",2.44421756959707,0.117382616143024
+"reg t3(0, 0.5)","beta[durnpso]",0.0377707845487927,0.0591922074240532
+"reg t3(0, 0.5)","beta[prevsys]",-0.104112852198075,0.138194962275004
+"reg t3(0, 0.5)","beta[bsa]",0.0252675820601096,0.249561704500944
+"reg t3(0, 0.5)","beta[weight]",0.0380799244679051,0.0283315268727997
+"reg t3(0, 0.5)","beta[psa]",-0.0755957052804619,0.141777704232121
+"reg t3(0, 0.5)","beta[durnpso:.trtclassTNFa blocker]",-0.022666025514468,0.0714690533559106
+"reg t3(0, 0.5)","beta[durnpso:.trtclassIL blocker]",-0.00623050083546905,0.0651732769031189
+"reg t3(0, 0.5)","beta[prevsys:.trtclassTNFa blocker]",0.147936968258143,0.162993805689874
+"reg t3(0, 0.5)","beta[prevsys:.trtclassIL blocker]",0.0313020321054249,0.151827362078263
+"reg t3(0, 0.5)","beta[bsa:.trtclassTNFa blocker]",-0.0333416874012927,0.304562868854419
+"reg t3(0, 0.5)","beta[bsa:.trtclassIL blocker]",0.167921021777435,0.2859242648112
+"reg t3(0, 0.5)","beta[weight:.trtclassTNFa blocker]",-0.165186842419148,0.0349981591304252
+"reg t3(0, 0.5)","beta[weight:.trtclassIL blocker]",-0.0971332466797825,0.0317651263059122
+"reg t3(0, 0.5)","beta[psa:.trtclassTNFa blocker]",-0.054941660047896,0.175523699628334
+"reg t3(0, 0.5)","beta[psa:.trtclassIL blocker]",0.00467106817575255,0.157307346997514
+"reg t3(0, 0.5)","d[target: ETN]",1.02040338079995,0.21999879417052
+"reg t3(0, 0.5)","d[target: IXE_Q2W]",2.71000383606505,0.199431322646045
+"reg t3(0, 0.5)","d[target: IXE_Q4W]",2.29661713178871,0.197373625406681
+"reg t3(0, 0.5)","d[target: SEC_150]",1.900156885103,0.21891085213143
+"reg t3(0, 0.5)","d[target: SEC_300]",2.20499327403803,0.223035010737324
+"trt N(0, 1) (sceptical)","d[ETN]",1.50028670697723,0.0774644529309305
+"trt N(0, 1) (sceptical)","d[IXE_Q2W]",2.90385571332439,0.0847614202820629
+"trt N(0, 1) (sceptical)","d[IXE_Q4W]",2.49343576068336,0.0789738003037557
+"trt N(0, 1) (sceptical)","d[SEC_150]",2.07745387045332,0.111071904052341
+"trt N(0, 1) (sceptical)","d[SEC_300]",2.37903637802096,0.114525689139759
+"trt N(0, 1) (sceptical)","beta[durnpso]",0.039087824583011,0.0594084512977931
+"trt N(0, 1) (sceptical)","beta[prevsys]",-0.12401503692425,0.154354526936538
+"trt N(0, 1) (sceptical)","beta[bsa]",-0.0787964778722601,0.425088121730744
+"trt N(0, 1) (sceptical)","beta[weight]",0.0374536405046042,0.0276795147425839
+"trt N(0, 1) (sceptical)","beta[psa]",-0.0784430159066511,0.163345877817319
+"trt N(0, 1) (sceptical)","beta[durnpso:.trtclassTNFa blocker]",-0.0244411811554204,0.0718258781476357
+"trt N(0, 1) (sceptical)","beta[durnpso:.trtclassIL blocker]",-0.00814264158845116,0.0655684800099635
+"trt N(0, 1) (sceptical)","beta[prevsys:.trtclassTNFa blocker]",0.172685645666716,0.182881727657685
+"trt N(0, 1) (sceptical)","beta[prevsys:.trtclassIL blocker]",0.0519194771777152,0.168887055355915
+"trt N(0, 1) (sceptical)","beta[bsa:.trtclassTNFa blocker]",0.0574150940464663,0.500632939129371
+"trt N(0, 1) (sceptical)","beta[bsa:.trtclassIL blocker]",0.301883249084894,0.469693961238771
+"trt N(0, 1) (sceptical)","beta[weight:.trtclassTNFa blocker]",-0.164655518664134,0.034703437569863
+"trt N(0, 1) (sceptical)","beta[weight:.trtclassIL blocker]",-0.0966449990468941,0.0312353159526348
+"trt N(0, 1) (sceptical)","beta[psa:.trtclassTNFa blocker]",-0.0540834065428395,0.204182146531789
+"trt N(0, 1) (sceptical)","beta[psa:.trtclassIL blocker]",0.00804962778405126,0.180304626061806
+"trt N(0, 1) (sceptical)","d[target: ETN]",1.02132115388309,0.266851994544975
+"trt N(0, 1) (sceptical)","d[target: IXE_Q2W]",2.72775869622553,0.237207234196962
+"trt N(0, 1) (sceptical)","d[target: IXE_Q4W]",2.31697295190827,0.234974722823212
+"trt N(0, 1) (sceptical)","d[target: SEC_150]",1.90001007792837,0.251174429577023
+"trt N(0, 1) (sceptical)","d[target: SEC_300]",2.20183723105306,0.254872999031926
+"trt N(0, 0.5²) (very sceptical)","d[ETN]",1.36954110899156,0.0730958282539466
+"trt N(0, 0.5²) (very sceptical)","d[IXE_Q2W]",2.77346289503814,0.0806554217356842
+"trt N(0, 0.5²) (very sceptical)","d[IXE_Q4W]",2.37158403567113,0.076103007823854
+"trt N(0, 0.5²) (very sceptical)","d[SEC_150]",1.90554434197494,0.106331424319157
+"trt N(0, 0.5²) (very sceptical)","d[SEC_300]",2.19743966818576,0.109533376684644
+"trt N(0, 0.5²) (very sceptical)","beta[durnpso]",0.0339817654952054,0.0553496616378522
+"trt N(0, 0.5²) (very sceptical)","beta[prevsys]",-0.0963506970235669,0.142149806359676
+"trt N(0, 0.5²) (very sceptical)","beta[bsa]",-0.0941719066623306,0.38881947683442
+"trt N(0, 0.5²) (very sceptical)","beta[weight]",0.0332003161538101,0.0259854455668744
+"trt N(0, 0.5²) (very sceptical)","beta[psa]",-0.0781399636476604,0.153112722054413
+"trt N(0, 0.5²) (very sceptical)","beta[durnpso:.trtclassTNFa blocker]",-0.0175354625760217,0.0686930569866423
+"trt N(0, 0.5²) (very sceptical)","beta[durnpso:.trtclassIL blocker]",-0.00429960424715282,0.0618816203852333
+"trt N(0, 0.5²) (very sceptical)","beta[prevsys:.trtclassTNFa blocker]",0.139473870129566,0.172572218999805
+"trt N(0, 0.5²) (very sceptical)","beta[prevsys:.trtclassIL blocker]",0.0292965446658324,0.158247844158846
+"trt N(0, 0.5²) (very sceptical)","beta[bsa:.trtclassTNFa blocker]",0.0599937615628873,0.469117231169838
+"trt N(0, 0.5²) (very sceptical)","beta[bsa:.trtclassIL blocker]",0.330507712862468,0.437089539215245
+"trt N(0, 0.5²) (very sceptical)","beta[weight:.trtclassTNFa blocker]",-0.159332133537398,0.0333184619471544
+"trt N(0, 0.5²) (very sceptical)","beta[weight:.trtclassIL blocker]",-0.0922352400963737,0.029593125743801
+"trt N(0, 0.5²) (very sceptical)","beta[psa:.trtclassTNFa blocker]",-0.0527412841065531,0.195413157784212
+"trt N(0, 0.5²) (very sceptical)","beta[psa:.trtclassIL blocker]",0.00533868235492582,0.170887666991175
+"trt N(0, 0.5²) (very sceptical)","d[target: ETN]",0.898169900275756,0.253265955609448
+"trt N(0, 0.5²) (very sceptical)","d[target: IXE_Q2W]",2.60676149660733,0.224771192260739
+"trt N(0, 0.5²) (very sceptical)","d[target: IXE_Q4W]",2.2059908406568,0.223121873215787
+"trt N(0, 0.5²) (very sceptical)","d[target: SEC_150]",1.73978683148188,0.235282644685552
+"trt N(0, 0.5²) (very sceptical)","d[target: SEC_300]",2.03142993060642,0.238363435653387
+"intercept N(−1.5, 0.3²) (placebo ≈ 7%)","d[ETN]",1.52821364568198,0.0748053143321891
+"intercept N(−1.5, 0.3²) (placebo ≈ 7%)","d[IXE_Q2W]",2.93383286046278,0.0824023339003152
+"intercept N(−1.5, 0.3²) (placebo ≈ 7%)","d[IXE_Q4W]",2.52021952452408,0.077046855452805
+"intercept N(−1.5, 0.3²) (placebo ≈ 7%)","d[SEC_150]",2.11648389864749,0.110334458728136
+"intercept N(−1.5, 0.3²) (placebo ≈ 7%)","d[SEC_300]",2.42133074486079,0.114100975366164
+"intercept N(−1.5, 0.3²) (placebo ≈ 7%)","beta[durnpso]",0.0411641784389291,0.0602317129122209
+"intercept N(−1.5, 0.3²) (placebo ≈ 7%)","beta[prevsys]",-0.130962944030309,0.157428784218314
+"intercept N(−1.5, 0.3²) (placebo ≈ 7%)","beta[bsa]",-0.0773799051261577,0.434257685850106
+"intercept N(−1.5, 0.3²) (placebo ≈ 7%)","beta[weight]",0.0385409863978402,0.0280856761560579
+"intercept N(−1.5, 0.3²) (placebo ≈ 7%)","beta[psa]",-0.0798471790606522,0.166408891563759
+"intercept N(−1.5, 0.3²) (placebo ≈ 7%)","beta[durnpso:.trtclassTNFa blocker]",-0.0268155149798659,0.0724000335587216
+"intercept N(−1.5, 0.3²) (placebo ≈ 7%)","beta[durnpso:.trtclassIL blocker]",-0.0097499878980909,0.066506370763371
+"intercept N(−1.5, 0.3²) (placebo ≈ 7%)","beta[prevsys:.trtclassTNFa blocker]",0.180672995106987,0.185689647626941
+"intercept N(−1.5, 0.3²) (placebo ≈ 7%)","beta[prevsys:.trtclassIL blocker]",0.0578653913062203,0.171865858936447
+"intercept N(−1.5, 0.3²) (placebo ≈ 7%)","beta[bsa:.trtclassTNFa blocker]",0.0592759557860897,0.507970885011627
+"intercept N(−1.5, 0.3²) (placebo ≈ 7%)","beta[bsa:.trtclassIL blocker]",0.297757395619617,0.479268702171423
+"intercept N(−1.5, 0.3²) (placebo ≈ 7%)","beta[weight:.trtclassTNFa blocker]",-0.165769627035011,0.0349470203207851
+"intercept N(−1.5, 0.3²) (placebo ≈ 7%)","beta[weight:.trtclassIL blocker]",-0.0978144338030578,0.0315410450717426
+"intercept N(−1.5, 0.3²) (placebo ≈ 7%)","beta[psa:.trtclassTNFa blocker]",-0.0530432238948994,0.206474874714313
+"intercept N(−1.5, 0.3²) (placebo ≈ 7%)","beta[psa:.trtclassIL blocker]",0.00932650232765392,0.183390279104433
+"intercept N(−1.5, 0.3²) (placebo ≈ 7%)","d[target: ETN]",1.04473568016143,0.267723188072124
+"intercept N(−1.5, 0.3²) (placebo ≈ 7%)","d[target: IXE_Q2W]",2.75136154369475,0.24204953346658
+"intercept N(−1.5, 0.3²) (placebo ≈ 7%)","d[target: IXE_Q4W]",2.33717296188597,0.239903923006535
+"intercept N(−1.5, 0.3²) (placebo ≈ 7%)","d[target: SEC_150]",1.93315638167533,0.25617451527056
+"intercept N(−1.5, 0.3²) (placebo ≈ 7%)","d[target: SEC_300]",2.23884036187027,0.257108517231783
