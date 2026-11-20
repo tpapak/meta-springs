@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Binomial outcomes: the nonlinear observation spring — meta-springs</title>
+<link rel="stylesheet" href="../style.css">
+<script>
+window.MathJax = {
+  tex: { inlineMath: [['$','$'],['\\(','\\)']], displayMath: [['$$','$$'],['\\[','\\]']], tags: 'ams',
+    macros: { Var:'\\operatorname{Var}', Cov:'\\operatorname{Cov}', E:'\\operatorname{E}', tr:'\\operatorname{tr}', keff:'k^{\\text{eff}}' } },
+  svg: { fontCache: 'global' }
+};
+</script>
+<script async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml-full.js"></script>
+</head>
+<body>
+<nav class="blognav">
+  <div class="blognav-inner">
+    <a class="blognav-brand" href="../index.html">meta-springs</a>
+    <div class="blognav-links">
+      <a href="../index.html">Home</a>
+      <a href="../posts/part1.html">Part 1</a>
+      <a href="../posts/part2.html">Part 2</a>
+      <a href="../posts/part3.html">Part 3</a>
+    </div>
+  </div>
+</nav>
+<main class="wrap postwrap">
+  <article class="postbody">
+    <p class="breadcrumb"><a href="part1.html">Part 1 &middot; From pairwise to NMA</a> &rsaquo; 1b</p>
+    <h1 class="post-h1">Binomial outcomes: the nonlinear observation spring</h1>
+    <p class="post-meta">Thodoris Papakonstantinou</p>
+
+    <div class="posthero">
+<div class="posthero-title">The same arm, two likelihoods</div>
+<div class="animbox">
+<style>
+@scope (.animbox) {
+* { margin: 0; padding: 0; box-sizing: border-box; }
+  :scope { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; background: #fafafa; color: #222;
+    display: flex; flex-direction: column; align-items: center; padding: 18px; }
+  h1 { font-size: 18px; font-weight: 600; margin-bottom: 4px; }
+  .subtitle { font-size: 13px; color: #666; margin-bottom: 12px; max-width: 1040px; text-align: center; line-height: 1.5; }
+  .ctrl-row { display: flex; gap: 12px; align-items: center; margin-bottom: 6px; flex-wrap: wrap; justify-content: center; }
+  button { padding: 5px 14px; border: 1px solid #aaa; border-radius: 4px; background: #fff; cursor: pointer; font-size: 13px; }
+  button:hover { background: #eee; }
+  button.go { background: #eef7ee; border-color: #58a758; color: #2f6d2f; }
+  button.go.active { background: #2f8f2f; color: #fff; border-color: #2f8f2f; }
+  label { font-size: 13px; color: #555; }
+  input[type=range] { width: 150px; vertical-align: middle; }
+  .pill { font-family:'SF Mono',Consolas,monospace; font-size:12.5px; border:1px solid #ccc; border-radius:4px;
+    padding:3px 9px; font-weight:600; min-width:96px; text-align:center; }
+  .pill.g { background:#eef4ff; border-color:#bcd0f7; color:#1a56c4; }
+  .pill.b { background:#fdecec; border-color:#f3bcbc; color:#c0392b; }
+  .pill.l { background:#f3f4f6; border-color:#d3d6db; color:#333; }
+  svg { background: #fff; border: 1px solid #ddd; border-radius: 6px; touch-action: none; }
+  .legend { margin-top: 8px; font-size: 12px; color: #666; max-width: 1040px; text-align: center; line-height: 1.5; }
+  .legend b { color:#444; }
+}
+</style>
+<div class="ctrl-row">
+  <label>&#8467; <input id="ell" type="range" min="-6" max="6" step="0.05" value="3.4"></label>
+  <button class="go" id="relax">Relax (IRLS)</button>
+  <button id="reset">Reset</button>
+  <span class="pill l" id="pillL">&#8467; = 3.40</span>
+  <span class="pill g" id="pillG">F_gauss = 0</span>
+  <span class="pill b" id="pillB">F_binom = 0</span>
+</div>
+<div class="ctrl-row">
+  <label>events e <input id="ev" type="range" min="1" max="29" step="1" value="5"></label>
+  <span class="pill l" id="pillE">e = 5</span>
+  <label>trials n <input id="nn" type="range" min="2" max="30" step="1" value="10"></label>
+  <span class="pill l" id="pillN">n = 10</span>
+  <span class="pill l" id="pillStar">&#8467;* = 0.00</span>
+</div>
+
+<svg id="canvas" width="1060" height="440"></svg>
+
+<div class="legend">
+  <b style="color:#1a56c4">Blue row</b> = Gaussian arm (matched at the mode: rest length y = &#8467;*, variance v = 1/[n&nbsp;p*(1&minus;p*)]).
+  <b style="color:#c0392b">Red row</b> = binomial arm, energy n&thinsp;log(1+e<sup>&#8467;</sup>) &minus; e&#8467;.
+  The horizontal <b>arrows</b> are the restoring forces at the current &#8467;; the <b>right panel</b> plots each force law over &#8467; with a live dot.
+  Notice the Gaussian dot rides a straight line off to infinity while the binomial dot flattens onto its ceiling e&minus;n&sigma; &rarr; {e&minus;n, e}.
+  The dashed marker is the rest length &#8467;*; <b>local stiffness</b> w(&#8467;) = n&sigma;(1&minus;&sigma;) is printed per row &mdash; constant for Gaussian, vanishing in the binomial tails.
+</div>
+
+<script src="../study-data.js"></script>
+<script>
+"use strict";
+// ---------- model ----------
+let e = 5, n = 10, ell = 3.4;
+const sig = x => 1/(1+Math.exp(-x));
+const ellStar = () => Math.log(e/(n-e));                 // logit(e/n): rest length
+const wStar   = () => { const p=e/n; return n*p*(1-p); };// Fisher info at the mode = Gaussian stiffness 1/v
+// restoring forces  F = -dE/dℓ  (positive = pull toward larger ℓ)
+const Fbin   = L => e - n*sig(L);                        // bounded in (e-n, e)
+const Fgauss = L => wStar()*(ellStar() - L);             // (y-ℓ)/v, v = 1/wStar
+const wbin   = L => { const s=sig(L); return n*s*(1-s); };
+
+// ---------- geometry ----------
+const svg = document.getElementById('canvas');
+const W=1060, H=440;
+const EMIN=-6, EMAX=6;
+const axX0=60, axX1=560, scale=(axX1-axX0)/(EMAX-EMIN);  // ℓ -> x on the left panel
+const X = L => axX0 + (L-EMIN)*scale;
+const Lfromx = x => EMIN + (x-axX0)/scale;
+const anchorX = 40;                                       // x^τ tail (fixed) at far left
+const yG=120, yB=250;                                     // row baselines
+// right plot
+const pX0=650, pX1=1030, pY0=60, pY1=400;
+const Frange=Math.max(6, n);                              // force axis half-range
+const pX = L => pX0 + (L-EMIN)/(EMAX-EMIN)*(pX1-pX0);
+const pY = F => (pY0+pY1)/2 - F/Frange*((pY1-pY0)/2 - 8);
+
+function drawCoil(x1,y1,x2,y2,color,turns,sw){
+  const dx=x2-x1,dy=y2-y1,len=Math.hypot(dx,dy); if(len<0.3) return '';
+  const ux=dx/len,uy=dy/len,px=-uy,py=ux, amp=Math.max(1.4,Math.min(7,len*0.10)), segs=Math.max(14,turns*8);
+  let d=`M ${x1.toFixed(1)} ${y1.toFixed(1)}`;
+  for(let i=1;i<=segs;i++){ const t=i/segs,cx=x1+dx*t,cy=y1+dy*t,taper=Math.sin(Math.PI*t),off=amp*taper*Math.sin(2*Math.PI*turns*t);
+    d+=` L ${(cx+px*off).toFixed(1)} ${(cy+py*off).toFixed(1)}`; }
+  return `<path d="${d}" stroke="${color}" stroke-width="${sw||1.8}" fill="none"/>`;
+}
+const fmt=(v,k)=>Number(v).toFixed(k);
+function arrow(x,y,F,color){                              // restoring-force arrow, length ∝ |F| (clamped)
+  if(Math.abs(F)<1e-3) return `<circle cx="${x.toFixed(1)}" cy="${y}" r="2.5" fill="${color}"/>`;
+  const L=Math.min(150, Math.abs(F)*14), dir=Math.sign(F), xe=x+dir*L;
+  const ah=6*dir;
+  return `<line x1="${x.toFixed(1)}" y1="${y}" x2="${xe.toFixed(1)}" y2="${y}" stroke="${color}" stroke-width="3"/>`+
+         `<path d="M ${xe.toFixed(1)} ${y} L ${(xe-ah).toFixed(1)} ${y-5} L ${(xe-ah).toFixed(1)} ${y+5} Z" fill="${color}"/>`;
+}
+
+function springRow(y, L, rest, F, color, node, label){
+  const nx=X(L), rx=X(rest);
+  const turns=Math.max(3, Math.round(Math.abs(nx-anchorX)/16));
+  let h='';
+  // rest-length marker
+  h+=`<line x1="${rx.toFixed(1)}" y1="${y-46}" x2="${rx.toFixed(1)}" y2="${y+30}" stroke="${color}" stroke-dasharray="4,4" stroke-opacity="0.55"/>`;
+  h+=`<text x="${rx.toFixed(1)}" y="${y-50}" text-anchor="middle" font-size="10" fill="${color}">rest &#8467;*=${fmt(rest,2)}</text>`;
+  // anchor (x^τ)
+  h+=`<circle cx="${anchorX}" cy="${y}" r="9" fill="#fed7aa" stroke="#c2410c" stroke-width="1.5"/>`;
+  h+=`<text x="${anchorX}" y="${y+22}" text-anchor="middle" font-size="9" fill="#7c2d12">x&#964;</text>`;
+  // coil
+  h+=drawCoil(anchorX+9, y, nx-11, y, color, turns, 1.9);
+  // restoring-force arrow (above the row)
+  h+=arrow(nx, y-24, F, color);
+  h+=`<text x="${nx.toFixed(1)}" y="${y-32}" text-anchor="middle" font-size="10" fill="${color}">F=${fmt(F,2)}</text>`;
+  // treatment node (draggable)
+  h+=`<circle class="node" data-row="1" cx="${nx.toFixed(1)}" cy="${y}" r="12" fill="#dbeafe" stroke="${color}" stroke-width="2.5" style="cursor:ew-resize"/>`;
+  h+=`<text x="${nx.toFixed(1)}" y="${y+4}" text-anchor="middle" font-size="11" font-weight="700" fill="#1e3a8a">${node}</text>`;
+  h+=`<text x="${(anchorX+nx)/2}" y="${y+40}" text-anchor="middle" font-size="10.5" fill="#555">${label}</text>`;
+  return h;
+}
+
+function render(){
+  const rest=ellStar();
+  const Fg=Fgauss(ell), Fb=Fbin(ell), wb=wbin(ell), ws=wStar();
+  let h='';
+  // ---- left: effect axis ruler ----
+  h+=`<line x1="${axX0}" y1="360" x2="${axX1}" y2="360" stroke="#999"/>`;
+  for(let v=EMIN; v<=EMAX; v++){ const x=X(v);
+    h+=`<line x1="${x.toFixed(1)}" y1="356" x2="${x.toFixed(1)}" y2="364" stroke="#999"/>`;
+    h+=`<text x="${x.toFixed(1)}" y="378" text-anchor="middle" font-size="10" fill="#777">${v}</text>`; }
+  h+=`<text x="${axX1+6}" y="364" font-size="11" fill="#444">&#8467; (log-odds)</text>`;
+  // ---- two spring rows (shared ℓ) ----
+  h+=springRow(yG, ell, rest, Fg, '#1a56c4', 'x&#7511;', `Gaussian: F=(y&minus;&#8467;)/v,  w=1/v=${fmt(ws,2)} (const)`);
+  h+=springRow(yB, ell, rest, Fb, '#c0392b', 'x&#7511;', `Binomial: F=e&minus;n&sigma;(&#8467;),  w=n&sigma;(1&minus;&sigma;)=${fmt(wb,2)}`);
+  // saturation ceilings note on the binomial row
+  h+=`<text x="${axX0}" y="${yB+58}" font-size="10" fill="#c0392b">binomial force is trapped in [e&minus;n, e] = [${e-n}, ${e}] &mdash; it can never pull harder than that</text>`;
+
+  // ---- right: force-vs-ℓ plot ----
+  h+=`<rect x="${pX0-14}" y="${pY0-26}" width="${pX1-pX0+40}" height="${pY1-pY0+58}" fill="#fcfcfd" stroke="#e2e2e2" rx="6"/>`;
+  h+=`<text x="${(pX0+pX1)/2}" y="${pY0-12}" text-anchor="middle" font-size="12" font-weight="600" fill="#333">restoring force  F(&#8467;)</text>`;
+  // axes
+  h+=`<line x1="${pX0}" y1="${pY(0).toFixed(1)}" x2="${pX1}" y2="${pY(0).toFixed(1)}" stroke="#bbb"/>`;
+  h+=`<text x="${pX1-2}" y="${pY(0)-4}" text-anchor="end" font-size="9.5" fill="#999">F=0</text>`;
+  for(let v=EMIN; v<=EMAX; v+=2){ const x=pX(v);
+    h+=`<line x1="${x.toFixed(1)}" y1="${pY1}" x2="${x.toFixed(1)}" y2="${pY1+4}" stroke="#bbb"/>`;
+    h+=`<text x="${x.toFixed(1)}" y="${pY1+16}" text-anchor="middle" font-size="9" fill="#999">${v}</text>`; }
+  h+=`<text x="${(pX0+pX1)/2}" y="${pY1+30}" text-anchor="middle" font-size="10" fill="#777">&#8467;</text>`;
+  // binomial ceilings
+  [e, e-n].forEach(c=>{ const yy=pY(c);
+    h+=`<line x1="${pX0}" y1="${yy.toFixed(1)}" x2="${pX1}" y2="${yy.toFixed(1)}" stroke="#c0392b" stroke-dasharray="2,4" stroke-opacity="0.5"/>`;
+    h+=`<text x="${pX0+2}" y="${yy-3}" font-size="9" fill="#c0392b">${c}</text>`; });
+  // curves
+  let pg='',pb='';
+  for(let i=0;i<=160;i++){ const L=EMIN+(EMAX-EMIN)*i/160;
+    pg+=`${pX(L).toFixed(1)},${pY(Fgauss(L)).toFixed(1)} `;
+    pb+=`${pX(L).toFixed(1)},${pY(Fbin(L)).toFixed(1)} `; }
+  h+=`<polyline points="${pg.trim()}" fill="none" stroke="#1a56c4" stroke-width="2"/>`;
+  h+=`<polyline points="${pb.trim()}" fill="none" stroke="#c0392b" stroke-width="2"/>`;
+  // current-ℓ vertical + live dots
+  const cx=pX(ell);
+  h+=`<line x1="${cx.toFixed(1)}" y1="${pY0}" x2="${cx.toFixed(1)}" y2="${pY1}" stroke="#888" stroke-dasharray="3,3"/>`;
+  h+=`<circle cx="${cx.toFixed(1)}" cy="${pY(Fg).toFixed(1)}" r="5" fill="#1a56c4"/>`;
+  h+=`<circle cx="${cx.toFixed(1)}" cy="${pY(Fb).toFixed(1)}" r="5" fill="#c0392b"/>`;
+  h+=`<text x="${cx.toFixed(1)}" y="${pY0-2}" text-anchor="middle" font-size="9.5" fill="#666">&#8467;=${fmt(ell,2)}</text>`;
+
+  svg.innerHTML=h;
+  document.getElementById('pillL').innerHTML=`&#8467; = ${fmt(ell,2)}`;
+  document.getElementById('pillG').textContent=`F_gauss = ${fmt(Fg,2)}`;
+  document.getElementById('pillB').textContent=`F_binom = ${fmt(Fb,2)}`;
+  document.getElementById('pillStar').innerHTML=`&#8467;* = ${fmt(rest,2)}`;
+  document.getElementById('ell').value=ell;
+}
+
+// ---------- interaction ----------
+function setEll(v){ ell=Math.max(EMIN,Math.min(EMAX,v)); render(); }
+document.getElementById('ell').addEventListener('input',ev=>setEll(+ev.target.value));
+function svgL(clientX){ const r=svg.getBoundingClientRect(); const x=(clientX-r.left)*(W/r.width); return Lfromx(x); }
+let dragging=false;
+svg.addEventListener('pointerdown',ev=>{ const t=ev.target;
+  if(t.classList&&t.classList.contains('node')){ dragging=true; svg.setPointerCapture(ev.pointerId); setEll(svgL(ev.clientX)); } });
+svg.addEventListener('pointermove',ev=>{ if(dragging) setEll(svgL(ev.clientX)); });
+svg.addEventListener('pointerup',()=>{ dragging=false; });
+
+function setE(v){ e=Math.max(1,Math.min(n-1,v)); document.getElementById('pillE').textContent=`e = ${e}`; document.getElementById('ev').value=e; render(); }
+function setN(v){ n=Math.max(2,Math.min(30,v)); if(e>n-1) setE(n-1); document.getElementById('pillN').textContent=`n = ${n}`; document.getElementById('nn').value=n; render(); }
+document.getElementById('ev').addEventListener('input',ev=>setE(+ev.target.value));
+document.getElementById('nn').addEventListener('input',ev=>setN(+ev.target.value));
+
+// Relax: damped Newton / IRLS on the binomial spring, ℓ ← ℓ - (nσ-e)/w  (= ℓ + Fbin/w)
+let anim=null;
+function stopAnim(){ if(anim){cancelAnimationFrame(anim);anim=null;} document.getElementById('relax').classList.remove('active'); }
+function relax(){ stopAnim(); document.getElementById('relax').classList.add('active');
+  const step=()=>{ const rest=ellStar(); const gap=ell-rest;
+    if(Math.abs(gap)<0.01){ setEll(rest); stopAnim(); return; }
+    const w=Math.max(wbin(ell),0.05); const dN = Fbin(ell)/w;      // Newton step toward the mode
+    const damp=0.6; ell = ell + damp*Math.max(-1.5,Math.min(1.5,dN)); // damped + clamped (tails are soft)
+    ell=Math.max(EMIN,Math.min(EMAX,ell)); render();
+    anim=requestAnimationFrame(step); };
+  anim=requestAnimationFrame(step);
+}
+document.getElementById('relax').addEventListener('click',relax);
+document.getElementById('reset').addEventListener('click',()=>{ stopAnim(); e=5;n=10;ell=3.4;
+  document.getElementById('pillE').textContent='e = 5'; document.getElementById('pillN').textContent='n = 10';
+  document.getElementById('ev').value=5; document.getElementById('nn').value=10; render(); });
+
+render();
+
+showStudyData(() => [{title: 'Single-arm binomial demonstration (current controls)', treatments: ['Illustrative arm'], studies: [{id: 'Demo', arms: [{t: 0, events: e, n}]}], note: 'The Gaussian spring is a local approximation to this same arm: y = log(e / (n − e)), v = 1 / [n p (1 − p)], with p = e/n. Counts update with the controls; this is not the four-treatment network.'}]);
+</script>
+</div>
+<p class="anim-cap">Drag either treatment node (or the &#8467; slider): the <b style="color:#1a56c4">Gaussian</b> restoring force keeps growing while the <b style="color:#c0392b">binomial</b> force saturates, and the force plot tracks both live. Press <b>Relax (IRLS)</b> to watch the nonlinear spring find equilibrium by repeated linearisation.</p>
+<p class="anim-fulllink"><a href="../binomial-spring.html" target="_blank" rel="noopener">Open this animation in its own page &#8599;</a></p>
+</div>
+
+<h2 id="from-probability-to-energy-to-force">From probability to energy
+to force</h2>
+<p>The spring analogy begins with the likelihood. For a Gaussian
+observation, the negative log-likelihood is a quadratic energy, and its
+restoring force is linear — Hooke’s law. We can apply the same
+construction to a binomial observation: write its likelihood as an
+exponential, identify the energy, and differentiate to obtain the
+force.</p>
+<p>For one arm, let $\ell$ be the model coordinate. Define energy as
+$E(\ell)=-\log L(\ell)$, ignoring terms independent of $\ell$, and the force in the
+direction of increasing $\ell$ as $F(\ell)=-\mathrm dE/\mathrm d\ell$. The <strong>local
+stiffness</strong> is the energy curvature,</p>
+<p>$$ \kappa(\ell)=\frac{\mathrm d^2E}{\mathrm d\ell^2}
+=-\frac{\mathrm dF}{\mathrm d\ell}. $$</p>
+<h3 id="gaussian-observation-a-linear-spring">Gaussian observation: a
+linear spring</h3>
+<p>With observed arm mean $y$ and known sampling variance
+$v$,</p>
+<p>$$ L_G(\ell;y)\propto\exp\!\left[-\frac{(y-\ell)^2}{2v}\right],
+\qquad E_G(\ell)=\frac{(y-\ell)^2}{2v}. $$</p>
+<p>Differentiating gives</p>
+<p>$$ F_G(\ell)=-\frac{\mathrm dE_G}{\mathrm d\ell}
+=\frac{y-\ell}{v}. $$</p>
+<p>The force is proportional to displacement from the rest length
+$y$, with constant stiffness $\kappa_G=1/v$, so $F_G(\ell)=\kappa_G(y-\ell)$.</p>
+<h3 id="binomial-observation-a-nonlinear-spring">Binomial observation: a
+nonlinear spring</h3>
+<p>For $e$ events among $n$ observations, the binomial
+probability is</p>
+<p>$$ \Pr(e\mid n,p)=\binom ne p^e(1-p)^{n-e}. $$</p>
+<p>Use log-odds as the coordinate: $\ell=\operatorname{logit}(p)$, so $p=\sigma(\ell)=1/(1+\exp(-\ell))$. Viewed as a
+likelihood for $\ell$,</p>
+<p>$$ L_B(\ell;e)\propto
+\exp\!\left[e\ell-n\log(1+\exp(\ell))\right]. $$</p>
+<p>The binomial coefficient is independent of $\ell$, so it
+contributes only an additive constant to the energy. Thus</p>
+<p>$$ E_B(\ell)=n\log(1+\exp(\ell))-e\ell,
+\qquad \boxed{F_B(\ell)=-\frac{\mathrm dE_B}{\mathrm d\ell}=e-n\sigma(\ell).} $$</p>
+<p>The force is <strong>observed minus expected events</strong>: a
+positive force increases the predicted probability, and a negative force
+decreases it. The energy gradient has the opposite sign, $E_B'(\ell)=n\sigma(\ell)-e$.
+Because $\sigma$ is bounded, the force saturates between $e-n$ and
+$e$. For $0 \lt e \lt n$, it vanishes at the empirical log-odds $\ell^*=\operatorname{logit}(e/n)$.
+If $e=0$ or $e=n$, an isolated arm has no finite
+likelihood-maximizing rest length.</p>
+<p>The binomial spring’s stiffness varies with its coordinate:</p>
+<p>$$ \kappa_B(\ell)=n\sigma(\ell)\bigl(1-\sigma(\ell)\bigr)=np(1-p). $$</p>
+<p>This is the binomial Fisher information for the log-odds. It is
+largest at $p=1/2$ and tends to zero in either tail. The animation
+labels this same local stiffness $w(\ell)$, the usual IRLS weight.</p>
+<p>In the network notation, arm $j$ of study $i$ has
+coordinate $\ell_{ij}=x^t_j-x^\tau_{ij}$ and energy</p>
+<p>$$ E_{ij}(\ell_{ij})=n_{ij}\log(1+\exp(\ell_{ij}))-e_{ij}\ell_{ij}. $$</p>
+<h2 id="solving-the-nonlinear-network">Solving the nonlinear
+network</h2>
+<p>The network no longer solves in one shot. Newton / IRLS relaxes it:
+linearise each nonlinear spring at its current length into a local
+Hookean spring of stiffness $\kappa_{ij}=\kappa_B(\hat\ell_{ij})=w_{ij}$, re-solve the now-linear network,
+and repeat to convergence. At the solution, the local quadratic
+approximation has variance $v_{ij}=1/\kappa_{ij}=1/w_{ij}$. This is a local curvature
+equivalence; the full likelihood remains binomial. The <a
+href="1c-random-effects.html">next page</a> introduces the heterogeneity
+springs used alongside these observation springs.</p>
+<h2 id="beyond-the-binomial-exponential-family-springs">Beyond the
+binomial: exponential-family springs</h2>
+<p>The same construction extends to every regular
+<strong>exponential-family likelihood</strong>. In its natural
+coordinate $\ell$, with any dispersion parameter held fixed, write</p>
+<p>$$ p(y\mid\ell)=h(y)\exp\!\left[\ell T(y)-A(\ell)\right]. $$</p>
+<p>Taking the negative logarithm and differentiating gives</p>
+<p>$$ E(\ell)=A(\ell)-\ell T(y),\qquad
+F(\ell)=T(y)-A'(\ell),\qquad
+\kappa(\ell)=A''(\ell). $$</p>
+<p>Here $T(y)$ is the sufficient statistic and $A$ is the
+log-normalising function: its first derivative is the expected statistic
+and its second derivative is its variance. Thus the force is again
+<strong>observed minus expected</strong>, and the stiffness is the
+<strong>Fisher information in the natural coordinate</strong> (<a
+href="https://www.stat.umn.edu/geyer/5421/notes/expfam.html">exponential-family
+identities</a>). For example, a Poisson count with log-rate $\ell$
+gives $F=y-\exp(\ell)$ and $\kappa=\exp(\ell)$. With several natural parameters, the
+derivatives become a gradient and a stiffness matrix; with a
+noncanonical link, the derivatives must also account for the change of
+coordinate. The spring construction therefore extends beyond binary
+data, although each likelihood still needs its own implementation.
+<strong>Currently, the Haskell and Rust solvers implement Gaussian and
+binomial observation likelihoods; Rust also has a binomial log-link path
+for risk ratios.</strong> Poisson and Gamma observation likelihoods are
+not currently implemented.</p>
+
+
+    <div class="inpart">
+      <div class="inpart-label">Part 1 · From pairwise to NMA</div>
+      <ol>
+        <li><a href="1a-pairwise-fe.html">Pairwise &rarr; fixed-effect NMA</a></li>
+        <li class="here"><a href="1b-binomial-spring.html">Binomial: the nonlinear spring</a></li>
+        <li><a href="1c-random-effects.html">Random effects: a &tau;-spring per arm</a></li>
+        <li><a href="1d-spring-reml.html">Spring-REML: mean-square length</a></li>
+      </ol>
+    </div>
+
+<details class="faq">
+<summary>FAQ</summary>
+<div class="faq-body">
+
+<details class="faq-item"><summary>Binomial
+data — exact likelihood or normal approximation? (multinma does exact
+binomial)</summary>
+<p>Exact binomial energy. The observation spring carries $n_{ij}\log(1+e^{\ell})-e_{ij}\ell$, and
+the per-$\tau^2$ solve is a damped-Newton / IRLS relaxation to the joint
+mode; only the volume factor (the log-det of the Hessian) is Gaussian.
+It is not a normal approximation of the likelihood or a fixed-variance
+log-OR. Against multinma’s exact-binomial MCMC, contrast posterior means
+agree within $\sim0.02$ log-odds and $\tau^2$ medians within Monte-Carlo
+error; on synthetic $T{=}6$ binary networks with known $\tau^2$,
+spring-$\Xi$ has about half the $\tau^2$ RMSE.</p>
+</details>
+</div>
+</details>
+  </article>
+  <nav class="pager">
+    <a class="pager-prev" href="1a-pairwise-fe.html"><span class="pager-label">Previous</span><span class="pager-title">&larr; Pairwise &rarr; fixed-effect NMA</span></a>
+    <a class="pager-next" href="1c-random-effects.html"><span class="pager-label">Next</span><span class="pager-title">Random effects: a $\tau$-spring per arm, at a given $\tau$ &rarr;</span></a>
+  </nav>
+</main>
+<footer class="footer">
+  meta-springs &middot; <a href="https://github.com/tpapak/meta-springs">source on GitHub</a>
+</footer>
+</body>
+</html>

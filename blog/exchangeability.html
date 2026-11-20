@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Why the τ-springs are exchangeable</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, 'Helvetica Neue', Helvetica, Arial, sans-serif;
+         background: #fafafa; color: #222; display: flex; flex-direction: column;
+         align-items: center; padding: 16px; }
+  h1 { font-size: 18px; font-weight: 600; margin-bottom: 4px; }
+  .subtitle { font-size: 13px; color: #666; margin-bottom: 12px; max-width: 1000px;
+              text-align: center; line-height: 1.5; }
+  .ctrl-row { display: flex; gap: 12px; align-items: center; margin-bottom: 10px;
+              flex-wrap: wrap; justify-content: center; }
+  button { padding: 6px 16px; border: 1px solid #aaa; border-radius: 4px; background: #fff;
+           cursor: pointer; font-size: 13px; }
+  button:hover { background: #eee; }
+  button.go { background: #fff7ed; border-color: #fb8c00; color: #b35a00; font-weight: 600; }
+  button.go:hover { background: #ffe8cc; }
+  .stage { display: flex; gap: 16px; align-items: flex-start; flex-wrap: wrap; justify-content: center; }
+  .sidecol { display: flex; flex-direction: column; gap: 14px; width: 360px; }
+  svg { background: #fff; border: 1px solid #ddd; border-radius: 6px; }
+  .panel { background: #fff; border: 1px solid #ddd; border-radius: 6px; padding: 12px 14px; }
+  .panel h2 { font-size: 13px; font-weight: 600; color: #333; margin-bottom: 8px; }
+  .panel p { font-size: 11.5px; color: #666; line-height: 1.5; margin-top: 8px; }
+  table.corr { border-collapse: collapse; margin: 0 auto; font-family: 'SF Mono', Consolas, monospace; }
+  table.corr th, table.corr td { border: 1px solid #e0e0e0; padding: 6px 10px; text-align: center; font-size: 12.5px; }
+  table.corr th { background: #f6f6f6; color: #555; font-weight: 600; }
+  table.corr td.diag { background: #e8f0fe; color: #1a3a6e; font-weight: 700; }
+  table.corr td.off  { background: #fff3e0; color: #b35a00; font-weight: 700; }
+  .cap { font-size: 12.5px; color: #444; margin-top: 8px; max-width: 720px; text-align: center;
+         line-height: 1.5; min-height: 1.4em; }
+  .legend { margin-top: 10px; font-size: 12px; color: #666; max-width: 1000px; text-align: center; line-height: 1.6; }
+  .legend b { color: #444; }
+  .sw { color: #d95f02; font-weight: 700; }
+  .mono { font-family: 'SF Mono', Consolas, monospace; }
+</style>
+</head>
+<body>
+
+<nav style="width:100%;border-bottom:1px solid #e4e4e4;background:#fafafa;margin:-16px 0 14px;padding:0;">
+  <div style="max-width:1200px;margin:0 auto;padding:12px 20px;display:flex;align-items:baseline;gap:20px;">
+    <a href="index.html" style="font-weight:700;letter-spacing:-0.02em;color:#1a1a1a;text-decoration:none;font-size:16px;">meta-springs</a>
+    <span style="margin-left:auto;display:flex;gap:18px;">
+      <a href="index.html" style="color:#666;text-decoration:none;font-size:14px;">Home</a>
+      <a href="posts/2c-exchangeability.html" style="color:#666;text-decoration:none;font-size:14px;">Part 2</a>
+    </span>
+  </div>
+</nav>
+
+<h1>Why the τ-springs are exchangeable</h1>
+<div class="subtitle">
+  One study S3, four arms. Each arm hangs off the <b style="color:#c2410c">shared baseline node μ</b> by its own
+  <b>τ-spring</b> &zeta;<sub>ij</sub> ~ N(0, &tau;²/2), independently and identically. Because the four
+  τ-springs are <b>i.i.d. on the same anchor</b>, relabelling the arms leaves the joint law untouched — and that one
+  shared anchor is exactly what makes any two sibling contrasts correlate at <b>½</b> (the (I+J)/2 structure), without
+  ever writing the matrix down.
+</div>
+
+<div class="ctrl-row">
+  <button class="go" id="btnPermute">Permute arms</button>
+  <button id="btnReset">Reset order A B C D</button>
+</div>
+
+<div class="stage">
+  <div>
+    <svg id="canvas" width="720" height="440"></svg>
+    <div class="cap" id="fanCap">Arms are i.i.d. τ-springs on a shared anchor &rarr; exchangeable; the joint law is permutation-invariant.</div>
+  </div>
+
+  <div class="sidecol">
+    <div class="panel">
+      <h2>Within-study contrast correlation</h2>
+      <div id="corrWrap"></div>
+      <p>Sibling contrasts (arm&minus;baseline) share the one anchor node, so each off-diagonal is exactly
+      <b>½</b> and each diagonal <b>1</b> &mdash; the correlation matrix is <span class="mono">(I+J)/2</span>.
+      Permute the arms: the labels move, the numbers do not. That invariance <i>is</i> exchangeability.</p>
+    </div>
+
+    <div class="panel">
+      <h2>Inside one τ-chain: indistinguishable springs</h2>
+      <svg id="boson" width="332" height="150"></svg>
+      <div style="text-align:center;margin-top:4px;">
+        <button id="btnSwap" style="font-size:12px;padding:4px 12px;">Swap the two springs</button>
+      </div>
+      <div class="cap" id="bosonCap" style="margin-top:6px;font-size:11.5px;">
+        A τ-chain is <span class="mono">N</span> elementary springs in series. Swap any two &rarr; the configuration is
+        <b>identical</b> (bosons: no identity), so only <span class="mono">N</span> matters &mdash;
+        which is why we count particles: <span class="mono">&Xi; = &Sigma;<sub>N</sub> Z</span>.
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="legend">
+  <b style="color:#c2410c">Orange spindle</b> = the study's shared baseline node μ (the anchor every arm hangs from).
+  <b>Black coils</b> = the four τ-springs, drawn identically because they are i.i.d. draws ζ<sub>ij</sub> ~ N(0, τ²/2).
+  <b style="color:#1a73e8">Blue coils</b> = the observation springs to each treatment node A, B, C, D.
+  Permuting arms swaps whole arms across rows; the anchor and the four identical τ-springs never change &mdash; that is why the model is exchangeable in its arms and why the sibling-contrast correlation is fixed at ½.
+</div>
+
+<script src="study-data.js"></script>
+<script>
+"use strict";
+
+// ===================== DATA: running example, study S3 (4 arms) =====================
+const treatments = ['A','B','C','D'];
+const treatColor = ['#1e40af','#1b9e77','#d95f02','#7c3aed'];
+const arms = [
+  { t:0, y:0.60, v:0.30 },
+  { t:1, y:0.80, v:0.30 },
+  { t:2, y:2.00, v:0.30 },
+  { t:3, y:2.40, v:0.30 }
+];
+const nArm = arms.length;
+
+// ===================== SVG helpers (from the other animations) =====================
+const svg = document.getElementById('canvas');
+function fmt(v,n){ return Number(v).toFixed(n); }
+function drawCoil(x1,y1,x2,y2,color,turns,sw,ampMax){
+  const dx=x2-x1,dy=y2-y1,len=Math.hypot(dx,dy); if(len<0.3) return '';
+  const ux=dx/len,uy=dy/len,px=-uy,py=ux, amp=Math.max(1.4,Math.min(ampMax||5,len*0.32)), segs=Math.max(12,turns*8);
+  let d=`M ${x1.toFixed(1)} ${y1.toFixed(1)}`;
+  for(let i=1;i<=segs;i++){ const t=i/segs,cx=x1+dx*t,cy=y1+dy*t,taper=Math.sin(Math.PI*t),off=amp*taper*Math.sin(2*Math.PI*turns*t);
+    d+=` L ${(cx+px*off).toFixed(1)} ${(cy+py*off).toFixed(1)}`; }
+  return `<path d="${d}" stroke="${color}" stroke-width="${sw||1.4}" fill="none"/>`;
+}
+function drawTauChain(x1,y1,x2,y2,N){
+  const totalLen=Math.hypot(x2-x1,y2-y1);
+  if(totalLen<0.5){ const r=2+Math.min(6,N*0.3); return `<circle cx="${x1.toFixed(1)}" cy="${y1.toFixed(1)}" r="${r}" fill="#111"/>`; }
+  const renderN=Math.max(1,Math.min(N,Math.floor(totalLen/2))), turnsPer=(renderN<=4)?3:(renderN<=12)?2:1;
+  let html='';
+  for(let k=0;k<renderN;k++){ const t1=k/renderN,t2=(k+1)/renderN;
+    const ax=x1+(x2-x1)*t1,ay=y1+(y2-y1)*t1,bx=x1+(x2-x1)*t2,by=y1+(y2-y1)*t2, isOdd=(k%2)===1;
+    if(isOdd){ html+=drawCoil(ax,ay,bx,by,'#111',turnsPer,5.0,5); html+=drawCoil(ax,ay,bx,by,'#fff',turnsPer,3.0,5); }
+    else html+=drawCoil(ax,ay,bx,by,'#111',turnsPer,4.2,5); }
+  return html;
+}
+
+// ===================== FAN LAYOUT =====================
+const anchorX = 250, tauNodeX = 430, treatBaseX = 470, treatScale = 108, tauN = 5;
+const rowY = [110, 190, 270, 350];
+const barTop = rowY[0]-24, barBot = rowY[rowY.length-1]+24;
+const anchorY = (barTop+barBot)/2;
+
+// permutation state: perm[row] = arm index; yCur[arm] = current y (animated)
+let perm = [0,1,2,3];
+let yCur = arms.map((_,a)=>rowY[a]);
+let animId = null;
+
+function treatXofArm(a){ return treatBaseX + treatScale*(arms[a].y - 0.60); }
+
+function renderFan(){
+  let h='';
+
+  // shared anchor node (baseline mu) — one orange spindle for all arms
+  h+=`<rect x="${anchorX-4}" y="${barTop}" width="8" height="${(barBot-barTop).toFixed(1)}" fill="#fed7aa" stroke="#c2410c" stroke-width="1.6" rx="4"/>`;
+  h+=`<circle cx="${anchorX}" cy="${barTop}" r="4" fill="#fed7aa" stroke="#c2410c" stroke-width="1.6"/>`;
+  h+=`<circle cx="${anchorX}" cy="${barBot}" r="4" fill="#fed7aa" stroke="#c2410c" stroke-width="1.6"/>`;
+  h+=`<text x="${anchorX}" y="${barTop-10}" text-anchor="middle" font-size="12" font-weight="700" fill="#c2410c">S3</text>`;
+  h+=`<text x="${anchorX}" y="${barBot+18}" text-anchor="middle" font-size="12" font-weight="700" fill="#c2410c">shared anchor &mu;</text>`;
+  h+=`<text x="${anchorX}" y="${barBot+33}" text-anchor="middle" font-size="10" fill="#999">one baseline node, all four arms</text>`;
+
+  // column labels
+  h+=`<text x="${tauNodeX}" y="70" text-anchor="middle" font-size="11" fill="#333">&tau;-node &zeta;<tspan font-size="8" dy="2">ij</tspan></text>`;
+  h+=`<text x="${((anchorX+tauNodeX)/2).toFixed(0)}" y="70" text-anchor="middle" font-size="11" fill="#333">&tau;-spring (i.i.d.)</text>`;
+  h+=`<text x="600" y="70" text-anchor="middle" font-size="11" fill="#333">treatment node</text>`;
+
+  // per-arm: identical tau-chain, tau node, obs spring, treatment node
+  for(let a=0;a<nArm;a++){
+    const y = yCur[a];
+    const tcol = treatColor[arms[a].t];
+    const txx = treatXofArm(a);
+
+    // tau-spring: shared anchor -> tau node  (identical length for every arm)
+    h+=drawTauChain(anchorX+4, y, tauNodeX, y, tauN);
+    h+=`<circle cx="${tauNodeX}" cy="${y.toFixed(1)}" r="4" fill="#444" stroke="#222" stroke-width="0.6"/>`;
+
+    // observation spring: tau node -> treatment node
+    const sgn = Math.sign(txx-tauNodeX)||1;
+    h+=drawCoil(tauNodeX+5*sgn, y, txx-4*sgn, y, '#1a73e8', Math.max(2,Math.round(Math.abs(txx-tauNodeX)/24)), 1.7, 6);
+
+    // treatment node
+    h+=`<circle cx="${txx.toFixed(1)}" cy="${y.toFixed(1)}" r="17" fill="#dbeafe" stroke="${tcol}" stroke-width="2"/>`;
+    h+=`<text x="${txx.toFixed(1)}" y="${(y+5).toFixed(1)}" text-anchor="middle" font-weight="700" font-size="14" fill="#111">${treatments[arms[a].t]}</text>`;
+    h+=`<text x="${txx.toFixed(1)}" y="${(y-23).toFixed(1)}" text-anchor="middle" font-size="9.5" fill="#666">y=${fmt(arms[a].y,2)}</text>`;
+  }
+
+  svg.innerHTML = h;
+}
+
+// ===================== CONTRAST-CORRELATION MATRIX (I+J)/2 =====================
+// reference = arm currently in row 0; siblings = rows 1..3 (all vs that baseline)
+function renderCorr(){
+  const refArm = arms[perm[0]];
+  const sibs = [perm[1], perm[2], perm[3]];
+  const lab = a => `${treatments[arms[a].t]}&minus;${treatments[refArm.t]}`;
+  let s = `<table class="corr"><tr><th></th>`;
+  for(const a of sibs) s += `<th>${lab(a)}</th>`;
+  s += `</tr>`;
+  for(let i=0;i<sibs.length;i++){
+    s += `<tr><th>${lab(sibs[i])}</th>`;
+    for(let j=0;j<sibs.length;j++){
+      if(i===j) s += `<td class="diag">1.00</td>`;
+      else      s += `<td class="off">0.50</td>`;
+    }
+    s += `</tr>`;
+  }
+  s += `</table>`;
+  document.getElementById('corrWrap').innerHTML = s;
+}
+
+// ===================== CONTROLS: permute =====================
+let clicks = 0;
+function shuffled(){
+  const p=[0,1,2,3];
+  for(let i=p.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [p[i],p[j]]=[p[j],p[i]]; }
+  return p;
+}
+function same(a,b){ for(let i=0;i<a.length;i++) if(a[i]!==b[i]) return false; return true; }
+
+function animateTo(targets){
+  if(animId) clearInterval(animId);
+  animId = setInterval(()=>{
+    let done=true;
+    for(let a=0;a<nArm;a++){ const d=targets[a]-yCur[a];
+      if(Math.abs(d)>0.4){ yCur[a]+=d*0.18; done=false; } else yCur[a]=targets[a]; }
+    renderFan();
+    if(done){ clearInterval(animId); animId=null; }
+  }, 20);
+}
+
+function permute(){
+  clicks++;
+  let np;
+  do { np = shuffled(); } while(same(np,perm));
+  perm = np;
+  const targets = arms.map((_,a)=> rowY[ perm.indexOf(a) ]);
+  animateTo(targets);
+  renderCorr();
+  document.getElementById('fanCap').innerHTML =
+    `Permutation #${clicks}: the arms are relabelled, but the anchor and the four identical &tau;-springs are unchanged &rarr; <b>same joint law</b>. Exchangeable.`;
+}
+function resetOrder(){
+  perm = [0,1,2,3];
+  animateTo(arms.map((_,a)=>rowY[a]));
+  renderCorr();
+  document.getElementById('fanCap').innerHTML =
+    `Arms are i.i.d. &tau;-springs on a shared anchor &rarr; exchangeable; the joint law is permutation-invariant.`;
+}
+document.getElementById('btnPermute').addEventListener('click', permute);
+document.getElementById('btnReset').addEventListener('click', resetOrder);
+
+// ===================== BOSON INSET: swap two elementary springs =====================
+const bsvg = document.getElementById('boson');
+const nSpr = 6, bx0 = 22, bx1 = 310, bY = 74, arcH = 30;
+function segStart(k){ return bx0 + (bx1-bx0)*k/nSpr; }
+function segCenter(k){ return bx0 + (bx1-bx0)*(k+0.5)/nSpr; }
+// two coloured "watch" particles sit on springs; physically identical
+let orPos = 1, tePos = 4;      // current spring-index positions (float during anim)
+let bAnim = null;
+
+function drawBoson(ph){
+  let h='';
+  // baseline anchors
+  h+=`<circle cx="${bx0}" cy="${bY}" r="4" fill="#111"/>`;
+  h+=`<circle cx="${bx1}" cy="${bY}" r="4" fill="#111"/>`;
+  // N identical elementary springs in series
+  for(let k=0;k<nSpr;k++){
+    const a=segStart(k), b=segStart(k+1);
+    h+=drawCoil(a,bY,b,bY,'#111',3,3.4,5);
+  }
+  h+=`<text x="${((bx0+bx1)/2).toFixed(0)}" y="${bY+40}" text-anchor="middle" font-size="10.5" fill="#666">N = ${nSpr} elementary springs in series</text>`;
+  // two coloured particles (arc up / arc down so we can watch them cross)
+  const ax=segCenter(orPos), ay=bY - arcH*Math.sin(Math.PI*ph);
+  const bx=segCenter(tePos), by=bY + arcH*Math.sin(Math.PI*ph);
+  h+=`<circle cx="${ax.toFixed(1)}" cy="${ay.toFixed(1)}" r="8" fill="#d95f02" stroke="#fff" stroke-width="1.5"/>`;
+  h+=`<text x="${ax.toFixed(1)}" y="${(ay+3.5).toFixed(1)}" text-anchor="middle" font-size="9" fill="#fff" font-weight="700">i</text>`;
+  h+=`<circle cx="${bx.toFixed(1)}" cy="${by.toFixed(1)}" r="8" fill="#0891b2" stroke="#fff" stroke-width="1.5"/>`;
+  h+=`<text x="${bx.toFixed(1)}" y="${(by+3.5).toFixed(1)}" text-anchor="middle" font-size="9" fill="#fff" font-weight="700">j</text>`;
+  bsvg.innerHTML = h;
+}
+
+function swapBosons(){
+  if(bAnim) return;
+  const orStart=orPos, teStart=tePos, orEnd=tePos, teEnd=orPos;
+  let ph=0;
+  bAnim = setInterval(()=>{
+    ph += 0.06; if(ph>1) ph=1;
+    orPos = orStart + (orEnd-orStart)*ph;
+    tePos = teStart + (teEnd-teStart)*ph;
+    drawBoson(ph);
+    if(ph>=1){
+      clearInterval(bAnim); bAnim=null;
+      orPos = orEnd; tePos = teEnd; drawBoson(0);
+      document.getElementById('bosonCap').innerHTML =
+        `Swapped &rarr; <b>&equiv; identical configuration</b>. The springs carry no identity (we only coloured i, j to watch), so a state is fixed by the <b>number</b> N &mdash; hence <span class="mono">&Xi; = &Sigma;<sub>N</sub> Z</span>.`;
+    }
+  }, 20);
+}
+document.getElementById('btnSwap').addEventListener('click', swapBosons);
+
+// ===================== INIT =====================
+renderFan();
+renderCorr();
+drawBoson(0);
+
+showStudyData(() => [{title: 'Four-arm study S3', treatments, studies: [{id: 'S3', arms}]}]);
+</script>
+
+</body>
+</html>

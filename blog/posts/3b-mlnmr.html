@@ -1,0 +1,538 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ML-NMR: patient covariates, study rods and averaged springs — meta-springs</title>
+<link rel="stylesheet" href="../style.css">
+<script>
+window.MathJax = {
+  tex: { inlineMath: [['$','$'],['\\(','\\)']], displayMath: [['$$','$$'],['\\[','\\]']], tags: 'ams',
+    macros: { Var:'\\operatorname{Var}', Cov:'\\operatorname{Cov}', E:'\\operatorname{E}', tr:'\\operatorname{tr}', keff:'k^{\\text{eff}}' } },
+  svg: { fontCache: 'global' }
+};
+</script>
+<script async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml-full.js"></script>
+</head>
+<body>
+<nav class="blognav">
+  <div class="blognav-inner">
+    <a class="blognav-brand" href="../index.html">meta-springs</a>
+    <div class="blognav-links">
+      <a href="../index.html">Home</a>
+      <a href="../posts/part1.html">Part 1</a>
+      <a href="../posts/part2.html">Part 2</a>
+      <a href="../posts/part3.html">Part 3</a>
+    </div>
+  </div>
+</nav>
+<main class="wrap postwrap">
+  <article class="postbody">
+    <p class="breadcrumb"><a href="part3.html">Part 3 &middot; Network meta-regression</a> &rsaquo; 3b</p>
+    <h1 class="post-h1">ML-NMR: patient covariates, study rods and averaged springs</h1>
+    <p class="post-meta">Thodoris Papakonstantinou</p>
+
+    <div class="posthero">
+<div class="posthero-title">An IPD study and an aggregate study · tilted study and treatment rods</div>
+<div class="animbox">
+<style>
+@scope (.animbox) {
+* { margin: 0; padding: 0; box-sizing: border-box; }
+  :scope { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; background: #fafafa; color: #222;
+    display: flex; flex-direction: column; align-items: center; padding: 18px; }
+  h1 { font-size: 18px; font-weight: 600; margin-bottom: 4px; }
+  .subtitle { font-size: 13px; color: #666; margin-bottom: 12px; max-width: 1040px; text-align: center; line-height: 1.5; }
+  .ctrl-row { display: flex; gap: 10px; align-items: center; margin-bottom: 6px; flex-wrap: wrap; justify-content: center; }
+  button { padding: 5px 14px; border: 1px solid #aaa; border-radius: 4px; background: #fff; cursor: pointer; font-size: 13px; }
+  button:hover { background: #eee; }
+  button.mode { background: #fff7ed; border-color: #fb8c00; color: #b35a00; }
+  button.mode.active { background: #e65100; color: #fff; border-color: #e65100; }
+  button.agd { background: #f0f4ff; border-color: #8fb0ea; color: #1a3a6e; }
+  button.agd.active { background: #1a73e8; color: #fff; border-color: #1a73e8; }
+  label { font-size: 13px; color: #555; }
+  input[type=range] { width: 200px; vertical-align: middle; }
+  .pill { font-family:'SF Mono',Consolas,monospace; font-size:13px; background:#fff3e0; border:1px solid #f0b27a;
+    border-radius:4px; padding:3px 10px; color:#b35a00; font-weight:600; min-width:120px; text-align:center; }
+  svg { background: #fff; border: 1px solid #ddd; border-radius: 6px; }
+  .legend { margin-top: 8px; font-size: 12px; color: #666; max-width: 1040px; text-align: center; line-height: 1.5; }
+  .legend b { color:#444; }
+}
+</style>
+<div class="ctrl-row">
+  <button class="mode" id="rNone">No covariate</button>
+  <button class="mode" id="rProg">Prognostic &beta;<sub>1</sub> only</button>
+  <button class="mode active" id="rFull">&beta;<sub>1</sub> + interaction &beta;<sub>2</sub></button>
+</div>
+<div class="ctrl-row">
+  <button class="agd active" id="aAvg">Aggregate arm: averaged spring (ML-NMR)</button>
+  <button class="agd" id="aMean">Aggregate arm: at mean covariate</button>
+  <label>reported covariate SD in Study 2 <input id="sdSlider" type="range" min="0" max="150" value="80"></label>
+  <span class="pill" id="sdDisplay">SD = 0.80</span>
+</div>
+
+<svg id="canvas" width="1320" height="780"></svg>
+
+<div class="legend">
+  Horizontal = linear predictor (log-odds). A spring's horizontal length, from the study rod to the treatment rod, is that patient's or arm's log-odds &eta;. <b>Study rods</b> sit at &minus;&mu;<sub>j</sub> and tilt by &beta;<sub>1</sub>; they share the tilt but not the position. <b>Treatment rods</b> sit at d<sub>k</sub> and tilt by &beta;<sub>2</sub>; they are glued through both studies (A pinned and vertical). Tilts pivot at x&#772;. The dashed lines show where each rod would stand untilted.
+  <b>IPD patients</b> are thin springs at their own height: <b style="color:#1b9e77">responders</b> push &eta; up, <b style="color:#8a8f98">non-responders</b> push it down (a binary spring has no rest length of its own). <b>Aggregate arms</b> are one sheathed spring each: sub-springs at the integration heights of the reported covariate distribution, whose probabilities are averaged before one binomial energy. <b>At mean covariate</b> replaces the sheath by one spring at the mean height (aggregation bias). Set the SD to 0 and the two coincide.
+</div>
+
+<script src="../study-data.js"></script>
+<script>
+"use strict";
+// ===================== DATA (simulated, deterministic) =====================
+const TRUE = { mu1:-1.3, mu2:-0.8, dB:1.5, dC:1.8, b1:0.8, b2:0.6 };
+const xbar = 0.5;                                 // centring value (pivot)
+let seed = 20261115;
+const rnd = () => { seed = (1664525*seed + 1013904223) % 4294967296; return seed/4294967296; };
+const rnorm = () => { const u=rnd()||1e-12, v=rnd(); return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v); };
+const sig = e => 1/(1+Math.exp(-e));
+// Study 1: IPD, 250 per arm, x ~ N(0, 1)
+const ipd = [];
+for (const t of [0,1]) for (let i=0;i<250;i++){
+  const x = 0.0 + 1.0*rnorm();
+  const eta = TRUE.mu1 + TRUE.b1*(x-xbar) + (t===1 ? TRUE.dB + TRUE.b2*(x-xbar) : 0);
+  ipd.push({ t, x, y: rnd() < sig(eta) ? 1 : 0 });
+}
+// Study 2: AgD, 150 per arm, true covariate distribution N(1.0, 0.8); events = expected count
+const Z0 = [-1.8339,-1.2816,-0.9674,-0.7279,-0.5244,-0.3407,-0.1679,0,0.1679,0.3407,0.5244,0.7279,0.9674,1.2816,1.8339];
+const zsd = Math.sqrt(Z0.reduce((s,z)=>s+z*z,0)/Z0.length), Z = Z0.map(z=>z/zsd);   // unit-variance points
+const agdMean = 1.0, agdTrueSD = 0.8;
+const agd = [0,2].map(t=>{
+  const pbar = Z.reduce((s,z)=>{ const x=agdMean+agdTrueSD*z;
+    return s + sig(TRUE.mu2 + TRUE.b1*(x-xbar) + (t===2 ? TRUE.dC + TRUE.b2*(x-xbar) : 0)); },0)/Z.length;
+  return { t, n:150, r: Math.round(150*pbar) };
+});
+let reg='full', agdMode='avg', sdRep=0.8;
+
+// ===================== SOLVER: Newton on the exact energy =====================
+// theta = [mu1, mu2, dB, dC, b1, b2]
+const NP=6, NAMES=['μ₁','μ₂','d_B','d_C','β₁','β₂'], TKEY=['mu1','mu2','dB','dC','b1','b2'];
+function active(r){ return [true,true,true,true, r!=='none', r==='full']; }
+function design(study,t,x){                         // design row (lever lengths)
+  const v=new Float64Array(NP), dx=x-xbar;
+  v[study===1?0:1]=1; v[4]=dx;
+  if(t===1){ v[2]=1; v[5]=dx; } if(t===2){ v[3]=1; v[5]=dx; }
+  return v;
+}
+const dot=(a,b)=>a.reduce((s,ai,i)=>s+ai*b[i],0);
+function energy(th, r, mode, sd, wantDeriv){
+  const on=active(r); let E=0; const g=new Float64Array(NP), H=Array.from({length:NP},()=>new Float64Array(NP));
+  const t2=th.map((v,i)=>on[i]?v:0);
+  for(const p of ipd){
+    const X=design(1,p.t,p.x), e=dot(X,t2), q=sig(e);
+    E -= p.y*Math.log(q+1e-300) + (1-p.y)*Math.log(1-q+1e-300);
+    if(wantDeriv){ const w=q*(1-q); for(let i=0;i<NP;i++){ g[i]+=(q-p.y)*X[i]; for(let j=0;j<NP;j++) H[i][j]+=w*X[i]*X[j]; } }
+  }
+  const pts = (mode==='mean' || sd===0) ? [agdMean] : Z.map(z=>agdMean+sd*z);
+  for(const a of agd){
+    let pb=0; const dp=new Float64Array(NP), d2=Array.from({length:NP},()=>new Float64Array(NP));
+    for(const x of pts){ const X=design(2,a.t,x), q=sig(dot(X,t2)), s=q*(1-q), s2=s*(1-2*q);
+      pb+=q/pts.length; for(let i=0;i<NP;i++){ dp[i]+=s*X[i]/pts.length; for(let j=0;j<NP;j++) d2[i][j]+=s2*X[i]*X[j]/pts.length; } }
+    E -= a.r*Math.log(pb) + (a.n-a.r)*Math.log(1-pb);
+    if(wantDeriv){ const A1=a.r/pb-(a.n-a.r)/(1-pb), A2=a.r/(pb*pb)+(a.n-a.r)/((1-pb)*(1-pb));
+      for(let i=0;i<NP;i++){ g[i]-=A1*dp[i]; for(let j=0;j<NP;j++) H[i][j]+=A2*dp[i]*dp[j]-A1*d2[i][j]; } }
+  }
+  for(let i=0;i<NP;i++){ if(!on[i]){ g[i]=0; for(let j=0;j<NP;j++){H[i][j]=0;H[j][i]=0;} H[i][i]=1; } else H[i][i]+=1e-8; }
+  return {E,g,H};
+}
+function linSolve(Ain, bin){
+  const n=bin.length, M=Ain.map((r,i)=>[...r, bin[i]]);
+  for (let c=0;c<n;c++){ let mx=Math.abs(M[c][c]),mr=c;
+    for (let r=c+1;r<n;r++) if(Math.abs(M[r][c])>mx){mx=Math.abs(M[r][c]);mr=r;}
+    [M[c],M[mr]]=[M[mr],M[c]];
+    for (let r=c+1;r<n;r++){const f=M[r][c]/M[c][c];for(let k=c;k<=n;k++)M[r][k]-=f*M[c][k];} }
+  const x=new Float64Array(n);
+  for (let i=n-1;i>=0;i--){let s=M[i][n];for(let j=i+1;j<n;j++)s-=M[i][j]*x[j];x[i]=s/M[i][i];}
+  return x;
+}
+function fit(r, mode, sd){
+  let th=new Float64Array(NP); const on=active(r);
+  for(let it=0;it<60;it++){
+    const {E,g,H}=energy(th,r,mode,sd,true), step=linSolve(H,g.map(v=>-v));
+    let a=1, next; for(let k=0;k<30;k++){ next=th.map((v,i)=>v+a*step[i]); if(energy(next,r,mode,sd,false).E<=E+1e-12) break; a/=2; }
+    th=next; if(Math.max(...step.map(Math.abs))*a<1e-10) break;
+  }
+  const {H}=energy(th,r,mode,sd,true);
+  const se=th.map((_,i)=>{ if(!on[i]) return 0; const e=new Float64Array(NP); e[i]=1; return Math.sqrt(Math.max(0,linSolve(H,e)[i])); });
+  return { th: Array.from(th).map((v,i)=>on[i]?v:0), se, on };
+}
+
+// ===================== DRAWING =====================
+const svg=document.getElementById('canvas');
+const X0=330, SC=150, SY=44;                           // effect origin (d_A = 0), px per logit, px per covariate unit
+const XR=[-2.4,2.6];                                   // covariate range drawn in each row
+const bands=[{c:240, id:'Study 1 · IPD (A vs B)'},{c:540, id:'Study 2 · aggregate (A vs C)'}];
+const Y=(b,x)=>bands[b].c - SY*(x - (XR[0]+XR[1])/2);
+const fmt=(v,n)=>Number(v).toFixed(n);
+function drawCoil(x1,y1,x2,y2,color,turns,sw,amp){
+  const dx=x2-x1,dy=y2-y1,len=Math.hypot(dx,dy); if(len<1) return '';
+  const ux=dx/len,uy=dy/len,px=-uy,py=ux, A=Math.min(amp||4,len*0.3), segs=Math.max(12,turns*8);
+  let d=`M ${x1.toFixed(1)} ${y1.toFixed(1)}`;
+  for(let i=1;i<=segs;i++){ const t=i/segs,o=A*Math.sin(Math.PI*t)*Math.sin(2*Math.PI*turns*t);
+    d+=` L ${(x1+dx*t+px*o).toFixed(1)} ${(y1+dy*t+py*o).toFixed(1)}`; }
+  return `<path d="${d}" stroke="${color}" stroke-width="${sw||1.2}" fill="none"/>`;
+}
+const TC={0:'#555555',1:'#1b9e77',2:'#7c3aed'}, TN={0:'A',1:'B',2:'C'};
+
+function render(){
+  const F=fit(reg, agdMode, sdRep), th=F.th, P=Object.fromEntries(TKEY.map((k,i)=>[k,th[i]]));
+  const other=fit(reg, agdMode==='avg'?'mean':'avg', sdRep).th;
+  document.getElementById('sdDisplay').textContent=`SD = ${fmt(sdRep,2)}`;
+  const studyX=(j,x)=> X0 + SC*(-(j===0?P.mu1:P.mu2) - P.b1*(x-xbar));
+  const trtX=(t,x)=> X0 + SC*(t===0?0:(t===1?P.dB:P.dC) + P.b2*(x-xbar));
+  let h='';
+  // effect axis
+  const yAx=700;
+  h+=`<line x1="${X0-SC*1.5}" y1="${yAx}" x2="${X0+SC*3.6}" y2="${yAx}" stroke="#888"/>`;
+  for(let v=-1.5; v<=3.5; v+=0.5){ const xx=X0+SC*v; h+=`<line x1="${xx}" y1="${yAx-4}" x2="${xx}" y2="${yAx+4}" stroke="#888"/>`;
+    if(Math.abs(v-Math.round(v))<1e-9) h+=`<text x="${xx}" y="${yAx+17}" text-anchor="middle" font-size="10" fill="#666">${v}</text>`; }
+  h+=`<text x="${X0+SC*3.6}" y="${yAx+32}" text-anchor="end" font-size="11" fill="#444">linear predictor (log-odds); spring length = η</text>`;
+  // glued treatment rods: guides through both rows
+  for(const t of [1,2]){ const xs=[trtX(t,XR[1]),trtX(t,XR[0])];
+    h+=`<line x1="${xs[0].toFixed(1)}" y1="${Y(0,XR[1])}" x2="${xs[1].toFixed(1)}" y2="${Y(0,XR[0])}" stroke="${TC[t]}" stroke-width="1" stroke-dasharray="2,5" opacity="${t===1?0:0.5}"/>`;
+    h+=`<line x1="${xs[0].toFixed(1)}" y1="${Y(1,XR[1])}" x2="${xs[1].toFixed(1)}" y2="${Y(1,XR[0])}" stroke="${TC[t]}" stroke-width="1" stroke-dasharray="2,5" opacity="${t===2?0:0.5}"/>`; }
+  h+=`<line x1="${X0}" y1="${Y(0,XR[1])-14}" x2="${X0}" y2="${Y(1,XR[0])+10}" stroke="${TC[0]}" stroke-width="4" stroke-linecap="round"/>`;
+  h+=`<text x="${X0}" y="${Y(1,XR[0])+26}" text-anchor="middle" font-size="9.5" fill="#a00">⚓ d_A = 0</text>`;
+
+  bands.forEach((bd,b)=>{
+    // covariate axis + pivot
+    h+=`<line x1="44" y1="${Y(b,XR[1])}" x2="44" y2="${Y(b,XR[0])}" stroke="#888"/>`;
+    for(let v=-1; v<=2; v++){ h+=`<line x1="40" y1="${Y(b,v)}" x2="48" y2="${Y(b,v)}" stroke="#888"/><text x="36" y="${Y(b,v)+3.5}" text-anchor="end" font-size="10" fill="#666">${v}</text>`; }
+    h+=`<text x="60" y="${Y(b,XR[1])-6}" font-size="12.5" font-weight="700" fill="#1a73e8">${bd.id}</text>`;
+    h+=`<line x1="48" y1="${Y(b,xbar)}" x2="${X0+SC*3.4}" y2="${Y(b,xbar)}" stroke="#e65100" stroke-dasharray="2,4" opacity="0.5"/>`;
+    h+=`<text x="${X0+SC*3.4+4}" y="${Y(b,xbar)+4}" font-size="10" fill="#b35a00">x̄ = ${xbar}</text>`;
+  });
+  h+=`<text x="16" y="${(Y(0,XR[1])+Y(1,XR[0]))/2}" transform="rotate(-90 16 ${(Y(0,XR[1])+Y(1,XR[0]))/2})" text-anchor="middle" font-size="11" fill="#444">patient covariate x</text>`;
+
+  // ---- Study 1: IPD springs
+  for(const p of ipd){ if(p.x<XR[0]||p.x>XR[1]) continue; const y=Y(0,p.x), a=studyX(0,p.x), c=trtX(p.t,p.x);
+    h+=`<line x1="${a.toFixed(1)}" y1="${y.toFixed(1)}" x2="${c.toFixed(1)}" y2="${y.toFixed(1)}" stroke="${p.y?'#1b9e77':'#8a8f98'}" stroke-width="0.6" opacity="${p.y?0.45:0.35}"/>`;
+    h+=`<circle cx="${c.toFixed(1)}" cy="${y.toFixed(1)}" r="1.3" fill="${p.y?'#1b9e77':'#8a8f98'}"/>`; }
+  // ---- Study 2: aggregate arms
+  const b=1, pts = sdRep>0 ? Z.map(z=>agdMean+sdRep*z) : [agdMean];
+  // reported covariate density on the axis
+  if(sdRep>0){ let dp=''; for(let x=XR[0]; x<=XR[1]+1e-9; x+=0.05){ const f=Math.exp(-0.5*((x-agdMean)/sdRep)**2); dp+=`${(44+34*f).toFixed(1)},${Y(b,x).toFixed(1)} `; }
+    h+=`<polyline points="44,${Y(b,XR[0])} ${dp} 44,${Y(b,XR[1])}" fill="rgba(230,81,0,0.08)" stroke="#e65100" stroke-width="1.2"/>`; }
+  for(const a of agd){
+    const lo=Math.max(XR[0],agdMean-2*sdRep), hi=Math.min(XR[1],agdMean+2*sdRep);
+    if(agdMode==='avg' && sdRep>0){
+      const poly=[[studyX(1,hi),Y(b,hi)],[trtX(a.t,hi),Y(b,hi)],[trtX(a.t,lo),Y(b,lo)],[studyX(1,lo),Y(b,lo)]];
+      h+=`<polygon points="${poly.map(q=>q.map(v=>v.toFixed(1)).join(',')).join(' ')}" fill="${a.t===0?'rgba(85,85,85,0.06)':'rgba(124,58,237,0.07)'}" stroke="${a.t===0?'#777':'#7c3aed'}" stroke-dasharray="4,3" stroke-width="1.2"/>`;
+      const off = a.t===0 ? -2.5 : 2.5, col = a.t===0 ? '#555555' : '#7c3aed';
+      for(const x of pts){ if(x<XR[0]||x>XR[1]) continue; const yy=Y(b,x)+off, s0=studyX(1,x), t0=trtX(a.t,x);
+        h+=drawCoil(s0,yy,t0,yy,col,3,0.9,2.5);
+        h+=`<circle cx="${s0.toFixed(1)}" cy="${yy.toFixed(1)}" r="2.2" fill="#1a73e8"/><circle cx="${t0.toFixed(1)}" cy="${yy.toFixed(1)}" r="2" fill="${col}"/>`; }
+    } else {
+      const y=Y(b,agdMean)+(a.t===0?-4:4), col=a.t===0?'#555555':'#7c3aed', s0=studyX(1,agdMean), t0=trtX(a.t,agdMean);
+      h+=drawCoil(s0,y,t0,y,col,6,2.2,6);
+      h+=`<circle cx="${s0.toFixed(1)}" cy="${y}" r="3.5" fill="#1a73e8"/><circle cx="${t0.toFixed(1)}" cy="${y}" r="3" fill="${col}"/>`;
+    }
+    const ym=Y(b,agdMean)+(a.t===0?-1:1)*0;
+    h+=`<text x="${((studyX(1,agdMean)+trtX(a.t,agdMean))/2).toFixed(1)}" y="${(Y(b,lo)+16).toFixed(1)}" text-anchor="middle" font-size="10" fill="#555">${TN[a.t]} arm: r = ${a.r} of ${a.n}</text>`;
+  }
+  // ---- rods (drawn over the springs)
+  [0,1].forEach(j=>{ const bb=j; const x1=studyX(j,XR[1]), x2=studyX(j,XR[0]);
+    h+=`<line x1="${(X0+SC*-(j===0?P.mu1:P.mu2)).toFixed(1)}" y1="${Y(bb,XR[1])}" x2="${(X0+SC*-(j===0?P.mu1:P.mu2)).toFixed(1)}" y2="${Y(bb,XR[0])}" stroke="#1a73e8" stroke-dasharray="2,5" opacity="${F.on[4]?0.5:0}"/>`;
+    h+=`<line x1="${x1.toFixed(1)}" y1="${Y(bb,XR[1])}" x2="${x2.toFixed(1)}" y2="${Y(bb,XR[0])}" stroke="#1a73e8" stroke-width="5" stroke-linecap="round" opacity="0.9"/>`;
+    h+=`<circle cx="${studyX(j,xbar).toFixed(1)}" cy="${Y(bb,xbar)}" r="4.5" fill="#fff" stroke="#1a73e8" stroke-width="2"/>`;
+    h+=`<text x="${(x2+10).toFixed(1)}" y="${Y(bb,XR[0])+4}" font-size="12" fill="#1a73e8" font-weight="700">S${j+1} (−μ<tspan font-size="9" dy="2">${j+1}</tspan><tspan dy="-2">)</tspan></text>`; });
+  for(const [t,bb] of [[1,0],[2,1]]){ const x1=trtX(t,XR[1]), x2=trtX(t,XR[0]);
+    h+=`<line x1="${(X0+SC*(t===1?P.dB:P.dC)).toFixed(1)}" y1="${Y(bb,XR[1])}" x2="${(X0+SC*(t===1?P.dB:P.dC)).toFixed(1)}" y2="${Y(bb,XR[0])}" stroke="${TC[t]}" stroke-dasharray="2,5" opacity="${F.on[5]?0.5:0}"/>`;
+    h+=`<line x1="${x1.toFixed(1)}" y1="${Y(bb,XR[1])}" x2="${x2.toFixed(1)}" y2="${Y(bb,XR[0])}" stroke="${TC[t]}" stroke-width="5" stroke-linecap="round" opacity="0.9"/>`;
+    h+=`<circle cx="${trtX(t,xbar).toFixed(1)}" cy="${Y(bb,xbar)}" r="4.5" fill="#fff" stroke="${TC[t]}" stroke-width="2"/>`;
+    h+=`<circle cx="${x1.toFixed(1)}" cy="${Y(bb,XR[1])-18}" r="13" fill="#dbeafe" stroke="${TC[t]}" stroke-width="2"/><text x="${x1.toFixed(1)}" y="${Y(bb,XR[1])-13}" text-anchor="middle" font-weight="700" font-size="13">${TN[t]}</text>`; }
+  h+=`<circle cx="${X0}" cy="${Y(0,XR[1])-30}" r="13" fill="#dbeafe" stroke="${TC[0]}" stroke-width="2"/><text x="${X0}" y="${Y(0,XR[1])-25}" text-anchor="middle" font-weight="700" font-size="13">A</text>`;
+
+  // ---- estimates panel
+  const px=1000, py=110;
+  h+=`<rect x="${px-14}" y="${py-30}" width="324" height="${470}" fill="#fcfcfc" stroke="#bbb" rx="4"/>`;
+  h+=`<text x="${px}" y="${py-10}" font-size="13" font-weight="600" fill="#333">Equilibrium (MLE ± SE)</text>`;
+  h+=`<text x="${px+150}" y="${py+10}" font-size="10" fill="#888" text-anchor="end">estimate</text><text x="${px+240}" y="${py+10}" font-size="10" fill="#888" text-anchor="end">SE</text><text x="${px+295}" y="${py+10}" font-size="10" fill="#888" text-anchor="end">true</text>`;
+  TKEY.forEach((k,i)=>{ const yy=py+30+i*20;
+    h+=`<text x="${px}" y="${yy}" font-size="12" fill="#333">${NAMES[i]}</text>`;
+    h+=`<text x="${px+150}" y="${yy}" font-size="12" fill="${F.on[i]?'#111':'#bbb'}" text-anchor="end" font-family="monospace">${F.on[i]?fmt(th[i],3):'0 (off)'}</text>`;
+    h+=`<text x="${px+240}" y="${yy}" font-size="12" fill="#666" text-anchor="end" font-family="monospace">${F.on[i]?fmt(F.se[i],3):''}</text>`;
+    h+=`<text x="${px+295}" y="${yy}" font-size="12" fill="#999" text-anchor="end" font-family="monospace">${fmt(TRUE[k],1)}</text>`; });
+  const y2=py+30+6*20+18;
+  h+=`<line x1="${px}" y1="${y2-12}" x2="${px+300}" y2="${y2-12}" stroke="#ddd"/>`;
+  const cb=(P.dC-P.dB), cbOther=(other[3]-other[2]);
+  h+=`<text x="${px}" y="${y2+6}" font-size="12" font-weight="600" fill="#333">C vs B at x̄ (anchored indirect)</text>`;
+  h+=`<text x="${px}" y="${y2+26}" font-size="12" fill="#111">${agdMode==='avg'?'averaged spring':'at mean covariate'}: <tspan font-family="monospace" font-weight="700">${fmt(cb,3)}</tspan></text>`;
+  h+=`<text x="${px}" y="${y2+44}" font-size="12" fill="#888">${agdMode==='avg'?'at mean covariate':'averaged spring'}: <tspan font-family="monospace">${fmt(cbOther,3)}</tspan> &nbsp; true ${fmt(TRUE.dC-TRUE.dB,1)}</text>`;
+  // aggregation bias at the current equilibrium
+  const y3=y2+76;
+  h+=`<text x="${px}" y="${y3}" font-size="12" font-weight="600" fill="#333">Aggregation bias in Study 2 (this fit)</text>`;
+  agd.forEach((a,k)=>{ const ps=(sdRep>0?Z.map(z=>agdMean+sdRep*z):[agdMean]);
+    const pbar=ps.reduce((s,x)=>s+sig(dot(design(2,a.t,x),th)),0)/ps.length, pm=sig(dot(design(2,a.t,agdMean),th));
+    h+=`<text x="${px}" y="${y3+20+k*18}" font-size="11.5" fill="#444">${TN[a.t]} arm: averaged ${fmt(100*pbar,1)}% vs at mean ${fmt(100*pm,1)}% (observed ${fmt(100*a.r/a.n,1)}%)</text>`; });
+  h+=`<text x="${px}" y="${y3+70}" font-size="10.5" fill="#888">Levers: tilt balance Σ (x−x̄)·force = 0 is the score</text>`;
+  h+=`<text x="${px}" y="${y3+85}" font-size="10.5" fill="#888">equation for β₁ and β₂; patients far from x̄ carry most weight.</text>`;
+  svg.innerHTML=h;
+}
+
+// ===================== CONTROLS =====================
+function setReg(r,btn){ reg=r; ['rNone','rProg','rFull'].forEach(id=>document.getElementById(id).classList.remove('active')); btn.classList.add('active'); render(); }
+document.getElementById('rNone').onclick=function(){ setReg('none',this); };
+document.getElementById('rProg').onclick=function(){ setReg('prog',this); };
+document.getElementById('rFull').onclick=function(){ setReg('full',this); };
+function setAgd(m,btn){ agdMode=m; ['aAvg','aMean'].forEach(id=>document.getElementById(id).classList.remove('active')); btn.classList.add('active'); render(); }
+document.getElementById('aAvg').onclick=function(){ setAgd('avg',this); };
+document.getElementById('aMean').onclick=function(){ setAgd('mean',this); };
+document.getElementById('sdSlider').oninput=function(){ sdRep=(+this.value)/100; render(); };
+render();
+
+showStudyData(() => [{title: 'ML-NMR example (simulated)', treatments: ['A','B','C'],
+  studies: [
+    { id:'S1 (IPD)', arms: [0,1].map(t=>({ t, events: ipd.filter(p=>p.t===t&&p.y).length, n: ipd.filter(p=>p.t===t).length })) },
+    { id:'S2 (aggregate)', arms: agd.map(a=>({ t:a.t, events:a.r, n:a.n })) } ],
+  note: `Study 1 shares individual records (250 per arm, covariate x ~ N(0, 1)); the table shows its totals. Study 2 reports only totals and a covariate mean ${agdMean} and SD ${agdTrueSD} (its events are the expected counts under the true model). Centring value x̄ = ${xbar}. Simulated with μ₁ = ${TRUE.mu1}, μ₂ = ${TRUE.mu2}, d_B = ${TRUE.dB}, d_C = ${TRUE.dC}, β₁ = ${TRUE.b1}, β₂ = ${TRUE.b2}.`}]);
+</script>
+</div>
+<p class="anim-cap">Each study row now has height, the patient covariate $x$. Study rods tilt by the prognostic slope $\beta_1$, treatment rods by the interaction $\beta_2$. Switch the regression terms, compare the averaged aggregate spring with the at-mean spring, and move the reported covariate SD of Study 2.</p>
+<p class="anim-fulllink"><a href="../mlnmr-springs.html" target="_blank" rel="noopener">Open this animation in its own page &#8599;</a></p>
+</div>
+
+<p>In <a href="3a-covariate-axis.html">3a</a> every study had
+<strong>one</strong> covariate value. Its arms all sat at one height, so
+the prognostic term was absorbed into the study baseline and only the
+treatment slopes appeared. Multilevel network meta-regression (ML-NMR;
+Phillippo et al. 2020, implemented in multinma) uses covariates measured
+on <strong>patients</strong>: individual participant data (IPD) from
+some trials, and published covariate summaries from the others. The
+change of picture is one step: give every study row a height.</p>
+<h2 id="model">1. The model in multinma’s notation</h2>
+<p>For a patient in study $j$ on treatment $k$ with covariate
+$x$,</p>
+<p>$$ \operatorname{logit} p = \mu_j + \beta_1 (x-\bar x) + d_k + \beta_{2,k}(x-\bar x),
+\qquad d_A=\beta_{2,A}=0. $$</p>
+<table class="tbl">
+<colgroup>
+<col style="width: 33%" />
+<col style="width: 33%" />
+<col style="width: 33%" />
+</colgroup>
+<thead>
+<tr>
+<th>Symbol</th>
+<th>Meaning</th>
+<th>multinma output</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>$\mu_j$</td>
+<td>study baseline</td>
+<td><code>mu[j]</code></td>
+</tr>
+<tr>
+<td>$d_k$</td>
+<td>treatment effect at $\bar x$</td>
+<td><code>d[k]</code></td>
+</tr>
+<tr>
+<td>$\beta_1$</td>
+<td>prognostic slope: changes response on <strong>every</strong>
+arm</td>
+<td><code>beta[x]</code></td>
+</tr>
+<tr>
+<td>$\beta_{2,k}$</td>
+<td>interaction: changes the <strong>treatment effect</strong></td>
+<td><code>beta[x:.trtk]</code></td>
+</tr>
+</tbody>
+</table>
+<p>The animation shares one interaction across the active treatments,
+$\beta_{2,B}=\beta_{2,C}=\beta_2$.</p>
+<h2 id="rods">2. Study rods appear</h2>
+<p>Put each patient at the height of their own $x$.</p>
+<ul>
+<li><strong>Treatment rods.</strong> As in 3a, treatment $k$ is a
+rigid rod at $d_k$, tilted by $\beta_{2,k}$ about the pivot $\bar x$. It
+is glued through every study: all studies see the same position and tilt
+(consistency). The reference $A$ is pinned and vertical.</li>
+<li><strong>Study rods.</strong> The study spindle of 3a opens into a
+rod over the study’s covariate range, tilted by $\beta_1$. Study rods are
+glued in <strong>tilt only</strong>: each keeps its own baseline
+$\mu_j$, but all tilt by the same $\beta_1$, so they stay parallel.</li>
+<li><strong>Springs.</strong> A patient is a spring from the study rod
+to the treatment rod at the patient’s height. Its horizontal length is
+the patient’s log-odds $\eta$ (the study rod sits at $-\mu_j$, as in
+<a href="1b-binomial-spring.html">1b</a>).</li>
+</ul>
+<p>This is why 3a had no study rods: with one $x$ per study the rod
+has no length, and tilting it is the same as moving $\mu_j$. $\beta_1$
+is identified only when $x$ varies <strong>within</strong> a
+study.</p>
+<h2 id="levers">3. What the tilt does: levers</h2>
+<p>The rods are rigid but their displacement is not fixed. Tilting a rod
+by $\Delta$ moves its contact at height $x$ by $(x-\bar x)\Delta$. The rod
+stores no energy; it transmits force:</p>
+<ul>
+<li>A spring pulling with force $F_i$ turns the tilt with force
+$(x_i-\bar x)F_i$ and resists it with stiffness $(x_i-\bar x)^2 k_i$.</li>
+<li>The balance $\sum_i (x_i-\bar x)F_i=0$ is the score equation for $\beta_1$ (all arms)
+or $\beta_2$ (active arms); $\sum_i (x_i-\bar x)^2k_i$ is its Fisher information.</li>
+<li>A patient at $\bar x$ sits at the pivot and says nothing about a
+slope. If every patient sat at one height, tilt and position could not
+be separated. The heights are the entries of the design matrix.</li>
+</ul>
+<p>The link function changes the springs, not the rods, so the same rods
+serve Gaussian, binomial and survival likelihoods.</p>
+<h2 id="binary">4. Binary patients have no rest length</h2>
+<p>A single Bernoulli observation has no finite best value of $\eta$:
+a responder pushes $\eta$ up with force $1-p$, a non-responder
+pushes it down with force $p$ (<a
+href="1b-binomial-spring.html">1b</a> with $n=1$). In the animation
+responders are green and non-responders grey. The equilibrium exists
+because the two push against each other through the rods. Without
+covariates every patient in an arm shares $\eta$, the pushes balance
+at $\operatorname{logit}(r/n)$, and the patients add up exactly to the arm’s binomial
+spring. With covariates they sit at different heights and stay
+separate.</p>
+<p>If all responders sat at one end of the covariate range and all
+non-responders at the other, every levered push would turn the tilt the
+same way and the slope would run off to infinity: complete separation. A
+prior on the slope (a spring to ground) stops it.</p>
+<h2 id="agd">5. Aggregate arms: one spring with extent</h2>
+<p>Study 2 reports only arm totals $r$ of $n$ and the
+covariate mean and SD. Its arm is still <strong>one</strong> spring, but
+the spring has extent: it sits at every height of the arm’s covariate
+distribution. Draw integration points $x_q$ from that distribution;
+average the probability, then form one binomial energy:</p>
+<p>$$ \eta_q=\mu_j+\beta_1(x_q-\bar x)+d_k+\beta_{2,k}(x_q-\bar x),\qquad
+\bar p=\frac1Q\sum_q \operatorname{logit}^{-1}(\eta_q),\qquad
+E=-\log\operatorname{Bin}(r\mid n,\bar p). $$</p>
+<p>Replacing the sheath by one spring at the mean height, $\operatorname{logit}^{-1}(\bar\eta)$, is
+the <strong>at-mean-covariate</strong> model. The difference is the
+aggregation bias, to second order</p>
+<p>$$ \bar p-\operatorname{logit}^{-1}(\bar\eta)\approx
+\tfrac12\,\sigma''(\bar\eta)\,(\beta_1+\beta_{2,k})^2\operatorname{Var}(x). $$</p>
+<p>It vanishes with no covariate spread, with an identity link, and at
+$p=1/2$; it grows toward the tails. The averaged arm also feels the
+tilt through all its heights: its effective lever is the
+$\sigma'$-weighted mean of $x_q$, not the plain mean.</p>
+<h3 id="try-the-picture">Try the picture</h3>
+<ol type="1">
+<li>Start in <strong>$\beta_1$ + interaction $\beta_2$</strong> with the
+<strong>averaged spring</strong>: the estimates in the panel are close
+to the simulation truth.</li>
+<li>Switch to <strong>at mean covariate</strong>. $d_C$ shifts, and
+the anchored C vs B comparison changes sign. The panel also shows, at
+the current fit, the C arm’s averaged response next to its response at
+the mean covariate.</li>
+<li>Move the <strong>reported SD</strong> to 0: the sheath collapses to
+one spring and the two models agree. Increase it and they separate.</li>
+<li>Select <strong>No covariate</strong>: all rods are vertical, Study
+1’s patients collapse to two binomial springs, and the C vs B comparison
+ignores that the two studies enrolled different populations.</li>
+</ol>
+<h2 id="code">6. What is implemented</h2>
+<p>The engine (<code>gc-rust/src/ipd.rs</code>,
+<code>gc-rust/src/bin/mlnmr.rs</code>) builds these springs, finds the
+equilibrium by Newton’s method on the exact energy, and corrects the
+Gaussian curvature by importance weights against the exact likelihood.
+The R wrapper takes a multinma network:</p>
+<div class="sourceCode" id="cb1"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(multinma)   <span class="co"># set_ipd(), set_agd_arm(), combine_network(), add_integration()</span></span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>fit <span class="ot">&lt;-</span> springs<span class="sc">::</span><span class="fu">mlnmr</span>(net,</span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>         <span class="at">regression =</span> <span class="sc">~</span>(durnpso <span class="sc">+</span> prevsys <span class="sc">+</span> bsa <span class="sc">+</span> weight <span class="sc">+</span> psa) <span class="sc">*</span> .trt,</span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>         <span class="at">class_interactions =</span> <span class="st">&quot;common&quot;</span>, <span class="at">link =</span> <span class="st">&quot;probit&quot;</span>, <span class="at">likelihood =</span> <span class="st">&quot;bernoulli2&quot;</span>)</span></code></pre></div>
+<p>On the plaque psoriasis network (four IPD trials with 4,114 patients,
+five aggregate trials) it reproduces multinma’s posteriors to within
+0.12 posterior standard deviations, in 1–4 seconds instead of 33–65.</p>
+<h3 id="this-pages-example-against-multinma">This page’s example against
+multinma</h3>
+<p>The animation’s simulated data (500 IPD patients in Study 1; arm
+totals and a covariate mean and SD in Study 2) fitted with multinma
+(Stan, 4 × 2,000 draws, 64 integration points, logit link, shared
+interaction, $\bar x = 0.5$) and with <code>springs::mlnmr</code> on the same
+network:</p>
+<table class="tbl">
+<thead>
+<tr>
+<th>parameter</th>
+<th>multinma mean (SD)</th>
+<th>springs mean (SD)</th>
+<th>z</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>$\mu_1$</td>
+<td>−1.228 (0.170)</td>
+<td>−1.234 (0.167)</td>
+<td>−0.04</td>
+</tr>
+<tr>
+<td>$d_B$</td>
+<td>1.616 (0.237)</td>
+<td>1.621 (0.238)</td>
+<td>0.02</td>
+</tr>
+<tr>
+<td>$d_C$</td>
+<td>1.829 (0.317)</td>
+<td>1.824 (0.319)</td>
+<td>−0.02</td>
+</tr>
+<tr>
+<td>$\beta_1$</td>
+<td>0.769 (0.179)</td>
+<td>0.764 (0.182)</td>
+<td>−0.03</td>
+</tr>
+<tr>
+<td>$\beta_2$</td>
+<td>0.602 (0.261)</td>
+<td>0.604 (0.263)</td>
+<td>0.01</td>
+</tr>
+</tbody>
+</table>
+<p>$z$ = (springs − multinma) / multinma SD. multinma took 8.6 s,
+springs 0.17 s. The animation shows the equilibrium itself (the
+maximum-likelihood point, using 15 integration points), which is close
+to these posterior means.</p>
+
+
+    <div class="inpart">
+      <div class="inpart-label">Part 3 · Network meta-regression</div>
+      <ol>
+        <li><a href="3a-covariate-axis.html">Covariates, slopes and the solver</a></li>
+        <li class="here"><a href="3b-mlnmr.html">ML-NMR: study rods and averaged springs</a></li>
+      </ol>
+    </div>
+
+<details class="faq">
+<summary>FAQ</summary>
+<div class="faq-body">
+
+<details class="faq-item"><summary>Why
+can’t the at-mean model just be fitted by a standard GLM tool?</summary>
+<p>It can, and that is the problem: it has one linear predictor per
+observation, the form INLA and ordinary GLM software require. The
+averaged spring depends on a non-linear average over many linear
+predictors, which those tools cannot express. That average is exactly
+where aggregation bias is removed.</p>
+</details>
+<details class="faq-item"><summary>Where
+does $\beta_1$ go when only aggregate data are available?</summary>
+<p>With only aggregate studies, $\beta_1$ is informed only through the
+averaging across different covariate distributions, which is weak. IPD
+from at least some studies is what pins the slopes; the aggregate
+studies then borrow them.</p>
+</details>
+</div>
+</details>
+  </article>
+  <nav class="pager">
+    <a class="pager-prev" href="3a-covariate-axis.html"><span class="pager-label">Previous</span><span class="pager-title">&larr; Meta-regression: from a covariate axis to the solver</span></a>
+    <span class="pager-empty"></span>
+  </nav>
+</main>
+<footer class="footer">
+  meta-springs &middot; <a href="https://github.com/tpapak/meta-springs">source on GitHub</a>
+</footer>
+</body>
+</html>

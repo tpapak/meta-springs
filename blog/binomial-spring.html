@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The binomial observation spring is nonlinear</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; background: #fafafa; color: #222;
+    display: flex; flex-direction: column; align-items: center; padding: 18px; }
+  h1 { font-size: 18px; font-weight: 600; margin-bottom: 4px; }
+  .subtitle { font-size: 13px; color: #666; margin-bottom: 12px; max-width: 1040px; text-align: center; line-height: 1.5; }
+  .ctrl-row { display: flex; gap: 12px; align-items: center; margin-bottom: 6px; flex-wrap: wrap; justify-content: center; }
+  button { padding: 5px 14px; border: 1px solid #aaa; border-radius: 4px; background: #fff; cursor: pointer; font-size: 13px; }
+  button:hover { background: #eee; }
+  button.go { background: #eef7ee; border-color: #58a758; color: #2f6d2f; }
+  button.go.active { background: #2f8f2f; color: #fff; border-color: #2f8f2f; }
+  label { font-size: 13px; color: #555; }
+  input[type=range] { width: 150px; vertical-align: middle; }
+  .pill { font-family:'SF Mono',Consolas,monospace; font-size:12.5px; border:1px solid #ccc; border-radius:4px;
+    padding:3px 9px; font-weight:600; min-width:96px; text-align:center; }
+  .pill.g { background:#eef4ff; border-color:#bcd0f7; color:#1a56c4; }
+  .pill.b { background:#fdecec; border-color:#f3bcbc; color:#c0392b; }
+  .pill.l { background:#f3f4f6; border-color:#d3d6db; color:#333; }
+  svg { background: #fff; border: 1px solid #ddd; border-radius: 6px; touch-action: none; }
+  .legend { margin-top: 8px; font-size: 12px; color: #666; max-width: 1040px; text-align: center; line-height: 1.5; }
+  .legend b { color:#444; }
+</style>
+</head>
+<body>
+
+<nav style="width:100%;border-bottom:1px solid #e4e4e4;background:#fafafa;margin:0 0 14px;padding:0;font-family:-apple-system,'Helvetica Neue',Helvetica,Arial,sans-serif;">
+  <div style="max-width:1200px;margin:0 auto;padding:14px 20px;display:flex;align-items:baseline;gap:20px;">
+    <a href="index.html" style="font-weight:700;letter-spacing:-0.02em;color:#1a1a1a;text-decoration:none;font-size:16px;">meta-springs</a>
+    <span style="margin-left:auto;display:flex;gap:18px;">
+      <a href="index.html" style="color:#666;text-decoration:none;font-size:14px;">Home</a>
+      <a href="posts/1b-binomial-spring.html" style="color:#666;text-decoration:none;font-size:14px;">Part 1</a>
+    </span>
+  </div>
+</nav>
+
+<h1>The binomial observation spring is nonlinear</h1>
+<div class="subtitle">
+  One arm, two likelihoods on the same log-odds axis &#8467; = x<sup>t</sup> &minus; x<sup>&tau;</sup>.
+  <b style="color:#1a56c4">Gaussian</b> spring: restoring force (y&minus;&#8467;)/v grows <i>without bound</i> as you pull away.
+  <b style="color:#c0392b">Binomial</b> spring: restoring force e&nbsp;&minus;&nbsp;n&sigma;(&#8467;) <b>saturates</b> in [e&minus;n, e] &mdash; soft in the tails, stiff near p=&frac12;.
+  <b>Drag either treatment node</b> (or the slider); both share the same &#8467;. At the mode they linearise to the <i>same</i> Hookean spring (Fisher-information stiffness); away from it they diverge. Press <b>Relax (IRLS)</b> to let the binomial spring find equilibrium by repeated linearisation.
+</div>
+
+<div class="ctrl-row">
+  <label>&#8467; <input id="ell" type="range" min="-6" max="6" step="0.05" value="3.4"></label>
+  <button class="go" id="relax">Relax (IRLS)</button>
+  <button id="reset">Reset</button>
+  <span class="pill l" id="pillL">&#8467; = 3.40</span>
+  <span class="pill g" id="pillG">F_gauss = 0</span>
+  <span class="pill b" id="pillB">F_binom = 0</span>
+</div>
+<div class="ctrl-row">
+  <label>events e <input id="ev" type="range" min="1" max="29" step="1" value="5"></label>
+  <span class="pill l" id="pillE">e = 5</span>
+  <label>trials n <input id="nn" type="range" min="2" max="30" step="1" value="10"></label>
+  <span class="pill l" id="pillN">n = 10</span>
+  <span class="pill l" id="pillStar">&#8467;* = 0.00</span>
+</div>
+
+<svg id="canvas" width="1060" height="440"></svg>
+
+<div class="legend">
+  <b style="color:#1a56c4">Blue row</b> = Gaussian arm (matched at the mode: rest length y = &#8467;*, variance v = 1/[n&nbsp;p*(1&minus;p*)]).
+  <b style="color:#c0392b">Red row</b> = binomial arm, energy n&thinsp;log(1+e<sup>&#8467;</sup>) &minus; e&#8467;.
+  The horizontal <b>arrows</b> are the restoring forces at the current &#8467;; the <b>right panel</b> plots each force law over &#8467; with a live dot.
+  Notice the Gaussian dot rides a straight line off to infinity while the binomial dot flattens onto its ceiling e&minus;n&sigma; &rarr; {e&minus;n, e}.
+  The dashed marker is the rest length &#8467;*; <b>local stiffness</b> w(&#8467;) = n&sigma;(1&minus;&sigma;) is printed per row &mdash; constant for Gaussian, vanishing in the binomial tails.
+</div>
+
+<script src="study-data.js"></script>
+<script>
+"use strict";
+// ---------- model ----------
+let e = 5, n = 10, ell = 3.4;
+const sig = x => 1/(1+Math.exp(-x));
+const ellStar = () => Math.log(e/(n-e));                 // logit(e/n): rest length
+const wStar   = () => { const p=e/n; return n*p*(1-p); };// Fisher info at the mode = Gaussian stiffness 1/v
+// restoring forces  F = -dE/dℓ  (positive = pull toward larger ℓ)
+const Fbin   = L => e - n*sig(L);                        // bounded in (e-n, e)
+const Fgauss = L => wStar()*(ellStar() - L);             // (y-ℓ)/v, v = 1/wStar
+const wbin   = L => { const s=sig(L); return n*s*(1-s); };
+
+// ---------- geometry ----------
+const svg = document.getElementById('canvas');
+const W=1060, H=440;
+const EMIN=-6, EMAX=6;
+const axX0=60, axX1=560, scale=(axX1-axX0)/(EMAX-EMIN);  // ℓ -> x on the left panel
+const X = L => axX0 + (L-EMIN)*scale;
+const Lfromx = x => EMIN + (x-axX0)/scale;
+const anchorX = 40;                                       // x^τ tail (fixed) at far left
+const yG=120, yB=250;                                     // row baselines
+// right plot
+const pX0=650, pX1=1030, pY0=60, pY1=400;
+const Frange=Math.max(6, n);                              // force axis half-range
+const pX = L => pX0 + (L-EMIN)/(EMAX-EMIN)*(pX1-pX0);
+const pY = F => (pY0+pY1)/2 - F/Frange*((pY1-pY0)/2 - 8);
+
+function drawCoil(x1,y1,x2,y2,color,turns,sw){
+  const dx=x2-x1,dy=y2-y1,len=Math.hypot(dx,dy); if(len<0.3) return '';
+  const ux=dx/len,uy=dy/len,px=-uy,py=ux, amp=Math.max(1.4,Math.min(7,len*0.10)), segs=Math.max(14,turns*8);
+  let d=`M ${x1.toFixed(1)} ${y1.toFixed(1)}`;
+  for(let i=1;i<=segs;i++){ const t=i/segs,cx=x1+dx*t,cy=y1+dy*t,taper=Math.sin(Math.PI*t),off=amp*taper*Math.sin(2*Math.PI*turns*t);
+    d+=` L ${(cx+px*off).toFixed(1)} ${(cy+py*off).toFixed(1)}`; }
+  return `<path d="${d}" stroke="${color}" stroke-width="${sw||1.8}" fill="none"/>`;
+}
+const fmt=(v,k)=>Number(v).toFixed(k);
+function arrow(x,y,F,color){                              // restoring-force arrow, length ∝ |F| (clamped)
+  if(Math.abs(F)<1e-3) return `<circle cx="${x.toFixed(1)}" cy="${y}" r="2.5" fill="${color}"/>`;
+  const L=Math.min(150, Math.abs(F)*14), dir=Math.sign(F), xe=x+dir*L;
+  const ah=6*dir;
+  return `<line x1="${x.toFixed(1)}" y1="${y}" x2="${xe.toFixed(1)}" y2="${y}" stroke="${color}" stroke-width="3"/>`+
+         `<path d="M ${xe.toFixed(1)} ${y} L ${(xe-ah).toFixed(1)} ${y-5} L ${(xe-ah).toFixed(1)} ${y+5} Z" fill="${color}"/>`;
+}
+
+function springRow(y, L, rest, F, color, node, label){
+  const nx=X(L), rx=X(rest);
+  const turns=Math.max(3, Math.round(Math.abs(nx-anchorX)/16));
+  let h='';
+  // rest-length marker
+  h+=`<line x1="${rx.toFixed(1)}" y1="${y-46}" x2="${rx.toFixed(1)}" y2="${y+30}" stroke="${color}" stroke-dasharray="4,4" stroke-opacity="0.55"/>`;
+  h+=`<text x="${rx.toFixed(1)}" y="${y-50}" text-anchor="middle" font-size="10" fill="${color}">rest &#8467;*=${fmt(rest,2)}</text>`;
+  // anchor (x^τ)
+  h+=`<circle cx="${anchorX}" cy="${y}" r="9" fill="#fed7aa" stroke="#c2410c" stroke-width="1.5"/>`;
+  h+=`<text x="${anchorX}" y="${y+22}" text-anchor="middle" font-size="9" fill="#7c2d12">x&#964;</text>`;
+  // coil
+  h+=drawCoil(anchorX+9, y, nx-11, y, color, turns, 1.9);
+  // restoring-force arrow (above the row)
+  h+=arrow(nx, y-24, F, color);
+  h+=`<text x="${nx.toFixed(1)}" y="${y-32}" text-anchor="middle" font-size="10" fill="${color}">F=${fmt(F,2)}</text>`;
+  // treatment node (draggable)
+  h+=`<circle class="node" data-row="1" cx="${nx.toFixed(1)}" cy="${y}" r="12" fill="#dbeafe" stroke="${color}" stroke-width="2.5" style="cursor:ew-resize"/>`;
+  h+=`<text x="${nx.toFixed(1)}" y="${y+4}" text-anchor="middle" font-size="11" font-weight="700" fill="#1e3a8a">${node}</text>`;
+  h+=`<text x="${(anchorX+nx)/2}" y="${y+40}" text-anchor="middle" font-size="10.5" fill="#555">${label}</text>`;
+  return h;
+}
+
+function render(){
+  const rest=ellStar();
+  const Fg=Fgauss(ell), Fb=Fbin(ell), wb=wbin(ell), ws=wStar();
+  let h='';
+  // ---- left: effect axis ruler ----
+  h+=`<line x1="${axX0}" y1="360" x2="${axX1}" y2="360" stroke="#999"/>`;
+  for(let v=EMIN; v<=EMAX; v++){ const x=X(v);
+    h+=`<line x1="${x.toFixed(1)}" y1="356" x2="${x.toFixed(1)}" y2="364" stroke="#999"/>`;
+    h+=`<text x="${x.toFixed(1)}" y="378" text-anchor="middle" font-size="10" fill="#777">${v}</text>`; }
+  h+=`<text x="${axX1+6}" y="364" font-size="11" fill="#444">&#8467; (log-odds)</text>`;
+  // ---- two spring rows (shared ℓ) ----
+  h+=springRow(yG, ell, rest, Fg, '#1a56c4', 'x&#7511;', `Gaussian: F=(y&minus;&#8467;)/v,  w=1/v=${fmt(ws,2)} (const)`);
+  h+=springRow(yB, ell, rest, Fb, '#c0392b', 'x&#7511;', `Binomial: F=e&minus;n&sigma;(&#8467;),  w=n&sigma;(1&minus;&sigma;)=${fmt(wb,2)}`);
+  // saturation ceilings note on the binomial row
+  h+=`<text x="${axX0}" y="${yB+58}" font-size="10" fill="#c0392b">binomial force is trapped in [e&minus;n, e] = [${e-n}, ${e}] &mdash; it can never pull harder than that</text>`;
+
+  // ---- right: force-vs-ℓ plot ----
+  h+=`<rect x="${pX0-14}" y="${pY0-26}" width="${pX1-pX0+40}" height="${pY1-pY0+58}" fill="#fcfcfd" stroke="#e2e2e2" rx="6"/>`;
+  h+=`<text x="${(pX0+pX1)/2}" y="${pY0-12}" text-anchor="middle" font-size="12" font-weight="600" fill="#333">restoring force  F(&#8467;)</text>`;
+  // axes
+  h+=`<line x1="${pX0}" y1="${pY(0).toFixed(1)}" x2="${pX1}" y2="${pY(0).toFixed(1)}" stroke="#bbb"/>`;
+  h+=`<text x="${pX1-2}" y="${pY(0)-4}" text-anchor="end" font-size="9.5" fill="#999">F=0</text>`;
+  for(let v=EMIN; v<=EMAX; v+=2){ const x=pX(v);
+    h+=`<line x1="${x.toFixed(1)}" y1="${pY1}" x2="${x.toFixed(1)}" y2="${pY1+4}" stroke="#bbb"/>`;
+    h+=`<text x="${x.toFixed(1)}" y="${pY1+16}" text-anchor="middle" font-size="9" fill="#999">${v}</text>`; }
+  h+=`<text x="${(pX0+pX1)/2}" y="${pY1+30}" text-anchor="middle" font-size="10" fill="#777">&#8467;</text>`;
+  // binomial ceilings
+  [e, e-n].forEach(c=>{ const yy=pY(c);
+    h+=`<line x1="${pX0}" y1="${yy.toFixed(1)}" x2="${pX1}" y2="${yy.toFixed(1)}" stroke="#c0392b" stroke-dasharray="2,4" stroke-opacity="0.5"/>`;
+    h+=`<text x="${pX0+2}" y="${yy-3}" font-size="9" fill="#c0392b">${c}</text>`; });
+  // curves
+  let pg='',pb='';
+  for(let i=0;i<=160;i++){ const L=EMIN+(EMAX-EMIN)*i/160;
+    pg+=`${pX(L).toFixed(1)},${pY(Fgauss(L)).toFixed(1)} `;
+    pb+=`${pX(L).toFixed(1)},${pY(Fbin(L)).toFixed(1)} `; }
+  h+=`<polyline points="${pg.trim()}" fill="none" stroke="#1a56c4" stroke-width="2"/>`;
+  h+=`<polyline points="${pb.trim()}" fill="none" stroke="#c0392b" stroke-width="2"/>`;
+  // current-ℓ vertical + live dots
+  const cx=pX(ell);
+  h+=`<line x1="${cx.toFixed(1)}" y1="${pY0}" x2="${cx.toFixed(1)}" y2="${pY1}" stroke="#888" stroke-dasharray="3,3"/>`;
+  h+=`<circle cx="${cx.toFixed(1)}" cy="${pY(Fg).toFixed(1)}" r="5" fill="#1a56c4"/>`;
+  h+=`<circle cx="${cx.toFixed(1)}" cy="${pY(Fb).toFixed(1)}" r="5" fill="#c0392b"/>`;
+  h+=`<text x="${cx.toFixed(1)}" y="${pY0-2}" text-anchor="middle" font-size="9.5" fill="#666">&#8467;=${fmt(ell,2)}</text>`;
+
+  svg.innerHTML=h;
+  document.getElementById('pillL').innerHTML=`&#8467; = ${fmt(ell,2)}`;
+  document.getElementById('pillG').textContent=`F_gauss = ${fmt(Fg,2)}`;
+  document.getElementById('pillB').textContent=`F_binom = ${fmt(Fb,2)}`;
+  document.getElementById('pillStar').innerHTML=`&#8467;* = ${fmt(rest,2)}`;
+  document.getElementById('ell').value=ell;
+}
+
+// ---------- interaction ----------
+function setEll(v){ ell=Math.max(EMIN,Math.min(EMAX,v)); render(); }
+document.getElementById('ell').addEventListener('input',ev=>setEll(+ev.target.value));
+function svgL(clientX){ const r=svg.getBoundingClientRect(); const x=(clientX-r.left)*(W/r.width); return Lfromx(x); }
+let dragging=false;
+svg.addEventListener('pointerdown',ev=>{ const t=ev.target;
+  if(t.classList&&t.classList.contains('node')){ dragging=true; svg.setPointerCapture(ev.pointerId); setEll(svgL(ev.clientX)); } });
+svg.addEventListener('pointermove',ev=>{ if(dragging) setEll(svgL(ev.clientX)); });
+svg.addEventListener('pointerup',()=>{ dragging=false; });
+
+function setE(v){ e=Math.max(1,Math.min(n-1,v)); document.getElementById('pillE').textContent=`e = ${e}`; document.getElementById('ev').value=e; render(); }
+function setN(v){ n=Math.max(2,Math.min(30,v)); if(e>n-1) setE(n-1); document.getElementById('pillN').textContent=`n = ${n}`; document.getElementById('nn').value=n; render(); }
+document.getElementById('ev').addEventListener('input',ev=>setE(+ev.target.value));
+document.getElementById('nn').addEventListener('input',ev=>setN(+ev.target.value));
+
+// Relax: damped Newton / IRLS on the binomial spring, ℓ ← ℓ - (nσ-e)/w  (= ℓ + Fbin/w)
+let anim=null;
+function stopAnim(){ if(anim){cancelAnimationFrame(anim);anim=null;} document.getElementById('relax').classList.remove('active'); }
+function relax(){ stopAnim(); document.getElementById('relax').classList.add('active');
+  const step=()=>{ const rest=ellStar(); const gap=ell-rest;
+    if(Math.abs(gap)<0.01){ setEll(rest); stopAnim(); return; }
+    const w=Math.max(wbin(ell),0.05); const dN = Fbin(ell)/w;      // Newton step toward the mode
+    const damp=0.6; ell = ell + damp*Math.max(-1.5,Math.min(1.5,dN)); // damped + clamped (tails are soft)
+    ell=Math.max(EMIN,Math.min(EMAX,ell)); render();
+    anim=requestAnimationFrame(step); };
+  anim=requestAnimationFrame(step);
+}
+document.getElementById('relax').addEventListener('click',relax);
+document.getElementById('reset').addEventListener('click',()=>{ stopAnim(); e=5;n=10;ell=3.4;
+  document.getElementById('pillE').textContent='e = 5'; document.getElementById('pillN').textContent='n = 10';
+  document.getElementById('ev').value=5; document.getElementById('nn').value=10; render(); });
+
+render();
+
+showStudyData(() => [{title: 'Single-arm binomial demonstration (current controls)', treatments: ['Illustrative arm'], studies: [{id: 'Demo', arms: [{t: 0, events: e, n}]}], note: 'The Gaussian spring is a local approximation to this same arm: y = log(e / (n − e)), v = 1 / [n p (1 − p)], with p = e/n. Counts update with the controls; this is not the four-treatment network.'}]);
+</script>
+</body>
+</html>

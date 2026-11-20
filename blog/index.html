@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>meta-springs — blog</title>
+<link rel="stylesheet" href="style.css">
+<script>
+window.MathJax = {
+  tex: { inlineMath: [['$','$'],['\\(','\\)']], displayMath: [['$$','$$'],['\\[','\\]']], tags: 'ams',
+    macros: { Var:'\\operatorname{Var}', Cov:'\\operatorname{Cov}', E:'\\operatorname{E}', tr:'\\operatorname{tr}', keff:'k^{\\text{eff}}' } },
+  svg: { fontCache: 'global' }
+};
+</script>
+<script async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml-full.js"></script>
+</head>
+<body>
+<nav class="blognav">
+  <div class="blognav-inner">
+    <a class="blognav-brand" href="index.html">meta-springs</a>
+    <div class="blognav-links">
+      <a href="index.html">Home</a>
+      <a href="posts/part1.html">Part 1</a>
+      <a href="posts/part2.html">Part 2</a>
+      <a href="posts/part3.html">Part 3</a>
+    </div>
+  </div>
+</nav>
+<main class="wrap">
+  <h1 class="site-title">meta-springs</h1>
+  <p class="site-tagline">Network meta-analysis as a mechanical spring network — deterministic effects, heterogeneity posteriors, and meta-regression, with no MCMC.</p>
+
+  <section class="lead">
+<p>This blog is the <strong>companion to the meta-springs
+software</strong>. The source code, build instructions and validation
+examples are in the <a
+href="https://github.com/tpapak/meta-springs"><strong>meta-springs
+GitHub repository</strong></a>.</p>
+<p><strong>meta-springs</strong> represents network meta-analysis as a
+<em>spring network</em>. Treatments and studies are nodes; observation
+springs encode the data and heterogeneity springs encode between-study
+variation. The series connects that picture to effect estimation,
+heterogeneity posteriors and meta-regression, using interactive examples
+with expandable study-data tables.</p>
+<p>The software includes a Haskell implementation, a Rust engine and an
+R interface. Gaussian conditional calculations are analytic;
+heterogeneity is integrated numerically. Binary and nonlinear regression
+paths use approximations described on the relevant pages.</p>
+<h2 class="section-h" id="software-features">Software features and
+maturity</h2>
+<p>The statuses below summarize the implementation and checks documented
+in this repository; they are not release or production-readiness
+guarantees. <strong>Benchmarked</strong> means comparisons are recorded
+for specific datasets; <strong>experimental</strong> means the feature
+needs further validation or integration.</p>
+<table class="tbl">
+<colgroup>
+<col style="width: 33%" />
+<col style="width: 33%" />
+<col style="width: 33%" />
+</colgroup>
+<thead>
+<tr>
+<th>Feature</th>
+<th>Maturity</th>
+<th>Current scope</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Fixed-effect and random-effects NMA</td>
+<td><strong>Implemented; benchmarked</strong></td>
+<td>Gaussian mean differences and binary log-odds models, including
+multi-arm studies.</td>
+</tr>
+<tr>
+<td>Spring-REML heterogeneity estimation</td>
+<td><strong>Implemented; benchmarked</strong></td>
+<td>Gaussian comparisons against established estimators; binary variants
+use approximations.</td>
+</tr>
+<tr>
+<td>Grand canonical heterogeneity and effect posteriors</td>
+<td><strong>Implemented; benchmarked</strong></td>
+<td>Deterministic variance-grid integration with Gaussian conditional
+calculations or binomial Laplace approximations. Prior sensitivity uses
+grid reweighting.</td>
+</tr>
+<tr>
+<td>Rust engine</td>
+<td><strong>Implemented; cross-checked</strong></td>
+<td>Recorded comparisons with the Haskell binomial engine; see the <a
+href="https://github.com/tpapak/meta-springs/blob/HEAD/gc-rust/VALIDATION.md">validation
+report</a>.</td>
+</tr>
+<tr>
+<td>R interface, league tables and rankings</td>
+<td><strong>Implemented; partial API compatibility</strong></td>
+<td>Supports a subset of <code>gemtc</code> workflows for mean
+differences and odds ratios. See the <a
+href="https://github.com/tpapak/meta-springs/blob/HEAD/r-package/springs/README.md">supported
+API</a>.</td>
+</tr>
+<tr>
+<td>Grouped heterogeneity</td>
+<td><strong>Experimental</strong></td>
+<td>Haskell routines support grouped variance components; practical
+integration cost grows with the number of groups.</td>
+</tr>
+<tr>
+<td>Meta-regression</td>
+<td><strong>Experimental; example comparisons available</strong></td>
+<td>Supplied covariates and shared, unrelated or exchangeable slopes;
+baseline-risk regression is available through the Rust
+<code>brisk</code> CLI. Nonlinear posterior calculations use a local
+approximation.</td>
+</tr>
+<tr>
+<td>Study-specific prediction intervals</td>
+<td><strong>Experimental; covariance verification needed</strong></td>
+<td>The blog describes full joint-covariance intervals. The existing
+scalar SSPI helper uses a different formula and needs reconciliation
+before claiming that implementation matches the construction.</td>
+</tr>
+<tr>
+<td>Risk-ratio likelihood, inconsistency models and full
+<code>gemtc</code> diagnostics</td>
+<td><strong>Not supported in the current R interface</strong></td>
+<td>Log-link RR models, node splitting and unrelated mean effects are
+not implemented there; DIC/deviance support is incomplete.</td>
+</tr>
+</tbody>
+</table>
+<p>Start with <a href="posts/part1.html">Part 1</a> for the spring
+construction, <a href="posts/part2.html">Part 2</a> for posterior
+integration, or <a href="posts/part3.html">Part 3</a> for
+meta-regression.</p>
+<h2 class="section-h" id="paper-previous-work">Previous work</h2>
+<ul>
+<li><a href="https://pubmed.ncbi.nlm.nih.gov/33264498/"
+class="paper-title">Meta-analysis as a system of springs <span
+style="font-weight:400;color:var(--muted)">— Papakonstantinou,
+Nikolakopoulou, Egger &amp; Salanti (2021)</span></a> <span
+class="paper-meta">The foundational construction: the NMA model as a
+mechanical spring network whose equilibrium yields the consistency
+estimates. (Previous work.)</span></li>
+</ul>
+    <p class="byline">Thodoris Papakonstantinou</p>
+  </section>
+
+  <h2 class="section-h">The series</h2>
+  <p style="color:var(--muted);font-size:14px;margin:0 0 14px;">Every page carries its own interactive spring animation, all on the same 4-treatment network.</p>
+  <ol class="series-list">
+    <li><a href="posts/part1.html">Part 1 — From pairwise to NMA</a>
+        <span class="series-blurb">Pairwise meta-analysis as two springs &rarr; fixed-effect NMA as a bipartite network &rarr; the binomial nonlinear spring &rarr; $\tau$-springs for random effects &rarr; spring-REML.</span>
+        <span class="series-blurb"><a href="posts/1a-pairwise-fe.html">1a · Pairwise &rarr; fixed-effect NMA</a> &nbsp;·&nbsp; <a href="posts/1b-binomial-spring.html">1b · Binomial: the nonlinear spring</a> &nbsp;·&nbsp; <a href="posts/1c-random-effects.html">1c · Random effects: a &tau;-spring per arm</a> &nbsp;·&nbsp; <a href="posts/1d-spring-reml.html">1d · Spring-REML: mean-square length</a></span></li>
+    <li><a href="posts/part2.html">Part 2 — Grand canonical: the Bayesian solver</a>
+        <span class="series-blurb">Chain length = heterogeneity; $\Xi = \sum Z$ gives the $\tau^2$ posterior and a mixture-of-Gaussians for every effect; any prior for free; multiple $\tau^2$ posteriors; exchangeability.</span>
+        <span class="series-blurb"><a href="posts/2a-xi-posterior.html">2a · $\Xi$ gives the posterior</a> &nbsp;·&nbsp; <a href="posts/2b-multiple-tau.html">2b · Multiple $\tau^2$ posteriors</a> &nbsp;·&nbsp; <a href="posts/2c-exchangeability.html">2c · Why the $\tau$-springs are exchangeable</a></span></li>
+    <li><a href="posts/part3.html">Part 3 — Network meta-regression</a>
+        <span class="series-blurb">From effect nodes to effect lines: covariate geometry, shared and exchangeable slopes, Gaussian partition functions, and the nonlinear baseline-risk solver.</span>
+        <span class="series-blurb"><a href="posts/3a-covariate-axis.html">3a · Covariates, slopes and the solver</a> &nbsp;·&nbsp; <a href="posts/3b-mlnmr.html">3b · ML-NMR: study rods and averaged springs</a></span></li>
+  </ol>
+</main>
+<footer class="footer">
+  meta-springs &middot; <a href="https://github.com/tpapak/meta-springs">source on GitHub</a>
+</footer>
+</body>
+</html>

@@ -1,0 +1,505 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Multiple $\tau^2$ posteriors: multi-species sums — meta-springs</title>
+<link rel="stylesheet" href="../style.css">
+<script>
+window.MathJax = {
+  tex: { inlineMath: [['$','$'],['\\(','\\)']], displayMath: [['$$','$$'],['\\[','\\]']], tags: 'ams',
+    macros: { Var:'\\operatorname{Var}', Cov:'\\operatorname{Cov}', E:'\\operatorname{E}', tr:'\\operatorname{tr}', keff:'k^{\\text{eff}}' } },
+  svg: { fontCache: 'global' }
+};
+</script>
+<script async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml-full.js"></script>
+</head>
+<body>
+<nav class="blognav">
+  <div class="blognav-inner">
+    <a class="blognav-brand" href="../index.html">meta-springs</a>
+    <div class="blognav-links">
+      <a href="../index.html">Home</a>
+      <a href="../posts/part1.html">Part 1</a>
+      <a href="../posts/part2.html">Part 2</a>
+      <a href="../posts/part3.html">Part 3</a>
+    </div>
+  </div>
+</nav>
+<main class="wrap postwrap">
+  <article class="postbody">
+    <p class="breadcrumb"><a href="part2.html">Part 2 &middot; Grand canonical: the Bayesian solver</a> &rsaquo; 2b</p>
+    <h1 class="post-h1">Multiple $\tau^2$ posteriors: multi-species sums</h1>
+    <p class="post-meta">Thodoris Papakonstantinou</p>
+
+    <div class="posthero">
+<div class="posthero-title">The main animation · two heterogeneity species</div>
+<div class="animbox">
+<style>
+@scope (.animbox) {
+* { margin: 0; padding: 0; box-sizing: border-box; }
+  :scope { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; background: #fafafa; color: #222;
+    display: flex; flex-direction: column; align-items: center; padding: 18px; }
+  h1 { font-size: 18px; font-weight: 600; margin-bottom: 4px; }
+  .subtitle { font-size: 13px; color: #666; margin-bottom: 12px; max-width: 1080px; text-align: center; line-height: 1.5; }
+  .ctrl-row { display: flex; gap: 10px; align-items: center; margin-bottom: 6px; flex-wrap: wrap; justify-content: center; }
+  button { padding: 5px 14px; border: 1px solid #aaa; border-radius: 4px; background: #fff; cursor: pointer; font-size: 13px; }
+  button:hover { background: #eee; }
+  button.g1 { background: #eff6ff; border-color: #93c5fd; color: #1e40af; }
+  button.g1:hover { background: #dbeafe; }
+  button.g2 { background: #f0fdf4; border-color: #86efac; color: #15803d; }
+  button.g2:hover { background: #dcfce7; }
+  label { font-size: 13px; color: #555; }
+  input[type=range] { width: 220px; vertical-align: middle; }
+  #s1 { accent-color: #1d4ed8; }
+  #s2 { accent-color: #15803d; }
+  .pill { font-family:'SF Mono',Consolas,monospace; font-size:13px; border-radius:4px;
+    padding:3px 10px; font-weight:600; min-width:150px; text-align:center; border:1px solid #ccc; }
+  .pill.g1 { background:#eff6ff; border-color:#93c5fd; color:#1e40af; }
+  .pill.g2 { background:#f0fdf4; border-color:#86efac; color:#15803d; }
+  svg { background: #fff; border: 1px solid #ddd; border-radius: 6px; }
+  .legend { margin-top: 8px; font-size: 12px; color: #666; max-width: 1080px; text-align: center; line-height: 1.5; }
+  .legend b { color:#444; }
+  .chip { display:inline-block; width:11px; height:11px; border-radius:2px; vertical-align:middle; margin:0 2px; }
+}
+</style>
+<div class="ctrl-row">
+  <label>τ²₁ <input id="s1" type="range" min="0" max="250" value="40"></label>
+  <span class="pill g1" id="pill1">τ²₁ = 0.400</span>
+  <span style="width:10px"></span>
+  <label>τ²₂ <input id="s2" type="range" min="0" max="250" value="40"></label>
+  <span class="pill g2" id="pill2">τ²₂ = 0.400</span>
+</div>
+<div class="ctrl-row">
+  <button class="g1" id="mode1">τ²₁ → posterior mode</button>
+  <button class="g2" id="mode2">τ²₂ → posterior mode</button>
+  <button id="modeBoth">Reset both to modes</button>
+  <button id="zero">τ²₁ = τ²₂ = 0</button>
+</div>
+
+<svg id="canvas" width="1160" height="640"></svg>
+
+<div class="legend">
+  <b style="color:#c2410c">Study spindles S<sub>i</sub></b> sit at the centroid μ&#770;<sub>i</sub>; each arm has a τ-chain to its
+  <b>BLUP node</b> ζ<sub>ij</sub> = (τ²<sub>g</sub>/2)/(v<sub>ij</sub>+τ²<sub>g</sub>/2)·(y<sub>ij</sub>−μ&#770;<sub>i</sub>−d<sub>t</sub>) and an obs spring to the treatment column d<sub>t</sub>.
+  Arms are drawn in their <b>species colour</b> — <span class="chip" style="background:#1d4ed8"></span>blue for A/B, <span class="chip" style="background:#15803d"></span>green for C/D — so each colour is one exchangeable τ²-gas.
+  The τ-chain in each group grows with that group's τ²; the whole network re-equilibrates live because raising one species' τ² only relaxes that species' obs springs.
+  Each group parameter is on the contrast scale: arm variance is τ²<sub>g</sub>/2. The two right-hand panels are <b>conditional posterior slices</b> p(τ²₁|y) and p(τ²₂|y): a 1-D grid sweep of the Gaussian lnZ over that species' τ² with the <i>other species held fixed at its slider</i> (conditional slices), normalised over the grid. Mode ▮ and median ┊ are marked.
+</div>
+
+<script src="../study-data.js"></script>
+<script>
+"use strict";
+
+// =====================================================================
+// MULTI-SPECIES grand canonical sum.  The Gaussian partition-function
+// evaluator is the SAME Laplace-integral lnZ used in xi-animation.html
+// (evalCont / gc-rust solver_cont.rs), generalised so that every arm
+// carries a per-arm τ² supplied by a function tau2OfArm(arm) instead of
+// a single scalar.  Here that τ² is dictated by the arm's SPECIES:
+//   species 1 (blue)  = arms whose treatment is A or B
+//   species 2 (green) = arms whose treatment is C or D
+// Each arm reduces with k_eff = 1/(v_ij + τ²_group(ij)/2).
+// Because Ξ factorises over species, marginalising over one species
+// (holding the other's τ² fixed) gives that species' τ² posterior.
+// =====================================================================
+
+// ---------------- the single running example ----------------
+const treatments = ['A','B','C','D'];
+const studies = [
+  { id:'S1', arms:[ {t:0,y:0.40,v:0.20}, {t:1,y:1.80,v:0.20} ] },
+  { id:'S2', arms:[ {t:0,y:-0.80,v:0.20},{t:1,y:1.00,v:0.20}, {t:2,y:2.20,v:0.20} ] },
+  { id:'S3', arms:[ {t:0,y:0.60,v:0.30}, {t:1,y:0.80,v:0.30}, {t:2,y:2.00,v:0.30}, {t:3,y:2.40,v:0.30} ] },
+  { id:'S4', arms:[ {t:2,y:1.20,v:0.20}, {t:3,y:4.00,v:0.20} ] }
+];
+const T = treatments.length, S = studies.length;
+
+// species / group membership: A,B -> 0 (blue) ; C,D -> 1 (green)
+const groupOf = t => (t <= 1) ? 0 : 1;
+const GCOL  = ['#1d4ed8', '#15803d'];   // strong species colours (springs, nodes)
+const GLITE = ['#bfdbfe', '#bbf7d0'];   // light fill for posterior bars
+const GNODE = ['#dbeafe', '#dcfce7'];   // treatment-node fills
+const GNAME = ['τ²₁ (A,B)', 'τ²₂ (C,D)'];
+
+// ---------------- linear algebra (from xi-animation) ----------------
+function luSolveLogDet(Ain, bin) {
+  const n = bin.length;
+  const M = Ain.map((r, i) => [...r, bin[i]]);
+  let logDet = 0;
+  for (let i = 0; i < n; i++) {
+    let mx = Math.abs(M[i][i]), p = i;
+    for (let k = i + 1; k < n; k++) if (Math.abs(M[k][i]) > mx) { mx = Math.abs(M[k][i]); p = k; }
+    if (p !== i) { const t = M[i]; M[i] = M[p]; M[p] = t; }
+    const piv = M[i][i];
+    if (Math.abs(piv) < 1e-300) return { x: Array(n).fill(0), logDet: -Infinity };
+    logDet += Math.log(Math.abs(piv));
+    for (let k = i + 1; k < n; k++) {
+      const f = M[k][i] / piv;
+      if (f === 0) continue;
+      for (let j = i; j <= n; j++) M[k][j] -= f * M[i][j];
+    }
+  }
+  const x = Array(n).fill(0);
+  for (let i = n - 1; i >= 0; i--) {
+    let s = M[i][n];
+    for (let j = i + 1; j < n; j++) s -= M[i][j] * x[j];
+    x[i] = s / M[i][i];
+  }
+  return { x, logDet };
+}
+
+// ---------------- topology (treatment 0 pinned as reference) ----------------
+function buildTopology() {
+  const nStudies = studies.length, nTreats = treatments.length;
+  const nFree = nStudies + nTreats - 1;
+  const treatIdx = {};
+  for (let i = 0; i < nTreats; i++) treatIdx[i] = (i === 0) ? null : nStudies + i - 1;
+  const arms = [];
+  studies.forEach((st, sPos) => {
+    st.arms.forEach(arm => arms.push({
+      sIdx: sPos, tIdx: treatIdx[arm.t], t: arm.t,
+      group: groupOf(arm.t), payload: arm
+    }));
+  });
+  return { nStudies, nTreats, nFree, treatIdx, arms };
+}
+const topo = buildTopology();
+
+// ---------------- Gaussian lnZ (per-arm τ²) --------------------------
+// Identical Laplace integral to xi-animation's evalCont, except tau2arm
+// is per-arm (arm's species τ²/2) rather than a shared scalar/2.
+function evalCont(tau2OfArm) {
+  const n = topo.nFree;
+  const A = Array.from({ length: n }, () => Array(n).fill(0));
+  const b = Array(n).fill(0);
+  const keff = [], t2a = [];
+  topo.arms.forEach((arm, i) => {
+    const v = arm.payload.v, y = arm.payload.y;
+    const t2 = Math.max(tau2OfArm(arm), 1e-10);
+    const k = 1 / (v + t2);
+    keff[i] = k; t2a[i] = t2;
+    const s = arm.sIdx;
+    if (arm.tIdx === null) { A[s][s] += k; b[s] += -k * y; }
+    else { const t = arm.tIdx; A[s][s] += k; A[t][t] += k; A[s][t] -= k; A[t][s] -= k; b[s] -= k * y; b[t] += k * y; }
+  });
+  const { x, logDet } = luSolveLogDet(A, b);
+  let eStar = 0;
+  topo.arms.forEach((arm, i) => {
+    const xs = x[arm.sIdx], xt = arm.tIdx === null ? 0 : x[arm.tIdx];
+    const r = xt - xs - arm.payload.y; eStar += 0.5 * keff[i] * r * r;
+  });
+  let armPref = 0;
+  for (let i = 0; i < topo.arms.length; i++) armPref += Math.log(topo.arms[i].payload.v + t2a[i]);
+  armPref *= -0.5;
+  const effects = Array(topo.nTreats).fill(0);
+  for (let t = 1; t < topo.nTreats; t++) effects[t] = x[topo.nStudies + t - 1];
+  return { logZ: armPref - eStar - 0.5 * logDet, effects, x };
+}
+
+// lnZ of the full two-species state, and the current-state solve
+function lnZof(t2g1, t2g2) {
+  return evalCont(arm => (arm.group === 0 ? t2g1 : t2g2) / 2).logZ;
+}
+function solveState(t2g1, t2g2) {
+  return evalCont(arm => (arm.group === 0 ? t2g1 : t2g2) / 2);
+}
+
+// ---------------- marginal posterior grid ----------------------------
+// Conditional posterior slice p(τ²_g | y, τ²_other), with the other
+// group held at its slider value. Full marginalisation requires a 2-D sum.
+const TAUMAX = 2.5, NG = 100;
+const GRID = Array.from({ length: NG + 1 }, (_, i) => i * TAUMAX / NG);
+
+function marginal(g, t2other) {
+  const lz = GRID.map(t2 => g === 0 ? lnZof(t2, t2other) : lnZof(t2other, t2));
+  const mx = Math.max(...lz);
+  const w = lz.map(l => Math.exp(l - mx));
+  const tot = w.reduce((a, c) => a + c, 0);
+  const norm = w.map(x => x / tot);
+  let modeIdx = 0; lz.forEach((l, i) => { if (l > lz[modeIdx]) modeIdx = i; });
+  let cum = 0, medIdx = 0; for (let i = 0; i < norm.length; i++) { cum += norm[i]; if (cum >= 0.5) { medIdx = i; break; } }
+  return { lz, norm, modeIdx, medIdx };
+}
+
+// current state ----------------------------------------------------
+let tau2 = [0.40, 0.40];
+
+// ==================== SVG helpers (from xi/nmr springs) ==============
+const svg = document.getElementById('canvas');
+const baseX = 200, scale = 115, trtY = 74;
+function fmt(v, n) { return Number(v).toFixed(n); }
+
+function drawCoil(x1, y1, x2, y2, color, turns, sw, ampMax) {
+  const dx = x2 - x1, dy = y2 - y1, len = Math.hypot(dx, dy); if (len < 0.3) return '';
+  const ux = dx / len, uy = dy / len, px = -uy, py = ux,
+        amp = Math.max(1.4, Math.min(ampMax || 5, len * 0.32)), segs = Math.max(12, turns * 8);
+  let d = `M ${x1.toFixed(1)} ${y1.toFixed(1)}`;
+  for (let i = 1; i <= segs; i++) {
+    const t = i / segs, cx = x1 + dx * t, cy = y1 + dy * t,
+          taper = Math.sin(Math.PI * t), off = amp * taper * Math.sin(2 * Math.PI * turns * t);
+    d += ` L ${(cx + px * off).toFixed(1)} ${(cy + py * off).toFixed(1)}`;
+  }
+  return `<path d="${d}" stroke="${color}" stroke-width="${sw || 1.4}" fill="none"/>`;
+}
+
+function drawTauChain(x1, y1, x2, y2, N, color) {
+  if (N === 0) {
+    const dx = x2 - x1, dy = y2 - y1, len = Math.hypot(dx, dy);
+    if (len < 0.5) return `<circle cx="${x1}" cy="${y1}" r="3" fill="${color}"/>`;
+    const px = -dy / len * 2.5, py = dx / len * 2.5;
+    return `<line x1="${(x1+px).toFixed(1)}" y1="${(y1+py).toFixed(1)}" x2="${(x2+px).toFixed(1)}" y2="${(y2+py).toFixed(1)}" stroke="${color}" stroke-width="2.2"/>` +
+           `<line x1="${(x1-px).toFixed(1)}" y1="${(y1-py).toFixed(1)}" x2="${(x2-px).toFixed(1)}" y2="${(y2-py).toFixed(1)}" stroke="${color}" stroke-width="2.2"/>`;
+  }
+  const totalLen = Math.hypot(x2 - x1, y2 - y1);
+  if (totalLen < 0.5) { const r = 2 + Math.min(6, N * 0.3); return `<circle cx="${x1.toFixed(1)}" cy="${y1.toFixed(1)}" r="${r}" fill="${color}"/>`; }
+  const renderN = Math.max(1, Math.min(N, Math.floor(totalLen / 2))), turnsPer = (renderN <= 4) ? 3 : (renderN <= 12) ? 2 : 1;
+  let html = '';
+  for (let k = 0; k < renderN; k++) {
+    const t1 = k / renderN, t2 = (k + 1) / renderN;
+    const ax = x1 + (x2 - x1) * t1, ay = y1 + (y2 - y1) * t1, bx = x1 + (x2 - x1) * t2, by = y1 + (y2 - y1) * t2, isOdd = (k % 2) === 1;
+    if (isOdd) { html += drawCoil(ax, ay, bx, by, color, turnsPer, 4.6, 5); html += drawCoil(ax, ay, bx, by, '#fff', turnsPer, 2.6, 5); }
+    else html += drawCoil(ax, ay, bx, by, color, turnsPer, 3.8, 5);
+  }
+  return html;
+}
+
+// ==================== layout (one arm row per arm) ==================
+const armGap = 26, studyGap = 22, armOffset = 16;
+let _y = 128;
+const layouts = studies.map(st => {
+  const yTop = _y, armYs = st.arms.map((_, k) => yTop + armOffset + k * armGap), yBot = armYs[armYs.length - 1] + 12;
+  _y = yBot + studyGap; return { yTop, yBot, armYs };
+});
+const axisYbot = _y + 4;
+
+// ==================== render ====================
+function render() {
+  document.getElementById('pill1').textContent = `τ²₁ = ${fmt(tau2[0],3)}`;
+  document.getElementById('pill2').textContent = `τ²₂ = ${fmt(tau2[1],3)}`;
+
+  const res = solveState(tau2[0], tau2[1]);
+  const d = res.effects;                     // [0, d_B, d_C, d_D]
+  const mu = si => res.x[si];
+  const treatX = d.map(v => baseX + scale * v);
+
+  let h = '';
+
+  // treatment columns
+  for (let t = 0; t < T; t++) {
+    const ax = treatX[t], g = groupOf(t);
+    h += `<line x1="${ax.toFixed(1)}" y1="${trtY + 22}" x2="${ax.toFixed(1)}" y2="${axisYbot}" stroke="${GCOL[g]}" stroke-width="1.4" stroke-dasharray="2,3" opacity="0.6"/>`;
+    h += `<text x="${ax.toFixed(1)}" y="${axisYbot + 15}" text-anchor="middle" font-size="10" fill="#666">d=${fmt(d[t],2)}</text>`;
+  }
+
+  // effect-axis ruler
+  h += `<line x1="${baseX - 70}" y1="${axisYbot + 30}" x2="${baseX + scale * 3.4}" y2="${axisYbot + 30}" stroke="#888"/>`;
+  for (let v = -0.5; v <= 3.4; v += 0.5) {
+    const xx = baseX + scale * v; if (xx < baseX - 70) continue;
+    h += `<line x1="${xx}" y1="${axisYbot + 26}" x2="${xx}" y2="${axisYbot + 34}" stroke="#888"/>`;
+    if (Math.abs(v - Math.round(v)) < 0.01) h += `<text x="${xx}" y="${axisYbot + 47}" text-anchor="middle" font-size="10" fill="#666">${v}</text>`;
+  }
+  h += `<text x="${baseX + scale * 3.4 + 10}" y="${axisYbot + 34}" font-size="11" fill="#444">effect axis</text>`;
+
+  // studies
+  studies.forEach((st, si) => {
+    const lay = layouts[si];
+    const armTx = st.arms.map(a => treatX[a.t]);
+    const xs = armTx.reduce((s, x) => s + x, 0) / armTx.length;
+    const barTop = lay.armYs[0] - 8, barBot = lay.armYs[lay.armYs.length - 1] + 8;
+    h += `<rect x="${(xs-3).toFixed(1)}" y="${barTop}" width="6" height="${(barBot-barTop).toFixed(1)}" fill="#fed7aa" stroke="#c2410c" stroke-width="1.5" rx="3"/>`;
+    h += `<circle cx="${xs.toFixed(1)}" cy="${barTop}" r="3.4" fill="#fed7aa" stroke="#c2410c" stroke-width="1.5"/>`;
+    h += `<circle cx="${xs.toFixed(1)}" cy="${barBot}" r="3.4" fill="#fed7aa" stroke="#c2410c" stroke-width="1.5"/>`;
+    h += `<text x="${xs.toFixed(1)}" y="${barTop - 7}" text-anchor="middle" font-size="10.5" fill="#c2410c" font-weight="600">${st.id}</text>`;
+    const midY = (lay.armYs[0] + lay.armYs[lay.armYs.length - 1]) / 2;
+    h += `<text x="${baseX - 150}" y="${midY - 3}" font-size="12" font-weight="600" fill="#c2410c">${st.id}</text>`;
+    h += `<text x="${baseX - 150}" y="${midY + 11}" font-size="10" fill="#888">μ&#770;=${fmt(mu(si),2)}</text>`;
+
+    st.arms.forEach((arm, k) => {
+      const armY = lay.armYs[k];
+      const g = groupOf(arm.t), gc = GCOL[g];
+      const t2g = tau2[g] / 2; // arm variance
+      const N = Math.round(t2g * 40);
+      const xt = treatX[arm.t];
+      const yNat = arm.y - mu(si);
+      const r = yNat - d[arm.t];
+      const blup = (t2g / (arm.v + t2g + 1e-12)) * r;
+      const xtau = xs + scale * blup;
+
+      h += drawTauChain(xs, armY, xtau, armY, N, gc);
+      h += `<circle cx="${xtau.toFixed(1)}" cy="${armY}" r="3.5" fill="${gc}" stroke="#222" stroke-width="0.5"/>`;
+      if (Math.abs(blup) > 0.005) h += `<text x="${xtau.toFixed(1)}" y="${armY - 8}" text-anchor="middle" font-size="9" fill="#666">ζ=${fmt(blup,2)}</text>`;
+
+      const sgnO = Math.sign(xt - xtau) || 1;
+      h += drawCoil(xtau + 5 * sgnO, armY, xt - 4 * sgnO, armY, gc, Math.max(2, Math.round(Math.abs(xt - xtau) / 26)), 1.7, 6);
+      h += `<text x="${xt.toFixed(1)}" y="${armY + 14}" text-anchor="middle" font-size="9" fill="#666">${treatments[arm.t]}: y=${fmt(arm.y,2)}</text>`;
+    });
+  });
+
+  // treatment nodes
+  for (let t = 0; t < T; t++) {
+    const ax = treatX[t], g = groupOf(t);
+    h += `<circle cx="${ax.toFixed(1)}" cy="${trtY}" r="19" fill="${GNODE[g]}" stroke="${GCOL[g]}" stroke-width="2"/>`;
+    h += `<text x="${ax.toFixed(1)}" y="${trtY + 5}" text-anchor="middle" font-weight="700" font-size="14">${treatments[t]}</text>`;
+    h += `<text x="${ax.toFixed(1)}" y="${trtY - 25}" text-anchor="middle" font-size="10" fill="#444">d=${fmt(d[t],2)}</text>`;
+  }
+  h += `<text x="${treatX[0].toFixed(1)}" y="${trtY + 34}" text-anchor="middle" font-size="9.5" fill="#a00">⚓ d_A=0</text>`;
+
+  // species posterior panels (marginalise the OTHER species out)
+  const m1 = marginal(0, tau2[1]);
+  const m2 = marginal(1, tau2[0]);
+  h += drawPostPanel(0, 615, 66, 528, 250, m1);
+  h += drawPostPanel(1, 615, 346, 528, 250, m2);
+
+  svg.innerHTML = h;
+}
+
+// ---- one species' marginal posterior panel (bars in species colour) ----
+function drawPostPanel(g, px, py, pw, ph, marg) {
+  const gc = GCOL[g], glite = GLITE[g], other = g === 0 ? 1 : 0;
+  let s = `<rect x="${px}" y="${py}" width="${pw}" height="${ph}" fill="#fcfcfc" stroke="${gc}" stroke-width="1.4" rx="4"/>`;
+  s += `<text x="${px + pw/2}" y="${py - 22}" text-anchor="middle" font-size="13" font-weight="600" fill="${gc}">p(${GNAME[g]} | y) &nbsp; — species ${g+1}</text>`;
+  s += `<text x="${px + pw/2}" y="${py - 7}" text-anchor="middle" font-size="10.5" fill="#777">conditional slice; ${GNAME[other]} held at ${fmt(tau2[other],2)}</text>`;
+
+  const padL = 40, padR = 14, padT = 18, padB = 34;
+  const x0 = px + padL, y0 = py + padT, w0 = pw - padL - padR, h0 = ph - padT - padB;
+  const maxN = Math.max(...marg.norm);
+  const gx = t2 => x0 + (t2 / TAUMAX) * w0;
+
+  // bars
+  GRID.forEach((t2, i) => {
+    const bx = x0 + (i / NG) * w0;
+    const bw = (w0 / (NG + 1)) * 0.9;
+    const bh = (marg.norm[i] / maxN) * (h0 - 4);
+    const fill = (i === marg.modeIdx) ? gc : glite;
+    s += `<rect x="${bx.toFixed(1)}" y="${(y0 + h0 - bh).toFixed(1)}" width="${bw.toFixed(1)}" height="${bh.toFixed(1)}" fill="${fill}"/>`;
+  });
+  // area outline
+  let pts = '';
+  GRID.forEach((t2, i) => { pts += `${(x0 + (i/NG)*w0).toFixed(1)},${(y0 + h0 - (marg.norm[i]/maxN)*(h0-4)).toFixed(1)} `; });
+  s += `<polyline points="${pts.trim()}" fill="none" stroke="${gc}" stroke-width="1.6" opacity="0.85"/>`;
+
+  // axes
+  s += `<line x1="${x0}" y1="${y0 + h0}" x2="${x0 + w0}" y2="${y0 + h0}" stroke="#888"/>`;
+  s += `<line x1="${x0}" y1="${y0}" x2="${x0}" y2="${y0 + h0}" stroke="#888"/>`;
+  for (let v = 0; v <= TAUMAX + 1e-9; v += 0.5) {
+    const xx = gx(v);
+    s += `<line x1="${xx.toFixed(1)}" y1="${y0 + h0}" x2="${xx.toFixed(1)}" y2="${y0 + h0 + 4}" stroke="#888"/>`;
+    s += `<text x="${xx.toFixed(1)}" y="${y0 + h0 + 15}" text-anchor="middle" font-size="9" fill="#666">${v.toFixed(1)}</text>`;
+  }
+  s += `<text x="${(x0 + w0/2).toFixed(1)}" y="${y0 + h0 + 30}" text-anchor="middle" font-size="10.5" fill="#666">${GNAME[g]} (heterogeneity)</text>`;
+
+  // mode marker
+  const modeT2 = GRID[marg.modeIdx], mx = gx(modeT2);
+  s += `<line x1="${mx.toFixed(1)}" y1="${y0}" x2="${mx.toFixed(1)}" y2="${y0 + h0}" stroke="${gc}" stroke-width="1.6"/>`;
+  s += `<text x="${mx.toFixed(1)}" y="${y0 + 12}" text-anchor="middle" font-size="10" fill="${gc}" font-weight="700">mode ${modeT2.toFixed(2)}</text>`;
+  // median marker
+  const medT2 = GRID[marg.medIdx], mdx = gx(medT2);
+  s += `<line x1="${mdx.toFixed(1)}" y1="${y0}" x2="${mdx.toFixed(1)}" y2="${y0 + h0}" stroke="#7c3aed" stroke-width="1" stroke-dasharray="3,3"/>`;
+  s += `<text x="${mdx.toFixed(1)}" y="${y0 + 26}" text-anchor="middle" font-size="9.5" fill="#7c3aed">median ${medT2.toFixed(2)}</text>`;
+  // current slider value
+  const cx = gx(Math.min(tau2[g], TAUMAX));
+  s += `<line x1="${cx.toFixed(1)}" y1="${y0}" x2="${cx.toFixed(1)}" y2="${y0 + h0}" stroke="#dc2626" stroke-width="1" stroke-dasharray="2,2"/>`;
+  s += `<text x="${cx.toFixed(1)}" y="${y0 + h0 - 4}" text-anchor="middle" font-size="9.5" fill="#dc2626">now ${fmt(tau2[g],2)}</text>`;
+
+  return s;
+}
+
+// ==================== controls ====================
+const s1 = document.getElementById('s1'), s2 = document.getElementById('s2');
+s1.oninput = function () { tau2[0] = (+this.value) / 100; render(); };
+s2.oninput = function () { tau2[1] = (+this.value) / 100; render(); };
+
+function setTau(g, val) {
+  tau2[g] = val;
+  (g === 0 ? s1 : s2).value = Math.round(val * 100);
+}
+document.getElementById('mode1').onclick = () => { const m = marginal(0, tau2[1]); setTau(0, GRID[m.modeIdx]); render(); };
+document.getElementById('mode2').onclick = () => { const m = marginal(1, tau2[0]); setTau(1, GRID[m.modeIdx]); render(); };
+document.getElementById('modeBoth').onclick = () => {
+  // fixed-point: alternately snap each species to its conditional mode
+  for (let it = 0; it < 8; it++) {
+    tau2[0] = GRID[marginal(0, tau2[1]).modeIdx];
+    tau2[1] = GRID[marginal(1, tau2[0]).modeIdx];
+  }
+  s1.value = Math.round(tau2[0] * 100);
+  s2.value = Math.round(tau2[1] * 100);
+  render();
+};
+document.getElementById('zero').onclick = () => { setTau(0, 0); setTau(1, 0); render(); };
+
+render();
+
+showStudyData(() => [{title: 'Network with two heterogeneity groups', treatments, studies, group: arm => GNAME[groupOf(arm.t)]}]);
+</script>
+</div>
+<p class="anim-cap">The running network with its arms split into two exchangeable groups — $\{A,B\}$ and $\{C,D\}$ — each with its own $\tau^2$. Drag the two sliders and watch each group's marginal posterior $p(\tau^2_g\mid y)$ update independently.</p>
+<p class="anim-fulllink"><a href="../multi-species-tau.html" target="_blank" rel="noopener">Open this animation in its own page &#8599;</a></p>
+</div>
+
+<p>Nothing forces a single heterogeneity for the whole network. If the
+arms split into $G$ groups — say by treatment class — each group
+gets its own chain-length variable $N_g$ and its own $\tau^2_g$. Each arm
+in group g has variance $\tau_g^2/2$. A contrast within that group therefore
+has heterogeneity variance $\tau_g^2$; a contrast between groups g and h
+has variance $(\tau_g^2+\tau_h^2)/2$. Setting every $\tau_g^2=\tau^2$ recovers the usual
+common-heterogeneity model. Summing over <em>every</em> combination of
+chain lengths is a <strong>multi-species grand canonical sum</strong>,
+one boson species per group:</p>
+<p>$$ \Xi \;=\; \sum_{N_1}\cdots\sum_{N_G} \; Z\bigl(\tau^2_1(N_1),\dots,\tau^2_G(N_G)\bigr), $$</p>
+<p>and marginalising $\Xi$ over all species but one gives the
+posterior of that group's $\tau^2_g$ — a separate heterogeneity posterior
+per group, from the same machinery. In the animation the two species are
+$\{A,B\}$ and $\{C,D\}$; each arm's effective spring uses its own group's
+$\tau^2/2$. Each panel shows a conditional posterior slice, computed by
+sweeping the partition function over its $\tau^2$ with the other held
+fixed.</p>
+<h2 id="which">Which groupings are legitimate</h2>
+<p>The springs set the rule: because the $\tau$-springs are attached
+per arm and are exchangeable <em>within</em> a group (the <a
+href="2c-exchangeability.html">next page</a>), any partition of the arms
+into exchangeable blocks is a valid species decomposition — a single
+shared $\tau^2$ ($G=1$), class-specific $\tau^2$ — while orderings
+that would break exchangeability inside a block are not. The cost is a
+grid per species, so in practice $G$ is small; the two- and
+three-species cases cover the usual “does heterogeneity differ across
+classes?” question. When the lattice is too dense to enumerate, the
+outer sum can be replaced by MCMC on the discrete chain-length vector,
+with the deterministic inner Laplace supplying exact conditional effect
+posteriors.</p>
+
+
+    <div class="inpart">
+      <div class="inpart-label">Part 2 · Grand canonical: the Bayesian solver</div>
+      <ol>
+        <li><a href="2a-xi-posterior.html">$\Xi$ gives the posterior</a></li>
+        <li class="here"><a href="2b-multiple-tau.html">Multiple $\tau^2$ posteriors</a></li>
+        <li><a href="2c-exchangeability.html">Why the $\tau$-springs are exchangeable</a></li>
+      </ol>
+    </div>
+
+<details class="faq">
+<summary>FAQ</summary>
+<div class="faq-body">
+
+<details class="faq-item"><summary>Multiple
+heterogeneity variances (comparison- or class-specific τ²)?</summary>
+<p>A <strong>multi-species</strong> grand-canonical sum: partition the
+arms into exchangeable groups, give each its own chain-length variable,
+sum the lattice, and marginalise over the other species to get each
+group’s $\tau^2$ posterior. The legitimate partitions are exactly those
+that keep the arm $\tau$-springs exchangeable within a group. See <a
+href="2b-multiple-tau.html">Part 2b</a>.</p>
+</details>
+</div>
+</details>
+  </article>
+  <nav class="pager">
+    <a class="pager-prev" href="2a-xi-posterior.html"><span class="pager-label">Previous</span><span class="pager-title">&larr; The grand canonical $\Xi$ gives the posterior</span></a>
+    <a class="pager-next" href="2c-exchangeability.html"><span class="pager-label">Next</span><span class="pager-title">Why the $\tau$-springs are exchangeable &rarr;</span></a>
+  </nav>
+</main>
+<footer class="footer">
+  meta-springs &middot; <a href="https://github.com/tpapak/meta-springs">source on GitHub</a>
+</footer>
+</body>
+</html>

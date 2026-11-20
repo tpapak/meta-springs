@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Random effects: a $\tau$-spring per arm, at a given $\tau$ — meta-springs</title>
+<link rel="stylesheet" href="../style.css">
+<script>
+window.MathJax = {
+  tex: { inlineMath: [['$','$'],['\\(','\\)']], displayMath: [['$$','$$'],['\\[','\\]']], tags: 'ams',
+    macros: { Var:'\\operatorname{Var}', Cov:'\\operatorname{Cov}', E:'\\operatorname{E}', tr:'\\operatorname{tr}', keff:'k^{\\text{eff}}' } },
+  svg: { fontCache: 'global' }
+};
+</script>
+<script async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml-full.js"></script>
+</head>
+<body>
+<nav class="blognav">
+  <div class="blognav-inner">
+    <a class="blognav-brand" href="../index.html">meta-springs</a>
+    <div class="blognav-links">
+      <a href="../index.html">Home</a>
+      <a href="../posts/part1.html">Part 1</a>
+      <a href="../posts/part2.html">Part 2</a>
+      <a href="../posts/part3.html">Part 3</a>
+    </div>
+  </div>
+</nav>
+<main class="wrap postwrap">
+  <article class="postbody">
+    <p class="breadcrumb"><a href="part1.html">Part 1 &middot; From pairwise to NMA</a> &rsaquo; 1c</p>
+    <h1 class="post-h1">Random effects: a $\tau$-spring per arm, at a given $\tau$</h1>
+    <p class="post-meta">Thodoris Papakonstantinou</p>
+
+    <div class="posthero">
+<div class="posthero-title">The main animation · random-effects $\tau$-springs</div>
+<div class="animbox">
+<style>
+@scope (.animbox) {
+* { margin: 0; padding: 0; box-sizing: border-box; }
+  :scope { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; background: #fafafa; color: #222;
+    display: flex; flex-direction: column; align-items: center; padding: 18px; }
+  h1 { font-size: 18px; font-weight: 600; margin-bottom: 4px; }
+  .subtitle { font-size: 13px; color: #666; margin-bottom: 12px; max-width: 1040px; text-align: center; line-height: 1.5; }
+  .ctrl-row { display: flex; gap: 10px; align-items: center; margin-bottom: 6px; flex-wrap: wrap; justify-content: center; }
+  button { padding: 5px 14px; border: 1px solid #aaa; border-radius: 4px; background: #fff; cursor: pointer; font-size: 13px; }
+  button:hover { background: #eee; }
+  button.active { background: #1a73e8; color: #fff; border-color: #1a73e8; }
+  label { font-size: 13px; color: #555; }
+  input[type=range] { width: 240px; vertical-align: middle; }
+  .pill { font-family:'SF Mono',Consolas,monospace; font-size:13px; background:#fff3e0; border:1px solid #f0b27a;
+    border-radius:4px; padding:3px 10px; color:#b35a00; font-weight:600; min-width:160px; text-align:center; }
+  .pill.tau { background:#f0f4ff; border-color:#c4d4f4; color:#1a3a6e; }
+  .pill.d   { background:#eaf5ea; border-color:#bcdcbc; color:#1b6e2f; min-width:280px; }
+  svg { background: #fff; border: 1px solid #ddd; border-radius: 6px; }
+  .legend { margin-top: 8px; font-size: 12px; color: #666; max-width: 1040px; text-align: center; line-height: 1.5; }
+  .legend b { color:#444; }
+}
+</style>
+<div class="ctrl-row">
+  <button id="btnFE">&tau;² = 0 (fixed effect)</button>
+  <button id="btnHalf">&tau;² = 0.5</button>
+  <label>&tau;² (contrast) <input id="tauSlider" type="range" min="0" max="100" value="0"></label>
+  <span class="pill tau" id="tauDisplay">&tau;² = 0.000</span>
+</div>
+<div class="ctrl-row">
+  <span class="pill d" id="dDisplay">d = (A=0.00, B=0.00, C=0.00, D=0.00)</span>
+</div>
+
+<svg id="canvas" width="1000" height="640"></svg>
+
+<div class="legend">
+  <b style="color:#c2410c">Orange spindle</b> = study centroid &mu;&#770;<sub>i</sub>. &nbsp;
+  <b>Black &tau;-chain</b> = the arm-level random effect: N &approx; round((&tau;²/2)&middot;40) elementary springs; length grows with &tau;². &nbsp;
+  <b style="color:#444">Grey node</b> = &zeta;&#770;<sub>ij</sub>, the equilibrium &tau;-spring length = ((&tau;²/2)/(v<sub>ij</sub>+&tau;²/2))&middot;residual<sub>ij</sub>. &nbsp;
+  <b style="color:#1a73e8">Blue spring</b> = observation spring landing on treatment column d<sub>t</sub>. &nbsp;
+  Reference A is pinned (d<sub>A</sub>=0). At &tau;²=0 every chain has zero length and the columns are the fixed-effect estimate.
+</div>
+
+<script src="../study-data.js"></script>
+<script>
+"use strict";
+
+// ===================== DATA: shared 4-treatment continuous network =====================
+const treatments = ['A','B','C','D'];
+const treatColor = ['#1e40af', '#1b9e77', '#d95f02', '#7c3aed'];
+const studies = [
+  { id:'S1', arms:[ {t:0,y:0.40,v:0.20}, {t:1,y:1.80,v:0.20} ] },
+  { id:'S2', arms:[ {t:0,y:-0.80,v:0.20},{t:1,y:1.00,v:0.20}, {t:2,y:2.20,v:0.20} ] },
+  { id:'S3', arms:[ {t:0,y:0.60,v:0.30}, {t:1,y:0.80,v:0.30}, {t:2,y:2.00,v:0.30}, {t:3,y:2.40,v:0.30} ] },
+  { id:'S4', arms:[ {t:2,y:1.20,v:0.20}, {t:3,y:4.00,v:0.20} ] }
+];
+const T = treatments.length, S = studies.length, nD = T-1, nMu = S;
+let tau2 = 0;
+
+// ===================== SOLVER (pooled, nBeta=0) — reused from nmr template =====================
+function linSolve(Ain, bin){                       // solve Ain x = bin (Gaussian elimination, non-destructive)
+  const n=bin.length, M=Ain.map((r,i)=>[...r, bin[i]]);
+  for (let c=0;c<n;c++){ let mx=Math.abs(M[c][c]),mr=c;
+    for (let r=c+1;r<n;r++) if(Math.abs(M[r][c])>mx){mx=Math.abs(M[r][c]);mr=r;}
+    [M[c],M[mr]]=[M[mr],M[c]];
+    for (let r=c+1;r<n;r++){const f=M[r][c]/M[c][c];for(let kk=c;kk<=n;kk++)M[r][kk]-=f*M[c][kk];} }
+  const x=new Float64Array(n);
+  for (let i=n-1;i>=0;i--){let s=M[i][n];for(let j=i+1;j<n;j++)s-=M[i][j]*x[j];x[i]=s/M[i][i];}
+  return x;
+}
+function solve(t2){
+  const N = nD+nMu;                                        // pooled: no beta block
+  const A = Array.from({length:N},()=>new Float64Array(N)), b = new Float64Array(N);
+  studies.forEach((st,si)=>st.arms.forEach(arm=>{
+    const k = 1/(arm.v+t2/2), a = {};                        // contrast tau2; arm variance = tau2/2
+    if (arm.t!==0) a[arm.t-1] = (a[arm.t-1]||0)+1;
+    a[nD+si] = (a[nD+si]||0)+1;
+    for (const i in a){ b[i]+=k*a[i]*arm.y; for (const j in a) A[i][j]+=k*a[i]*a[j]; }
+  }));
+  const x = linSolve(A, b);                                 // A = Hessian; x = MLE given t2
+  const d=[0]; for(let t=1;t<T;t++) d[t]=x[t-1];
+  const mu=[]; for(let si=0;si<S;si++) mu[si]=x[nD+si];
+  return { d, mu };
+}
+
+// ===================== SVG helpers (from nmr template) =====================
+const svg = document.getElementById('canvas');
+const baseX = 220, scale = 150, trtY = 86;
+function fmt(v,n){ return Number(v).toFixed(n); }
+function drawCoil(x1,y1,x2,y2,color,turns,sw,ampMax){
+  const dx=x2-x1,dy=y2-y1,len=Math.hypot(dx,dy); if(len<0.3) return '';
+  const ux=dx/len,uy=dy/len,px=-uy,py=ux, amp=Math.max(1.4,Math.min(ampMax||5,len*0.32)), segs=Math.max(12,turns*8);
+  let d=`M ${x1.toFixed(1)} ${y1.toFixed(1)}`;
+  for(let i=1;i<=segs;i++){ const t=i/segs,cx=x1+dx*t,cy=y1+dy*t,taper=Math.sin(Math.PI*t),off=amp*taper*Math.sin(2*Math.PI*turns*t);
+    d+=` L ${(cx+px*off).toFixed(1)} ${(cy+py*off).toFixed(1)}`; }
+  return `<path d="${d}" stroke="${color}" stroke-width="${sw||1.4}" fill="none"/>`;
+}
+function drawTauChain(x1,y1,x2,y2,N){
+  if(N===0){ const dx=x2-x1,dy=y2-y1,len=Math.hypot(dx,dy);
+    if(len<0.5) return `<circle cx="${x1}" cy="${y1}" r="3" fill="#111"/>`;
+    const px=-dy/len*2.5,py=dx/len*2.5;
+    return `<line x1="${(x1+px).toFixed(1)}" y1="${(y1+py).toFixed(1)}" x2="${(x2+px).toFixed(1)}" y2="${(y2+py).toFixed(1)}" stroke="#111" stroke-width="2.2"/>`+
+           `<line x1="${(x1-px).toFixed(1)}" y1="${(y1-py).toFixed(1)}" x2="${(x2-px).toFixed(1)}" y2="${(y2-py).toFixed(1)}" stroke="#111" stroke-width="2.2"/>`; }
+  const totalLen=Math.hypot(x2-x1,y2-y1);
+  if(totalLen<0.5){ const r=2+Math.min(6,N*0.3); return `<circle cx="${x1.toFixed(1)}" cy="${y1.toFixed(1)}" r="${r}" fill="#111"/>`; }
+  const renderN=Math.max(1,Math.min(N,Math.floor(totalLen/2))), turnsPer=(renderN<=4)?3:(renderN<=12)?2:1;
+  let html='';
+  for(let k=0;k<renderN;k++){ const t1=k/renderN,t2=(k+1)/renderN;
+    const ax=x1+(x2-x1)*t1,ay=y1+(y2-y1)*t1,bx=x1+(x2-x1)*t2,by=y1+(y2-y1)*t2, isOdd=(k%2)===1;
+    if(isOdd){ html+=drawCoil(ax,ay,bx,by,'#111',turnsPer,5.0,5); html+=drawCoil(ax,ay,bx,by,'#fff',turnsPer,3.0,5); }
+    else html+=drawCoil(ax,ay,bx,by,'#111',turnsPer,4.2,5); }
+  return html;
+}
+
+// ===================== LAYOUT (one arm row per arm) =====================
+const armGap=30, studyGap=24, armOffset=16;
+let _y=140;
+const layouts=studies.map(st=>{ const yTop=_y, armYs=st.arms.map((_,k)=>yTop+armOffset+k*armGap), yBot=armYs[armYs.length-1]+12; _y=yBot+studyGap; return {yTop,yBot,armYs}; });
+const axisYbot=_y+4;
+svg.setAttribute('height', axisYbot+64);          // fit all study rows + ruler
+
+// ===================== RENDER =====================
+function render(){
+  const { d, mu } = solve(tau2);
+  const N = Math.round(tau2/2*40);                       // tau-chain elementary-spring count
+  const colX = t => baseX + scale*d[t];
+
+  document.getElementById('tauDisplay').innerHTML = `&tau;² = ${fmt(tau2,3)} (arm variance = ${fmt(tau2/2,3)})`;
+  document.getElementById('dDisplay').textContent =
+    'd = (' + treatments.map((t,i)=>`${t}=${fmt(d[i],2)}`).join(', ') + ')';
+
+  let h='';
+
+  // --- treatment columns spanning study rows ---
+  for(let t=0;t<T;t++){
+    const bx=colX(t);
+    h+=`<line x1="${bx.toFixed(1)}" y1="${trtY+22}" x2="${bx.toFixed(1)}" y2="${axisYbot}" stroke="${treatColor[t]}" stroke-width="2" opacity="0.8"/>`;
+  }
+
+  // --- effect-axis ruler ---
+  h+=`<line x1="${baseX-90}" y1="${axisYbot+22}" x2="${baseX+scale*3.2}" y2="${axisYbot+22}" stroke="#888"/>`;
+  for(let v=-1.0;v<=3.2;v+=0.5){ const xx=baseX+scale*v; if(xx<baseX-90) continue;
+    h+=`<line x1="${xx}" y1="${axisYbot+18}" x2="${xx}" y2="${axisYbot+26}" stroke="#888"/>`;
+    if(Math.abs(v-Math.round(v))<0.01) h+=`<text x="${xx}" y="${axisYbot+39}" text-anchor="middle" font-size="10" fill="#666">${v}</text>`; }
+  h+=`<text x="${baseX+scale*3.2+10}" y="${axisYbot+26}" font-size="11" fill="#444">effect axis (vs A)</text>`;
+
+  // --- studies: spindle S_i + per-arm tau-chain, BLUP node, obs spring ---
+  studies.forEach((st,si)=>{
+    const lay=layouts[si];
+    const armCols = st.arms.map(a=>colX(a.t));                  // centroid over treatment columns
+    const xs = armCols.reduce((s,x)=>s+x,0)/armCols.length;     // centroid = mu_i visual anchor
+    const barTop=lay.armYs[0]-8, barBot=lay.armYs[lay.armYs.length-1]+8;
+    h+=`<rect x="${(xs-3).toFixed(1)}" y="${barTop}" width="6" height="${(barBot-barTop).toFixed(1)}" fill="#fed7aa" stroke="#c2410c" stroke-width="1.5" rx="3"/>`;
+    h+=`<circle cx="${xs.toFixed(1)}" cy="${barTop}" r="3.4" fill="#fed7aa" stroke="#c2410c" stroke-width="1.5"/>`;
+    h+=`<circle cx="${xs.toFixed(1)}" cy="${barBot}" r="3.4" fill="#fed7aa" stroke="#c2410c" stroke-width="1.5"/>`;
+    const midY=(lay.armYs[0]+lay.armYs[lay.armYs.length-1])/2;
+    h+=`<text x="${baseX-150}" y="${midY-3}" font-size="12" font-weight="600" fill="#c2410c">${st.id}</text>`;
+    h+=`<text x="${baseX-150}" y="${midY+11}" font-size="10" fill="#888">μ&#770;=${fmt(mu[si],2)}</text>`;
+
+    st.arms.forEach((arm,k)=>{
+      const armY=lay.armYs[k];
+      const xbase=colX(arm.t);
+      const r = arm.y - (mu[si] + d[arm.t]);                    // residual vs fixed predictor
+      const blup = ((tau2/2)/(arm.v+tau2/2+1e-12))*r;                 // BLUP shrinkage of the arm random effect
+      const xtau = xs + scale*blup;
+      h+=drawTauChain(xs, armY, xtau, armY, N);
+      h+=`<circle cx="${xtau.toFixed(1)}" cy="${armY}" r="3.5" fill="#444" stroke="#222" stroke-width="0.6"/>`;
+      if(Math.abs(blup)>0.005) h+=`<text x="${xtau.toFixed(1)}" y="${armY-8}" text-anchor="middle" font-size="9" fill="#666">&zeta;&#770;=${fmt(blup,2)}</text>`;
+      // obs spring: tau node -> treatment column d_t
+      const sgnO=Math.sign(xbase-xtau)||1;
+      h+=drawCoil(xtau+5*sgnO, armY, xbase-4*sgnO, armY, '#1a73e8', Math.max(2,Math.round(Math.abs(xbase-xtau)/26)), 1.7, 6);
+      h+=`<circle cx="${xbase.toFixed(1)}" cy="${armY}" r="3.2" fill="${treatColor[arm.t]}"/>`;
+      h+=`<text x="${xbase.toFixed(1)}" y="${armY+14}" text-anchor="middle" font-size="9" fill="#666">${treatments[arm.t]}: y=${fmt(arm.y,2)}</text>`;
+    });
+  });
+
+  // --- treatment nodes at top ---
+  for(let t=0;t<T;t++){
+    const bx=colX(t);
+    h+=`<circle cx="${bx.toFixed(1)}" cy="${trtY}" r="20" fill="#dbeafe" stroke="${treatColor[t]}" stroke-width="2"/>`;
+    h+=`<text x="${bx.toFixed(1)}" y="${trtY+5}" text-anchor="middle" font-weight="700" font-size="14">${treatments[t]}</text>`;
+    h+=`<text x="${bx.toFixed(1)}" y="${trtY-26}" text-anchor="middle" font-size="10" fill="#444">d=${fmt(d[t],2)}</text>`;
+  }
+  h+=`<text x="${colX(0).toFixed(1)}" y="${trtY+36}" text-anchor="middle" font-size="9.5" fill="#a00">⚓ d_A=0</text>`;
+
+  svg.innerHTML = h;
+}
+
+// ===================== CONTROLS =====================
+const slider=document.getElementById('tauSlider');
+slider.oninput=function(){ tau2=(+this.value)/50; render(); };          // 0 .. 2.0
+document.getElementById('btnFE').onclick   =()=>{ slider.value=0;  tau2=0;   render(); };
+document.getElementById('btnHalf').onclick =()=>{ slider.value=25; tau2=0.5; render(); };
+
+render();
+
+showStudyData(() => [{title: 'Continuous random-effects network', treatments, studies}]);
+</script>
+</div>
+<p class="anim-cap">Drag $\tau^2$ on the same 4-treatment network: each arm grows a $\tau$-chain to its $\hat\zeta$ node (the equilibrium $\tau$-spring length), over-precise studies are down-weighted, and the treatment columns slide from the fixed-effect estimate ($\tau^2=0$) toward the random-effects fit. Raising $\tau^2$ is literal mechanical shrinkage.</p>
+<p class="anim-fulllink"><a href="../re-tau-springs.html" target="_blank" rel="noopener">Open this animation in its own page &#8599;</a></p>
+</div>
+
+<h2
+id="conventional-heterogeneity-represented-by-arm-springs">Conventional
+heterogeneity, represented by arm springs</h2>
+<p>We use <strong>$\tau^2$ for the between-study variance of a treatment
+contrast</strong>, as in the usual Lu–Ades NMA model. Give each arm an
+independent deviation</p>
+<p>$$ \zeta_{ij}\sim\mathcal N(0,\tau^2/2). $$</p>
+<p>For treatment b relative to a in study i, the true study-specific
+effect is</p>
+<p>$$ \boxed{\theta_{i,ab}=(d_b-d_a)+(\zeta_{ib}-\zeta_{ia}).} $$</p>
+<p>Here $d_b-d_a$ is the population mean contrast; the difference of arm
+deviations is its study-specific departure. The study baseline cancels.
+Consequently,</p>
+<p>$$ \Var(\theta_{i,ab}\mid d,\tau^2)
+=\Var(\zeta_{ib})+\Var(\zeta_{ia})
+=\frac{\tau^2}{2}+\frac{\tau^2}{2}=\tau^2. $$</p>
+<p>For two contrasts sharing reference arm a,</p>
+<p>$$ \operatorname{Cov}(\theta_{i,ab},\theta_{i,ac}\mid d,\tau^2)
+=\Var(\zeta_{ia})=\frac{\tau^2}{2}. $$</p>
+<p>Thus their correlation is $1/2$. For all contrasts against one
+reference in a multi-arm study, the heterogeneity covariance is exactly
+$\tau^2(I+J)/2$, where $I$ is the identity and $J$ the all-ones
+matrix. <strong>Independent arm variances of $\tau^2/2$ reproduce the
+standard Lu–Ades contrast model</strong>, including its multi-arm
+dependence. With equivalent baseline treatment and matching priors, this
+is a reparameterisation: it gives the same contrast likelihood and
+inference. See also the <a
+href="2c-exchangeability.html">exchangeability page</a>.</p>
+<h2 id="effective-stiffness">Effective stiffness</h2>
+<p>Each arm deviation is the length of a
+<strong>$\tau$-spring</strong>, with prior stiffness $k_\tau=2/\tau^2$ and
+mean-square length $\langle\zeta_{ij}^2\rangle=\tau^2/2$. The name refers to the shared heterogeneity
+parameter; an individual spring’s variance is half of it.</p>
+<p>At a given $\tau^2$, the Gaussian network is still linear. The
+observation spring (variance $v_{ij}$) and heterogeneity spring
+(variance $\tau^2/2$) combine in series, giving</p>
+<p>$$ \boxed{\;\keff_{ij}=\frac{1}{v_{ij}+\tau^2/2}\;} $$</p>
+<p>where $v_{ij}=1/w_{ij}$ and the arm weight $w_{ij}$ — the observation-spring
+hardness — is</p>
+<p>$$ w_{ij} = \begin{cases}
+   \dfrac{n_{ij}}{s_{ij}^2}, & \text{Gaussian } \bigl(v_{ij}=s_{ij}^2/n_{ij}\bigr),\\[8pt]
+   n_{ij}\,\sigma(\hat\ell_{ij})\bigl(1-\sigma(\hat\ell_{ij})\bigr), & \text{binomial (Fisher information)}.
+   \end{cases} $$</p>
+<p>so equivalently $\keff_{ij} = \dfrac{w_{ij}}{1 + w_{ij}\,\tau^2/2}$. Each $\keff_{ij}$ is one edge of a weighted
+graph-Laplacian $A(\tau^2)$ on the study and treatment nodes (a
+non-reference arm adds $+\keff_{ij}$ to the study–study and
+treatment–treatment diagonals and $-\keff_{ij}$ to the study–treatment
+off-diagonals, the right-hand side carrying $\keff_{ij}\,y_{ij}$). Solving the
+single linear system</p>
+<p>$$ A(\tau^2)\,x \;=\; b(\tau^2), \qquad x = (\mu_1,\dots,\mu_S,\;d_2,\dots,d_T) $$</p>
+<p>places every node; the treatment effects $d_t$ and the
+<strong>equilibrium spring lengths $\hat\zeta_{ij}$</strong> (each arm’s
+$\tau$-node minus its study node) are read straight off the
+solution.</p>
+<p>Raising $\tau^2$ softens every $\tau$-spring (drops every
+$\keff_{ij}$), letting the $\hat\zeta$ nodes slide out and down-weighting
+over-precise studies — the familiar random-effects shrinkage, now
+literal mechanical relaxation, exactly as the animation shows. The one
+missing ingredient is $\tau^2$ itself; the <a
+href="1d-spring-reml.html">next page</a> estimates it as twice the
+mean-square arm-spring length. For binomial observations, these
+stiffnesses describe each local IRLS step, as explained in <a
+href="1b-binomial-spring.html">1b</a>.</p>
+
+
+    <div class="inpart">
+      <div class="inpart-label">Part 1 · From pairwise to NMA</div>
+      <ol>
+        <li><a href="1a-pairwise-fe.html">Pairwise &rarr; fixed-effect NMA</a></li>
+        <li><a href="1b-binomial-spring.html">Binomial: the nonlinear spring</a></li>
+        <li class="here"><a href="1c-random-effects.html">Random effects: a &tau;-spring per arm</a></li>
+        <li><a href="1d-spring-reml.html">Spring-REML: mean-square length</a></li>
+      </ol>
+    </div>
+
+
+  </article>
+  <nav class="pager">
+    <a class="pager-prev" href="1b-binomial-spring.html"><span class="pager-label">Previous</span><span class="pager-title">&larr; Binomial outcomes: the nonlinear observation spring</span></a>
+    <a class="pager-next" href="1d-spring-reml.html"><span class="pager-label">Next</span><span class="pager-title">Spring-REML: heterogeneity as a mean-square length &rarr;</span></a>
+  </nav>
+</main>
+<footer class="footer">
+  meta-springs &middot; <a href="https://github.com/tpapak/meta-springs">source on GitHub</a>
+</footer>
+</body>
+</html>

@@ -1,0 +1,524 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Spring-REML: heterogeneity as a mean-square length — meta-springs</title>
+<link rel="stylesheet" href="../style.css">
+<script>
+window.MathJax = {
+  tex: { inlineMath: [['$','$'],['\\(','\\)']], displayMath: [['$$','$$'],['\\[','\\]']], tags: 'ams',
+    macros: { Var:'\\operatorname{Var}', Cov:'\\operatorname{Cov}', E:'\\operatorname{E}', tr:'\\operatorname{tr}', keff:'k^{\\text{eff}}' } },
+  svg: { fontCache: 'global' }
+};
+</script>
+<script async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml-full.js"></script>
+</head>
+<body>
+<nav class="blognav">
+  <div class="blognav-inner">
+    <a class="blognav-brand" href="../index.html">meta-springs</a>
+    <div class="blognav-links">
+      <a href="../index.html">Home</a>
+      <a href="../posts/part1.html">Part 1</a>
+      <a href="../posts/part2.html">Part 2</a>
+      <a href="../posts/part3.html">Part 3</a>
+    </div>
+  </div>
+</nav>
+<main class="wrap postwrap">
+  <article class="postbody">
+    <p class="breadcrumb"><a href="part1.html">Part 1 &middot; From pairwise to NMA</a> &rsaquo; 1d</p>
+    <h1 class="post-h1">Spring-REML: heterogeneity as a mean-square length</h1>
+    <p class="post-meta">Thodoris Papakonstantinou</p>
+
+    <div class="posthero">
+<div class="posthero-title">The main animation · the mean-square length</div>
+<div class="animbox">
+<style>
+@scope (.animbox) {
+* { margin: 0; padding: 0; box-sizing: border-box; }
+  :scope { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; background: #fafafa; color: #222;
+    display: flex; flex-direction: column; align-items: center; padding: 18px; }
+  h1 { font-size: 18px; font-weight: 600; margin-bottom: 4px; }
+  .subtitle { font-size: 13px; color: #666; margin-bottom: 12px; max-width: 1040px; text-align: center; line-height: 1.5; }
+  .ctrl-row { display: flex; gap: 10px; align-items: center; margin-bottom: 6px; flex-wrap: wrap; justify-content: center; }
+  button { padding: 5px 14px; border: 1px solid #aaa; border-radius: 4px; background: #fff; cursor: pointer; font-size: 13px; }
+  button:hover { background: #eee; }
+  button.active { background: #1a73e8; color: #fff; border-color: #1a73e8; }
+  button.reml { background: #eef7ee; border-color: #58a758; color: #2f6d2f; }
+  button.reml.active { background: #2f8f2f; color: #fff; border-color: #2f8f2f; }
+  label { font-size: 13px; color: #555; }
+  input[type=range] { width: 240px; vertical-align: middle; }
+  .pill { font-family:'SF Mono',Consolas,monospace; font-size:13px; background:#fff3e0; border:1px solid #f0b27a;
+    border-radius:4px; padding:3px 10px; color:#b35a00; font-weight:600; min-width:150px; text-align:center; }
+  .pill.tau { background:#f0f4ff; border-color:#c4d4f4; color:#1a3a6e; }
+  .pill.reml { background:#eef7ee; border-color:#a9d3a9; color:#2f6d2f; }
+  svg { background: #fff; border: 1px solid #ddd; border-radius: 6px; }
+  .legend { margin-top: 8px; font-size: 12px; color: #666; max-width: 1040px; text-align: center; line-height: 1.5; }
+  .legend b { color:#444; }
+}
+</style>
+<div class="ctrl-row">
+  <button id="btnFE">&tau;² = 0</button>
+  <button class="reml" id="btnREML">Solve REML</button>
+  <label>&tau;²&nbsp; <input id="tauSlider" type="range" min="0" max="200" value="30"></label>
+  <span class="pill tau" id="tauDisplay">&tau;² = 0.000</span>
+  <span class="pill reml" id="remlDisplay">REML &tau;&#770;² = &mdash;</span>
+</div>
+
+<svg id="canvas" width="1140" height="620"></svg>
+
+<div class="legend">
+  <b>Left</b> — the RE spring network: each <b style="color:#c2410c">study spindle S<sub>i</sub></b> sits at its centroid &mu;&#770;<sub>i</sub>;
+  every arm runs a <b>&tau;-chain</b> out to its <b style="color:#444">&zeta;&#770; node</b> (the equilibrium &tau;-spring length &zeta;&#770;<sub>ij</sub>), then an <b style="color:#1a73e8">obs spring</b> back to the treatment column d<sub>j</sub>.
+  <b>Right</b> — twice the average squared displacement plus twice the average inverse effective stiffness.
+  The dashed marker is the selected contrast variance &tau;². At the REML fixed point,
+  &tau;&#770;² = (2/N)&Sigma;[&zeta;&#770;² + V<sub>&zeta;</sub>].
+  Study-specific contrast intervals use the full joint covariance of treatment effects and arm deviations.
+</div>
+
+<script src="../study-data.js"></script>
+<script>
+"use strict";
+
+// ===================== DATA: 4-treatment continuous network (the running example) =====================
+const treatments = ['A','B','C','D'];
+const treatColor  = ['#1e40af','#1b9e77','#d95f02','#7c3aed'];
+// The running A–D network, with between-study scatter added (small sampling
+// variance v) so there is genuine heterogeneity for spring-REML to estimate.
+const studies = [
+  { id:'S1', arms:[ {t:0,y:0.40,v:0.03}, {t:1,y:2.20,v:0.03} ] },
+  { id:'S2', arms:[ {t:0,y:-0.80,v:0.03},{t:1,y:0.00,v:0.03}, {t:2,y:1.70,v:0.03} ] },
+  { id:'S3', arms:[ {t:0,y:0.60,v:0.03}, {t:1,y:1.10,v:0.03}, {t:2,y:2.80,v:0.03}, {t:3,y:3.00,v:0.03} ] },
+  { id:'S4', arms:[ {t:2,y:1.90,v:0.03}, {t:3,y:4.00,v:0.03} ] }
+];
+const T = treatments.length, S = studies.length, nD = T-1, nMu = S;
+let Narm = 0; studies.forEach(st=>Narm+=st.arms.length);   // N = total number of arms (=11)
+let tau2 = 0.30;
+
+// ===================== SOLVER (pooled random-effects normal equations for d, mu) =====================
+// REUSED from nmr-covariate-springs.html solve(), pooled branch (no covariate).
+function linSolve(Ain, bin){                       // solve Ain x = bin (Gaussian elimination, non-destructive)
+  const n=bin.length, M=Ain.map((r,i)=>[...r, bin[i]]);
+  for (let c=0;c<n;c++){ let mx=Math.abs(M[c][c]),mr=c;
+    for (let r=c+1;r<n;r++) if(Math.abs(M[r][c])>mx){mx=Math.abs(M[r][c]);mr=r;}
+    [M[c],M[mr]]=[M[mr],M[c]];
+    for (let r=c+1;r<n;r++){const f=M[r][c]/M[c][c];for(let kk=c;kk<=n;kk++)M[r][kk]-=f*M[c][kk];} }
+  const x=new Float64Array(n);
+  for (let i=n-1;i>=0;i--){let s=M[i][n];for(let j=i+1;j<n;j++)s-=M[i][j]*x[j];x[i]=s/M[i][i];}
+  return x;
+}
+function solve(t2){
+  const N = nD+nMu;
+  const A = Array.from({length:N},()=>new Float64Array(N)), b = new Float64Array(N);
+  studies.forEach((st,si)=>st.arms.forEach(arm=>{
+    const k = 1/(arm.v+t2/2), a = {};
+    if (arm.t!==0) a[arm.t-1] = (a[arm.t-1]||0)+1;
+    a[nD+si] = (a[nD+si]||0)+1;
+    for (const i in a){ b[i]+=k*a[i]*arm.y; for (const j in a) A[i][j]+=k*a[i]*a[j]; }
+  }));
+  const x = linSolve(A, b);                                  // MLE of (d, mu) given t2
+  const d=[0]; for(let t=1;t<T;t++) d[t]=x[t-1];
+  const mu=[]; for(let si=0;si<S;si++) mu[si]=x[nD+si];
+  const cov = Array.from({length:N}, (_, j) =>
+    linSolve(A, Array.from({length:N}, (_, i) => +(i === j))));
+  return { d, mu, cov };
+}
+
+// ===================== VARIANCE DECOMPOSITION (per-arm BLUP & shrinkage) =====================
+// t2 is contrast variance; s2=t2/2 is the arm variance.
+// Conditional arm variance includes B² x' Cov(fixed effects) x.
+function decomp(t2){
+  const { d, mu, cov } = solve(t2);
+  const s2 = t2/2;
+  let sumD2 = 0, sumVar = 0;
+  studies.forEach((st,si)=>st.arms.forEach(arm=>{
+    const r = arm.y - (mu[si] + d[arm.t]);
+    const B = s2/(arm.v + s2);
+    const zeta = B*r;
+    const m = nD+si, t = arm.t-1;
+    const fittedVar = cov[m][m] + (arm.t === 0 ? 0 : cov[t][t] + 2*cov[m][t]);
+    sumD2 += zeta*zeta;
+    sumVar += (1-B)*s2 + B*B*fittedVar;
+  }));
+  const spread = 2*sumD2/Narm, shrink = 2*sumVar/Narm;
+  return { d, mu, spread, shrink, sum: spread+shrink };
+}
+
+// ===================== REML fixed point (EM to convergence) =====================
+function remlFixedPoint(){
+  let t = 0.6, it = 0;
+  for (; it<20000; it++){ const nt = decomp(t).sum; if (Math.abs(nt-t) < 1e-9) { t = nt; break; } t = nt; }
+  return { tau2: t, iters: it };
+}
+const REML = remlFixedPoint();
+console.log('Spring-REML: converged REML tau-hat^2 =', REML.tau2.toFixed(6), 'after', REML.iters, 'EM steps');
+
+// ===================== SVG helpers (from xi_animation / nmr-covariate-springs) =====================
+const svg = document.getElementById('canvas');
+const baseX = 210, scale = 120, trtY = 78;
+function fmt(v,n){ return Number(v).toFixed(n); }
+function drawCoil(x1,y1,x2,y2,color,turns,sw,ampMax){
+  const dx=x2-x1,dy=y2-y1,len=Math.hypot(dx,dy); if(len<0.3) return '';
+  const ux=dx/len,uy=dy/len,px=-uy,py=ux, amp=Math.max(1.4,Math.min(ampMax||5,len*0.32)), segs=Math.max(12,turns*8);
+  let d=`M ${x1.toFixed(1)} ${y1.toFixed(1)}`;
+  for(let i=1;i<=segs;i++){ const t=i/segs,cx=x1+dx*t,cy=y1+dy*t,taper=Math.sin(Math.PI*t),off=amp*taper*Math.sin(2*Math.PI*turns*t);
+    d+=` L ${(cx+px*off).toFixed(1)} ${(cy+py*off).toFixed(1)}`; }
+  return `<path d="${d}" stroke="${color}" stroke-width="${sw||1.4}" fill="none"/>`;
+}
+function drawTauChain(x1,y1,x2,y2,N){
+  if(N===0){ const dx=x2-x1,dy=y2-y1,len=Math.hypot(dx,dy);
+    if(len<0.5) return `<circle cx="${x1}" cy="${y1}" r="3" fill="#111"/>`;
+    const px=-dy/len*2.5,py=dx/len*2.5;
+    return `<line x1="${(x1+px).toFixed(1)}" y1="${(y1+py).toFixed(1)}" x2="${(x2+px).toFixed(1)}" y2="${(y2+py).toFixed(1)}" stroke="#111" stroke-width="2.2"/>`+
+           `<line x1="${(x1-px).toFixed(1)}" y1="${(y1-py).toFixed(1)}" x2="${(x2-px).toFixed(1)}" y2="${(y2-py).toFixed(1)}" stroke="#111" stroke-width="2.2"/>`; }
+  const totalLen=Math.hypot(x2-x1,y2-y1);
+  if(totalLen<0.5){ const r=2+Math.min(6,N*0.3); return `<circle cx="${x1.toFixed(1)}" cy="${y1.toFixed(1)}" r="${r}" fill="#111"/>`; }
+  const renderN=Math.max(1,Math.min(N,Math.floor(totalLen/2))), turnsPer=(renderN<=4)?3:(renderN<=12)?2:1;
+  let html='';
+  for(let k=0;k<renderN;k++){ const t1=k/renderN,t2=(k+1)/renderN;
+    const ax=x1+(x2-x1)*t1,ay=y1+(y2-y1)*t1,bx=x1+(x2-x1)*t2,by=y1+(y2-y1)*t2, isOdd=(k%2)===1;
+    if(isOdd){ html+=drawCoil(ax,ay,bx,by,'#111',turnsPer,5.0,5); html+=drawCoil(ax,ay,bx,by,'#fff',turnsPer,3.0,5); }
+    else html+=drawCoil(ax,ay,bx,by,'#111',turnsPer,4.2,5); }
+  return html;
+}
+
+// ===================== LAYOUT (one row per arm) =====================
+const armGap=28, studyGap=24, armOffset=16;
+let _y=150;
+const layouts=studies.map(st=>{ const yTop=_y, armYs=st.arms.map((_,k)=>yTop+armOffset+k*armGap), yBot=armYs[armYs.length-1]+12; _y=yBot+studyGap; return {yTop,yBot,armYs}; });
+const axisYbot=_y+4;
+
+// ===================== RIGHT PANEL: variance decomposition =====================
+function decompPanel(t2, spread, shrink){
+  const px=740, py=150, pw=372, ph=336;
+  const sum = spread+shrink;
+  let s=`<rect x="${px}" y="${py}" width="${pw}" height="${ph}" fill="#fcfcfc" stroke="#bbb" rx="6"/>`;
+  s+=`<text x="${px+pw/2}" y="${py-8}" text-anchor="middle" font-size="13" font-weight="600" fill="#333">Variance decomposition of &tau;²</text>`;
+
+  const padL=26, padR=26, x0=px+padL, w0=pw-padL-padR;
+  const axisMax = Math.max(0.05, t2*1.18, sum*1.18);
+  const bx = v => x0 + (v/axisMax)*w0;
+
+  // ---- headline identity ----
+  s+=`<text x="${px+pw/2}" y="${py+26}" text-anchor="middle" font-size="12" fill="#444">`+
+     `<tspan font-family="SF Mono,Consolas,monospace">(2/N)&#8721;&zeta;&#770;²</tspan> + `+
+     `<tspan font-family="SF Mono,Consolas,monospace">(2/N)&#8721;Var(&zeta;)</tspan> = &tau;²<tspan font-size="9" dy="2">new</tspan></text>`;
+
+  // ---- the stacked two-segment bar (total length = EM update sum) ----
+  const barY=py+52, barH=44;
+  s+=`<text x="${x0}" y="${barY-8}" font-size="11" fill="#666">EM update &tau;²<tspan font-size="9" dy="2">new</tspan> = ${fmt(sum,4)}</text>`;
+  s+=`<rect x="${x0}" y="${barY}" width="${w0}" height="${barH}" fill="#f4f4f4" stroke="#ddd" rx="3"/>`;
+  const w1=bx(spread)-x0, w2=bx(spread+shrink)-bx(spread);
+  s+=`<rect x="${x0}" y="${barY}" width="${Math.max(0,w1).toFixed(1)}" height="${barH}" fill="#1a73e8" opacity="0.88"/>`;
+  s+=`<rect x="${bx(spread).toFixed(1)}" y="${barY}" width="${Math.max(0,w2).toFixed(1)}" height="${barH}" fill="#e65100" opacity="0.88"/>`;
+  if(w1>34) s+=`<text x="${(x0+w1/2).toFixed(1)}" y="${barY+barH/2+4}" text-anchor="middle" font-size="11" fill="#fff" font-weight="600">${fmt(spread,3)}</text>`;
+  if(w2>34) s+=`<text x="${(bx(spread)+w2/2).toFixed(1)}" y="${barY+barH/2+4}" text-anchor="middle" font-size="11" fill="#fff" font-weight="600">${fmt(shrink,3)}</text>`;
+
+  // ---- current contrast tau2 marker (dashed) on the same axis ----
+  const mkx=bx(t2);
+  s+=`<line x1="${mkx.toFixed(1)}" y1="${barY-12}" x2="${mkx.toFixed(1)}" y2="${barY+barH+12}" stroke="#1a3a6e" stroke-width="1.6" stroke-dasharray="4,3"/>`;
+  s+=`<path d="M ${mkx.toFixed(1)} ${barY+barH+12} l -5 8 l 10 0 z" fill="#1a3a6e"/>`;
+  s+=`<text x="${mkx.toFixed(1)}" y="${barY+barH+34}" text-anchor="middle" font-size="10.5" fill="#1a3a6e" font-weight="600">&tau;² = ${fmt(t2,4)}</text>`;
+
+  // ---- two legend rows with the individual bars ----
+  const rowY=py+168, rowH=26, gap=44;
+  const rows=[
+    { lab:'2 × mean squared displacement', sub:'(2/N) &#8721; &zeta;&#770;²', val:spread, col:'#1a73e8' },
+    { lab:'2 × mean inverse stiffness', sub:'(2/N) &#8721; Var(&zeta;)', val:shrink, col:'#e65100' }
+  ];
+  rows.forEach((r,i)=>{
+    const yy=rowY+i*gap;
+    s+=`<rect x="${x0}" y="${yy}" width="12" height="12" fill="${r.col}"/>`;
+    s+=`<text x="${x0+20}" y="${yy+11}" font-size="12" fill="#333" font-weight="600">${r.lab}</text>`;
+    s+=`<text x="${x0+w0}" y="${yy+11}" text-anchor="end" font-size="12" fill="${r.col}" font-weight="700" font-family="SF Mono,Consolas,monospace">${fmt(r.val,4)}</text>`;
+    s+=`<text x="${x0+20}" y="${yy+24}" font-size="10" fill="#888" font-family="SF Mono,Consolas,monospace">${r.sub}</text>`;
+  });
+
+  // ---- convergence status ----
+  const gapv = sum - t2, conv = Math.abs(gapv) < 5e-4;
+  const cy=py+ph-30;
+  s+=`<line x1="${x0}" y1="${cy-16}" x2="${x0+w0}" y2="${cy-16}" stroke="#eee"/>`;
+  if(conv){
+    s+=`<text x="${px+pw/2}" y="${cy}" text-anchor="middle" font-size="11.5" fill="#2f6d2f" font-weight="600">fixed point: bars = &tau;² &rArr; REML update converged</text>`;
+    s+=`<text x="${px+pw/2}" y="${cy+16}" text-anchor="middle" font-size="11" fill="#2f6d2f">REML &tau;&#770;² = ${fmt(REML.tau2,4)}</text>`;
+  } else {
+    const dir = gapv<0 ? 'below' : 'above';
+    s+=`<text x="${px+pw/2}" y="${cy}" text-anchor="middle" font-size="11.5" fill="#b35a00">&tau;²<tspan font-size="8" dy="2">new</tspan><tspan dy="-2"> lands ${dir} &tau;²</tspan> &mdash; not yet a fixed point</text>`;
+    s+=`<text x="${px+pw/2}" y="${cy+16}" text-anchor="middle" font-size="11" fill="#999">press <tspan font-weight="600" fill="#2f6d2f">Solve REML</tspan> to iterate &tau;² &larr; &tau;²<tspan font-size="8" dy="2">new</tspan></text>`;
+  }
+  return s;
+}
+
+// ===================== RENDER =====================
+function render(){
+  const { d, mu, spread, shrink } = decomp(tau2);
+  const N = Math.round(tau2/2*40);                        // tau-chain elementary-spring count
+
+  document.getElementById('tauDisplay').innerHTML  = `&tau;² = ${fmt(tau2,3)}`;
+  document.getElementById('remlDisplay').innerHTML = `REML &tau;&#770;² = ${fmt(REML.tau2,4)}`;
+
+  const colX = t => baseX + scale*d[t];
+  let h='';
+
+  // --- treatment columns spanning the study rows ---
+  for(let t=0;t<T;t++){ const ax=colX(t);
+    h+=`<line x1="${ax.toFixed(1)}" y1="${trtY+22}" x2="${ax.toFixed(1)}" y2="${axisYbot}" stroke="${treatColor[t]}" stroke-width="2" opacity="0.85"/>`; }
+
+  // --- effect-axis ruler ---
+  h+=`<line x1="${baseX-70}" y1="${axisYbot+22}" x2="${baseX+scale*3.8}" y2="${axisYbot+22}" stroke="#888"/>`;
+  for(let v=-0.5;v<=3.8;v+=0.5){ const xx=baseX+scale*v; if(xx<baseX-70) continue;
+    h+=`<line x1="${xx}" y1="${axisYbot+18}" x2="${xx}" y2="${axisYbot+26}" stroke="#888"/>`;
+    if(Math.abs(v-Math.round(v))<0.01) h+=`<text x="${xx}" y="${axisYbot+39}" text-anchor="middle" font-size="10" fill="#666">${v}</text>`; }
+  h+=`<text x="${baseX+scale*3.8+8}" y="${axisYbot+26}" font-size="11" fill="#444">effect axis (vs A)</text>`;
+
+  // --- studies: spindle S_i + per-arm tau-chain, BLUP node, obs spring ---
+  studies.forEach((st,si)=>{
+    const lay=layouts[si];
+    const armCols = st.arms.map(a=>colX(a.t));
+    const xs = armCols.reduce((s,x)=>s+x,0)/armCols.length;      // centroid = mu_i visual anchor
+    const barTop=lay.armYs[0]-8, barBot=lay.armYs[lay.armYs.length-1]+8;
+    h+=`<rect x="${(xs-3).toFixed(1)}" y="${barTop}" width="6" height="${(barBot-barTop).toFixed(1)}" fill="#fed7aa" stroke="#c2410c" stroke-width="1.5" rx="3"/>`;
+    h+=`<circle cx="${xs.toFixed(1)}" cy="${barTop}" r="3.4" fill="#fed7aa" stroke="#c2410c" stroke-width="1.5"/>`;
+    h+=`<circle cx="${xs.toFixed(1)}" cy="${barBot}" r="3.4" fill="#fed7aa" stroke="#c2410c" stroke-width="1.5"/>`;
+    h+=`<text x="${xs.toFixed(1)}" y="${barTop-7}" text-anchor="middle" font-size="10.5" fill="#c2410c" font-weight="600">${st.id}</text>`;
+    const midY=(lay.armYs[0]+lay.armYs[lay.armYs.length-1])/2;
+    h+=`<text x="${baseX-140}" y="${midY-3}" font-size="12" font-weight="600" fill="#c2410c">${st.id}</text>`;
+    h+=`<text x="${baseX-140}" y="${midY+11}" font-size="10" fill="#888">μ&#770;=${fmt(mu[si],2)}</text>`;
+
+    st.arms.forEach((arm,k)=>{
+      const armY=lay.armYs[k];
+      const xcol=colX(arm.t);
+      const r = arm.y - (mu[si] + d[arm.t]);                      // residual vs pooled predictor
+      const B = (tau2/2)/(arm.v+tau2/2+1e-12);
+      const blup = B*r;
+      const xtau = xs + scale*blup;
+      h+=drawTauChain(xs, armY, xtau, armY, N);
+      h+=`<circle cx="${xtau.toFixed(1)}" cy="${armY}" r="3.5" fill="#444" stroke="#222" stroke-width="0.6"/>`;
+      if(Math.abs(blup)>0.02) h+=`<text x="${xtau.toFixed(1)}" y="${armY-8}" text-anchor="middle" font-size="9" fill="#666">&zeta;&#770;=${fmt(blup,2)}</text>`;
+      // obs spring: tau (zeta-hat) node -> treatment column d_t
+      const sgnO=Math.sign(xcol-xtau)||1;
+      h+=drawCoil(xtau+5*sgnO, armY, xcol-4*sgnO, armY, '#1a73e8', Math.max(2,Math.round(Math.abs(xcol-xtau)/26)), 1.7, 6);
+      h+=`<circle cx="${xcol.toFixed(1)}" cy="${armY}" r="3.2" fill="${treatColor[arm.t]}"/>`;
+      h+=`<text x="${xcol.toFixed(1)}" y="${armY+14}" text-anchor="middle" font-size="9" fill="#666">${treatments[arm.t]}: y=${fmt(arm.y,2)}</text>`;
+    });
+  });
+
+  // --- treatment nodes at top ---
+  for(let t=0;t<T;t++){ const ax=colX(t);
+    h+=`<circle cx="${ax.toFixed(1)}" cy="${trtY}" r="20" fill="#dbeafe" stroke="${treatColor[t]}" stroke-width="2"/>`;
+    h+=`<text x="${ax.toFixed(1)}" y="${trtY+5}" text-anchor="middle" font-weight="700" font-size="14">${treatments[t]}</text>`;
+    h+=`<text x="${ax.toFixed(1)}" y="${trtY-26}" text-anchor="middle" font-size="10" fill="#444">d=${fmt(d[t],2)}</text>`; }
+  h+=`<text x="${colX(0).toFixed(1)}" y="${trtY+36}" text-anchor="middle" font-size="9.5" fill="#a00">⚓ d_A=0</text>`;
+
+  h += decompPanel(tau2, spread, shrink);
+  svg.innerHTML = h;
+}
+
+// ===================== CONTROLS =====================
+const slider=document.getElementById('tauSlider');
+slider.oninput=function(){ stopAnim(); tau2=(+this.value)/100; render(); };        // 0 .. 2.0
+
+document.getElementById('btnFE').onclick=()=>{ stopAnim(); slider.value=0; tau2=0; render(); };
+
+// --- Solve REML: run the EM fixed-point iteration, animating the slider toward tau-hat^2 ---
+let anim=null;
+function stopAnim(){ if(anim){ clearAnimation(); } }
+function clearAnimation(){ clearInterval(anim); anim=null; document.getElementById('btnREML').classList.remove('active'); }
+document.getElementById('btnREML').onclick=function(){
+  stopAnim();
+  this.classList.add('active');
+  // seed from the current tau2 if it is visibly positive, else from a high value so the descent is visible
+  tau2 = (tau2 > 0.02) ? tau2 : 0.6;
+  let steps=0;
+  const MAXSTEPS=8000, PER_FRAME=18;                       // several EM steps per frame (convergence is slow)
+  anim=setInterval(()=>{
+    let converged=false;
+    for(let s=0;s<PER_FRAME;s++){
+      const nt=decomp(tau2).sum; steps++;
+      if(Math.abs(nt-tau2)<1e-8 || steps>=MAXSTEPS){ tau2=nt; converged=true; break; }
+      tau2=nt;
+    }
+    slider.value=Math.round(tau2*100);
+    render();
+    if(converged){ tau2=REML.tau2; slider.value=Math.round(tau2*100); render(); clearAnimation(); }
+  }, 32);
+};
+
+render();
+
+showStudyData(() => [{title: 'REML demonstration network', treatments, studies, note: 'This example uses different arm means and smaller sampling variances than the fixed-effect animation; v is the sampling variance of each arm mean.'}]);
+</script>
+</div>
+<p class="anim-cap">Effective stiffness is statistical precision. At the EM fixed point, contrast heterogeneity variance equals twice the sum of average squared displacement and average inverse stiffness. Move $\tau^2$ to recalculate both terms; press <b>Solve REML</b> to find the fixed point.</p>
+<p class="anim-fulllink"><a href="../spring-reml.html" target="_blank" rel="noopener">Open this animation in its own page &#8599;</a></p>
+</div>
+
+<h2 id="notation">Notation</h2>
+<p>Throughout this page, $i$ indexes studies and $t$
+treatments. The arm random effect $\zeta_{it}$ has mean zero and
+<strong>arm-level variance</strong> $\tau^2/2$. We reserve $\tau^2$ for
+conventional <strong>contrast-level heterogeneity</strong>: a difference
+of two independent arm deviations has variance $\tau^2$, as derived in
+<a href="1c-random-effects.html">1c</a>.</p>
+<p>We use $q$ for the vector of model coordinates, $\theta_{i,ab}$ for a
+true study-specific treatment contrast, $V$ for a conditional
+variance, and $\kappa$ for its reciprocal precision. Subscripts $\zeta$
+and $\theta$ distinguish arm deviations from study contrasts.</p>
+<h2 id="the-law-of-total-variance">The law of total variance</h2>
+<p>The <a href="https://en.wikipedia.org/wiki/Law_of_total_variance">law
+of total variance</a> separates variability of conditional means from
+average conditional uncertainty:</p>
+<p>$$ \frac{\tau^2}{2}=\Var(\zeta_{it})
+=\Var_Y\!\left(\E[\zeta_{it}\mid Y]\right)
++\E_Y\!\left[\Var(\zeta_{it}\mid Y)\right]. $$</p>
+<p>Here the outer expectation and variance range over possible datasets
+$Y$, with the model parameters held fixed. For the observed dataset
+$y$, the related <strong>conditional second-moment
+identity</strong> is</p>
+<p>$$ \underbrace{\langle\zeta_{it}^2\rangle_y}_{\E[\zeta_{it}^2\mid y]}
+=\underbrace{\langle\zeta_{it}\rangle_y^2}_{\hat\zeta_{it}^{\,2}}
++\underbrace{\Var(\zeta_{it}\mid y)}_{V_{\zeta,it}}. $$</p>
+<p>Angle brackets denote conditional expectation: $\langle f(\zeta)\rangle_y=\E[f(\zeta)\mid y]$. For the REML
+calculation below, $\hat\zeta_{it}$ is the BLUP and $V_{\zeta,it}$ includes
+uncertainty from estimating the fixed effects. Equivalently, these are
+Gaussian conditional moments after integrating the fixed effects with a
+flat prior, at a fixed value of $\tau^2$. We suppress that variance
+parameter in the conditioning notation for readability.</p>
+<h2 id="the-physical-connection-precision-is-effective-stiffness">The
+physical connection: precision is effective stiffness</h2>
+<p>For a Gaussian coordinate, the density has the form</p>
+<p>$$ p(\zeta_{it}\mid y)\propto
+\exp\!\left[-\frac{\kappa_{\zeta,it}}2
+(\zeta_{it}-\hat\zeta_{it})^2\right],
+\qquad
+\boxed{\kappa_{\zeta,it}=\frac1{V_{\zeta,it}}.} $$</p>
+<p>In units where $k_BT=1$, <strong>conditional precision is effective
+stiffness</strong>. It measures how strongly the network constrains a
+displacement from the fitted value. Greater stiffness means greater
+precision and smaller fluctuations. The variance entering the REML
+update is therefore the inverse stiffness, $V_{\zeta,it}=1/\kappa_{\zeta,it}$.</p>
+<p>For the full identified Gaussian system, let $A$ be the
+precision matrix, so $\operatorname{Cov}(q\mid y)=A^{-1}$. Any linear combination $u=c^Tq$ has</p>
+<p>$$ V_u=c^TA^{-1}c,\qquad \kappa_u=\frac1{V_u}. $$</p>
+<p>This accounts for the response of the coupled network. For a single
+coordinate, its marginal precision is $1/(A^{-1})_{aa}$, generally different from
+$A_{aa}$. As a simple special case, with a known baseline and treatment
+mean and arm sampling variance $v_{it}$,</p>
+<p>$$ \Var(\zeta_{it}\mid y,\text{fixed effects})
+=\left(\frac2{\tau^2}+\frac1{v_{it}}\right)^{-1}. $$</p>
+<p>When those fixed effects are estimated, use the full covariance
+calculation.</p>
+<h2 id="from-the-decomposition-to-the-reml-update">From the
+decomposition to the REML update</h2>
+<p>With $N=\sum_i a_i$ arms, expectation-maximization (EM) updates the
+variance by</p>
+<p>$$ \tau_{\mathrm{new}}^2
+=\frac2N\sum_{i,t}
+\left[\hat\zeta_{it}^{\,2}+V_{\zeta,it}\right]_{\tau^2=\tau_{\mathrm{old}}^2}. $$</p>
+<p>Recompute the BLUPs and their uncertainty, update $\tau^2$, and
+repeat. The factor of two converts arm variance to contrast variance.
+Including fixed-effect estimation uncertainty gives the REML update. At
+its fixed point,</p>
+<p>$$ \boxed{\frac{\hat\tau^2}{2}
+=\underbrace{\frac1N\sum_{i,t}\hat\zeta_{it}^{\,2}}_{\text{average squared displacement}}
++\underbrace{\frac1N\sum_{i,t}\frac1{\kappa_{\zeta,it}}}_{\text{average inverse stiffness}}.} $$</p>
+<p>The conditional identity supplies the decomposition; EM supplies the
+estimation procedure. Equality with the current variance holds at the
+fixed point, rather than at every trial value. Move $\tau^2$ in the
+animation to recalculate the two terms, displayed with a factor of two;
+<strong>Solve REML</strong> iterates until their sum agrees with the
+contrast variance estimate.</p>
+<h2 id="sspi">Study-specific prediction interval</h2>
+<p>The true effect of treatment b relative to a in study i is</p>
+<p>$$ \theta_{i,ab}=(d_b-d_a)+(\zeta_{ib}-\zeta_{ia}). $$</p>
+<p>Let $c_{i,ab}$ select this combination from $q$. Using the same
+joint Gaussian system at $\hat\tau^2$ gives its predicted value and
+uncertainty:</p>
+<p>$$ \tilde\theta_{i,ab}=c_{i,ab}^T\hat q,\qquad
+V_{\theta,i,ab}=\Var(\theta_{i,ab}\mid y,\hat\tau^2)
+=c_{i,ab}^TA^{-1}c_{i,ab}
+=\frac1{\kappa_{\theta,i,ab}}. $$</p>
+<p>The covariance must retain the treatment effects, arm deviations and
+their cross-covariances, including dependence in multi-arm studies. If
+auxiliary coordinates were eliminated, their covariance must be
+reconstructed. An approximate 95% interval is</p>
+<p>$$ \boxed{\tilde\theta_{i,ab}\;\pm\;1.96\sqrt{V_{\theta,i,ab}}
+=\tilde\theta_{i,ab}\;\pm\;\frac{1.96}{\sqrt{\kappa_{\theta,i,ab}}}.} $$</p>
+<p><strong>The SSPI width is determined by the precision of the
+study-specific effect.</strong> In the spring network, this precision is
+the effective stiffness $\kappa_{\theta,i,ab}$ of the whole contrast, after accounting
+for uncertainty in the other coordinates. Its standard error is
+$1/\sqrt{\kappa_{\theta,i,ab}}$, so the 95% interval has half-width $1.96/\sqrt{\kappa_{\theta,i,ab}}$. A stiffer, more
+precise contrast has a narrower interval; four times the precision
+halves its width. The interval is centred on the predicted study effect
+$\tilde\theta_{i,ab}$.</p>
+<p>This contrast precision differs from $\kappa_{\zeta,it}$, which describes one
+arm deviation. Both express the same statistical–mechanical connection:
+<strong>precision is effective stiffness</strong>.</p>
+<h3 id="connection-to-van-aert-et-al.">Connection to van Aert et
+al.</h3>
+<p>This construction <strong>generalizes to NMA the pairwise
+study-specific prediction interval approach described by van Aert,
+Schmid, Svensson and Jackson (2021)</strong>, <a
+href="https://doi.org/10.1002/jrsm.1490"><em>Study specific prediction
+intervals for random-effects meta-analysis: A tutorial</em></a>.</p>
+<p>For the pairwise limit, $\tau^2$ retains its conventional
+contrast-level meaning. Write $\sigma_i^2$ for the sampling variance of
+$y_i$. With $B_i=\tau^2/(\tau^2+\sigma_i^2)$, the predicted true effect is</p>
+<p>$$ \tilde\theta_i=B_i y_i+(1-B_i)\hat\mu. $$</p>
+<p>Its conditional variance is the tutorial’s recommended Raudenbush
+formula (Equation 10):</p>
+<p>$$ V_{\theta,i}
+=\frac{\tau^2\sigma_i^2}{\tau^2+\sigma_i^2}
++(1-B_i)^2\Var(\hat\mu),
+\qquad \Var(\hat\mu)=\left[\sum_j\frac1{\sigma_j^2+\tau^2}\right]^{-1}. $$</p>
+<p>The second term propagates uncertainty in the pooled mean. NMA
+replaces that mean with network treatment contrasts and propagates their
+joint covariance.</p>
+<p>These intervals describe true effects <strong>in observed
+studies</strong>. A new-study interval also includes a fresh
+heterogeneity deviation. Plugging in the estimated heterogeneity does
+not fully propagate its uncertainty, so 95% coverage is not guaranteed.
+Binary outcomes using a local Gaussian approximation introduce an
+additional approximation. <a href="part2.html">Part 2</a> discusses
+integration over heterogeneity.</p>
+
+
+    <div class="inpart">
+      <div class="inpart-label">Part 1 · From pairwise to NMA</div>
+      <ol>
+        <li><a href="1a-pairwise-fe.html">Pairwise &rarr; fixed-effect NMA</a></li>
+        <li><a href="1b-binomial-spring.html">Binomial: the nonlinear spring</a></li>
+        <li><a href="1c-random-effects.html">Random effects: a &tau;-spring per arm</a></li>
+        <li class="here"><a href="1d-spring-reml.html">Spring-REML: mean-square length</a></li>
+      </ol>
+    </div>
+
+<details class="faq">
+<summary>FAQ</summary>
+<div class="faq-body">
+
+<details class="faq-item"><summary>Is spring-REML
+exactly REML, or an approximation?</summary>
+<p>For the linear Gaussian model, the EM update targets the
+<strong>restricted likelihood</strong>, provided the full prediction
+uncertainty is included. Numerical convergence must still be checked.
+For binomial models, the Gaussian linearisation introduces an
+approximation, so agreement with Gaussian REML does not establish
+accuracy for sparse binary networks.</p>
+</details>
+</div>
+</details>
+  </article>
+  <nav class="pager">
+    <a class="pager-prev" href="1c-random-effects.html"><span class="pager-label">Previous</span><span class="pager-title">&larr; Random effects: a $\tau$-spring per arm, at a given $\tau$</span></a>
+    <a class="pager-next" href="part2.html"><span class="pager-label">Next</span><span class="pager-title">Grand canonical: the Bayesian solver &rarr;</span></a>
+  </nav>
+</main>
+<footer class="footer">
+  meta-springs &middot; <a href="https://github.com/tpapak/meta-springs">source on GitHub</a>
+</footer>
+</body>
+</html>
