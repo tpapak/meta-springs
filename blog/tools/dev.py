@@ -3,6 +3,7 @@ import argparse
 from functools import partial
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
+import socket
 import subprocess
 import sys
 import threading
@@ -101,7 +102,8 @@ def main():
         server.revision = time.time_ns()
         threading.Thread(target=server.serve_forever, daemon=True).start()
         started = True
-        print(f"\nBlog: http://macas.lan:{server.server_port}/\n"
+        port = server.server_port
+        print(f"\nBlog: http://localhost:{port}/  (on your network: http://{socket.gethostname()}:{port}/)\n"
               "Live reload enabled. Save to rebuild and refresh automatically. Ctrl-C stops both.\n",
               flush=True)
         while True:

@@ -9,7 +9,7 @@ Markdown, then rebuild — never hand-edit the `.html` files (they get overwritt
 bash blog/dev.sh    # from the repository root: build, serve, and watch
 ```
 
-Open http://macas.lan:8000/. Save your edits; the browser refreshes automatically after a successful rebuild.
+Open http://localhost:8000/. Save your edits; the browser refreshes automatically after a successful rebuild.
 Ctrl-C stops the server and watcher.
 
 ## What each `.md` file is

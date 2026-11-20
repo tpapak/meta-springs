@@ -22,12 +22,12 @@ From the repository root, run one command:
 bash blog/dev.sh
 ```
 
-Open **http://macas.lan:8000/**. The command builds the pages, serves the blog,
+Open **http://localhost:8000/**. The command builds the pages, serves the blog,
 and rebuilds when Markdown or animation sources change. Save your edits; the
 browser refreshes automatically after a successful build. **Ctrl-C stops both serving and watching.**
 
-The server listens on all IPv4 interfaces for LAN access. `macas.lan` must
-resolve to this computer on your network.
+The server listens on all IPv4 interfaces, so other devices on your network can
+open it at this computer's hostname (printed on start).
 
 Requires Python 3 and **pandoc** (`brew install pandoc`). If port 8000 is
 already occupied, stop the earlier server or use `bash blog/dev.sh 8001`.
